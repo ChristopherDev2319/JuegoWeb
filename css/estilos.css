@@ -1,0 +1,118 @@
+/* Estilos del juego FPS Three.js */
+
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+}
+
+canvas {
+  display: block;
+}
+
+/* Panel de información/controles */
+#info {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: white;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 15px;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+/* Punto de mira */
+#crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 4px;
+  background: white;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+#crosshair::before,
+#crosshair::after {
+  content: "";
+  position: absolute;
+  background: white;
+}
+
+#crosshair::before {
+  width: 20px;
+  height: 2px;
+  top: 1px;
+  left: -8px;
+}
+
+#crosshair::after {
+  width: 2px;
+  height: 20px;
+  top: -8px;
+  left: 1px;
+}
+
+/* Display de munición */
+#ammo {
+  position: absolute;
+  bottom: 30px;
+  right: 30px;
+  color: white;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 15px 25px;
+  border-radius: 5px;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+/* Indicador de daño */
+#damage-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: red;
+  font-size: 32px;
+  font-weight: bold;
+  pointer-events: none;
+  opacity: 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Cargas de dash */
+#dash-charges {
+  position: absolute;
+  bottom: 30px;
+  left: 30px;
+  color: white;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 15px 25px;
+  border-radius: 5px;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* Iconos de dash */
+.dash-icon {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  margin: 0 5px;
+  background: #00ff00;
+  border-radius: 5px;
+  vertical-align: middle;
+  transition: background 0.3s;
+}
+
+.dash-icon.recharging {
+  background: #ffaa00;
+}
+
+.dash-icon.empty {
+  background: #333333;
+}
