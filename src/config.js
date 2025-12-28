@@ -24,9 +24,9 @@ export const CONFIG = {
     tiempoRecarga: 2.0,
     velocidadBala: 30.0,
     retroceso: {
-      cantidad: 0.15,
-      arriba: 0.05,
-      duracion: 80
+      cantidad: 0.05,
+      arriba: 0.02,
+      duracion: 60
     }
   },
 

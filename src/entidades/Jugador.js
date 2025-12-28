@@ -2,6 +2,7 @@
  * Módulo Jugador
  * Gestiona el estado y movimiento del jugador
  * 
+ * Requirements: 3.2, 4.2
  * @requires THREE - Three.js debe estar disponible globalmente
  */
 
@@ -14,8 +15,17 @@ export const jugador = {
   posicion: null,
   velocidad: null,
   rotacion: null,
-  enSuelo: true
+  enSuelo: true,
+  // Server state for reconciliation
+  serverPosition: null,
+  serverRotation: null,
+  health: 200,
+  maxHealth: 200,
+  isAlive: true
 };
+
+// Reconciliation threshold - if local differs from server by more than this, snap to server
+const RECONCILIATION_THRESHOLD = 2.0;
 
 /**
  * Inicializa el estado del jugador
@@ -26,6 +36,11 @@ export function inicializarJugador() {
   jugador.velocidad = new THREE.Vector3();
   jugador.rotacion = new THREE.Euler(0, 0, 0, 'YXZ');
   jugador.enSuelo = true;
+  jugador.serverPosition = new THREE.Vector3(0, CONFIG.jugador.alturaOjos, 0);
+  jugador.serverRotation = new THREE.Euler(0, 0, 0, 'YXZ');
+  jugador.health = 200;
+  jugador.maxHealth = 200;
+  jugador.isAlive = true;
 }
 
 /**
@@ -66,6 +81,9 @@ export function calcularDireccionMovimiento(teclas) {
  * @param {Object} teclas - Estado de las teclas presionadas
  */
 export function actualizarMovimiento(teclas) {
+  // No mover si el jugador está muerto
+  if (!jugador.isAlive) return;
+  
   const { direccion } = calcularDireccionMovimiento(teclas);
 
   if (direccion.length() > 0) {
@@ -162,4 +180,76 @@ export function obtenerRotacion() {
  */
 export function estaEnSuelo() {
   return jugador.enSuelo;
+}
+
+/**
+ * Apply server state to local player with reconciliation (Requirement 3.2, 4.2)
+ * Keeps local prediction for responsiveness while reconciling with server state
+ * @param {Object} serverState - Player state from server
+ */
+export function aplicarEstadoServidor(serverState) {
+  if (!serverState) return;
+  
+  // Detectar si el jugador acaba de revivir
+  const acabaDeRevivir = !jugador.isAlive && serverState.isAlive;
+  
+  // Actualizar referencia de posición del servidor
+  jugador.serverPosition.set(
+    serverState.position.x,
+    serverState.position.y,
+    serverState.position.z
+  );
+  
+  // Actualizar referencia de rotación del servidor
+  if (serverState.rotation) {
+    jugador.serverRotation.set(
+      serverState.rotation.x || 0,
+      serverState.rotation.y || 0,
+      serverState.rotation.z || 0,
+      'YXZ'
+    );
+  }
+  
+  // Si el jugador acaba de revivir, forzar sincronización completa
+  if (acabaDeRevivir) {
+    jugador.posicion.copy(jugador.serverPosition);
+    jugador.velocidad.set(0, 0, 0);
+    jugador.enSuelo = true;
+    console.log('Jugador revivido - posición sincronizada');
+  } else {
+    // Calcular distancia entre posición local y del servidor
+    const distancia = jugador.posicion.distanceTo(jugador.serverPosition);
+    
+    // Si la posición local difiere mucho del servidor, sincronizar (reconciliación)
+    if (distancia > RECONCILIATION_THRESHOLD) {
+      jugador.posicion.copy(jugador.serverPosition);
+      console.log('Posición reconciliada con servidor');
+    }
+  }
+  
+  // Actualizar vida y estado vivo desde el servidor (autoritativo)
+  jugador.health = serverState.health;
+  jugador.maxHealth = serverState.maxHealth || 200;
+  jugador.isAlive = serverState.isAlive;
+  
+  // Actualizar estado de suelo desde el servidor
+  if (serverState.position.y <= CONFIG.jugador.alturaOjos + 0.1) {
+    jugador.enSuelo = true;
+  }
+}
+
+/**
+ * Get current health
+ * @returns {number}
+ */
+export function obtenerVida() {
+  return jugador.health;
+}
+
+/**
+ * Check if player is alive
+ * @returns {boolean}
+ */
+export function estaVivo() {
+  return jugador.isAlive;
 }

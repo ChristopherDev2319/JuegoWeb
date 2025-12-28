@@ -24,6 +24,24 @@
       <span class="dash-icon"></span>
     </div>
     <div id="damage-indicator"></div>
+    
+    <!-- Death screen overlay -->
+    <div id="death-screen" class="hidden">
+      <div class="death-content">
+        <div class="death-title">ELIMINADO</div>
+        <div class="death-killer">por <span id="killer-name">Jugador</span></div>
+        <div class="respawn-countdown">Reapareciendo en <span id="respawn-timer">5</span>s</div>
+      </div>
+    </div>
+    
+    <!-- Kill feed -->
+    <div id="kill-feed"></div>
+    
+    <!-- Health bar -->
+    <div id="health-bar-container">
+      <div id="health-bar"></div>
+      <div id="health-text">200 / 200</div>
+    </div>
 
     <!-- Librerías externas de Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>

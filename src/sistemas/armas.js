@@ -2,6 +2,7 @@
  * Sistema de Armas
  * Gestiona el estado del arma, disparo y recarga
  * 
+ * Requirements: 5.1, 6.1, 6.5
  * @requires THREE - Three.js debe estar disponible globalmente
  */
 
@@ -116,16 +117,25 @@ export function recargar(onRecargaCompleta = null) {
 export function animarRetroceso() {
   if (!modeloArma) return;
 
+  // Guardar posición original
   const posicionOriginalZ = modeloArma.position.z;
   const posicionOriginalY = modeloArma.position.y;
 
-  modeloArma.position.z += CONFIG.arma.retroceso.cantidad;
-  modeloArma.position.y += CONFIG.arma.retroceso.arriba;
+  // Aplicar retroceso (hacia atrás es positivo en Z local)
+  const retroceso = CONFIG.arma.retroceso.cantidad || 0.08;
+  const subirArma = CONFIG.arma.retroceso.arriba || 0.02;
+  
+  modeloArma.position.z += retroceso;
+  modeloArma.position.y += subirArma;
 
+  // Restaurar posición después de la duración
+  const duracion = CONFIG.arma.retroceso.duracion || 80;
   setTimeout(() => {
-    modeloArma.position.z = posicionOriginalZ;
-    modeloArma.position.y = posicionOriginalY;
-  }, CONFIG.arma.retroceso.duracion);
+    if (modeloArma) {
+      modeloArma.position.z = posicionOriginalZ;
+      modeloArma.position.y = posicionOriginalY;
+    }
+  }, duracion);
 }
 
 /**
@@ -166,4 +176,27 @@ export function reiniciarArma() {
   arma.estaRecargando = false;
   arma.puedeDisparar = true;
   arma.ultimoDisparo = 0;
+}
+
+/**
+ * Update weapon state from server (Requirement 6.5)
+ * @param {Object} serverState - Player state from server containing ammo info
+ */
+export function actualizarDesdeServidor(serverState) {
+  if (!serverState) return;
+  
+  // Update ammo from server (authoritative)
+  if (typeof serverState.ammo === 'number') {
+    arma.municionActual = serverState.ammo;
+  }
+  
+  // Update total ammo if provided
+  if (typeof serverState.totalAmmo === 'number') {
+    arma.municionTotal = serverState.totalAmmo;
+  }
+  
+  // Update reload state from server
+  if (typeof serverState.isReloading === 'boolean') {
+    arma.estaRecargando = serverState.isReloading;
+  }
 }
