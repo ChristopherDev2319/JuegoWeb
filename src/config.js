@@ -22,7 +22,7 @@ export const CONFIG = {
     tamañoCargador: 30,
     municionTotal: 120,
     tiempoRecarga: 2.0,
-    velocidadBala: 15.0,
+    velocidadBala: 30.0,
     retroceso: {
       cantidad: 0.15,
       arriba: 0.05,
@@ -33,7 +33,7 @@ export const CONFIG = {
   dash: {
     cargasMaximas: 3,
     tiempoRecarga: 3000,
-    poder: 2.5,
+    poder: 5,
     duracion: 200
   },
 

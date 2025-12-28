@@ -7,6 +7,7 @@
 
 // Importar módulos del juego
 import { CONFIG } from './config.js';
+
 import { 
   inicializarEscena, 
   scene, 
@@ -14,7 +15,9 @@ import {
   weaponContainer, 
   renderizar 
 } from './escena.js';
+
 import { Enemigo } from './entidades/Enemigo.js';
+
 import { 
   jugador, 
   inicializarJugador, 
@@ -24,29 +27,36 @@ import {
   actualizarRotacion, 
   sincronizarCamara 
 } from './entidades/Jugador.js';
+
 import { 
   arma, 
   disparar, 
   recargar, 
   establecerModeloArma 
 } from './sistemas/armas.js';
+
 import { 
   sistemaDash, 
   ejecutarDash, 
   actualizarRecargaDash 
 } from './sistemas/dash.js';
+
 import { 
   teclas, 
   inicializarControles, 
   estaPointerLockActivo, 
   estaMousePresionado 
 } from './sistemas/controles.js';
+
 import { crearEfectoDash } from './utils/efectos.js';
+
 import { mostrarIndicadorDaño } from './utils/ui.js';
 
 // Arrays globales del juego
 const enemigos = [];
 const balas = [];
+
+
 
 // Modelo del arma
 let modeloArma = null;

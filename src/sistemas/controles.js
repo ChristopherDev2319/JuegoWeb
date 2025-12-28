@@ -55,6 +55,9 @@ export function inicializarControles(eventCallbacks = {}) {
   document.addEventListener('mousemove', manejarMovimientoMouse);
   document.addEventListener('mousedown', manejarMouseDown);
   document.addEventListener('mouseup', manejarMouseUp);
+
+  // Activar pointer lock automáticamente al iniciar
+  document.body.requestPointerLock();
 }
 
 /**
