@@ -153,8 +153,13 @@ function obtenerUrlServidor() {
   // Use current host for WebSocket connection
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = window.location.hostname || 'localhost';
-  const port = window.location.port || '3000';
-  return `${protocol}//${host}:${port}`;
+  const port = window.location.port;
+  
+  // In production (Render), don't include port as it uses standard 443/80
+  if (port) {
+    return `${protocol}//${host}:${port}`;
+  }
+  return `${protocol}//${host}`;
 }
 
 /**

@@ -227,10 +227,10 @@ const tickInterval = setInterval(gameLoop, SERVER_CONFIG.tickInterval);
 // Get port from environment or config (Requirement 1.1)
 const PORT = process.env.PORT || SERVER_CONFIG.port;
 
-// Start server
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`WebSocket server ready on ws://localhost:${PORT}`);
+// Start server (bind to 0.0.0.0 for cloud deployment)
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`WebSocket server ready`);
   console.log(`Game loop running at ${SERVER_CONFIG.tickRate}Hz`);
 });
 
