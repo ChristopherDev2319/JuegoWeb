@@ -47,6 +47,6 @@ export const BULLET_CONFIG = {
 
 export const SERVER_CONFIG = {
   port: 3000,
-  tickRate: 60, // 60 updates per second
-  tickInterval: 1000 / 60 // ~16.67ms
+  tickRate: 20, // 20 updates per second (optimized for cloud hosting)
+  tickInterval: 1000 / 20 // 50ms
 };

@@ -75,8 +75,8 @@ let remotePlayerManager = null;
 let isMultiplayerConnected = false;
 let localPlayerId = null;
 
-// Input sending rate control (60Hz as per Requirement 2.4)
-const INPUT_SEND_RATE = 1000 / 60; // ~16.67ms
+// Input sending rate control (20Hz to match server tick rate)
+const INPUT_SEND_RATE = 1000 / 20; // 50ms
 let lastInputSendTime = 0;
 
 /**
