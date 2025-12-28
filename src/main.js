@@ -199,7 +199,7 @@ function configurarCallbacksRed() {
   
   // Hit notification
   connection.onHit((data) => {
-    mostrarIndicadorDaño(data.damage);
+    // Solo mostrar efecto visual de daño, sin el indicador de texto
     mostrarEfectoDaño();
     actualizarBarraVida(data.health, 200);
     console.log(`Hit! Damage: ${data.damage}, Health: ${data.health}`);

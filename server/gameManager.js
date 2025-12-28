@@ -150,10 +150,12 @@ export class GameManager {
    */
   processShootInput(player, data) {
     if (!player.canFire()) {
+      console.log(`[SHOOT] Player ${player.id} cannot fire: alive=${player.isAlive}, reloading=${player.isReloading}, ammo=${player.ammo}, timeSinceLastFire=${Date.now() - player.lastFireTime}ms`);
       return { success: false, reason: player.isReloading ? 'reloading' : 'cannot_fire' };
     }
 
     if (!data || !data.position || !data.direction) {
+      console.log(`[SHOOT] Player ${player.id} invalid data`);
       return { success: false, reason: 'invalid_data' };
     }
 
@@ -167,6 +169,7 @@ export class GameManager {
       data.direction
     );
 
+    console.log(`[SHOOT] Player ${player.id} fired bullet ${bullet.id}, ammo left: ${player.ammo}`);
     return { success: true, bullet };
   }
 
@@ -262,13 +265,16 @@ export class GameManager {
     for (const collision of collisions) {
       const target = this.players.get(collision.targetId);
       if (target) {
+        console.log(`[HIT] Bullet ${collision.bulletId} from ${collision.ownerId} hit ${collision.targetId} for ${collision.damage} damage`);
         const died = target.applyDamage(collision.damage);
+        console.log(`[HIT] ${collision.targetId} health: ${target.health}/${target.maxHealth}`);
         events.collisions.push({
           ...collision,
           targetHealth: target.health
         });
 
         if (died) {
+          console.log(`[DEATH] ${collision.targetId} killed by ${collision.ownerId}`);
           events.deaths.push({
             playerId: collision.targetId,
             killerId: collision.ownerId

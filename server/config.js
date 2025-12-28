@@ -26,7 +26,7 @@ export const PLAYER_CONFIG = {
 
 export const WEAPON_CONFIG = {
   damage: 20, // Requirement 5.3
-  fireRate: 400, // ms between shots
+  fireRate: 150, // ms between shots (400 RPM = 150ms)
   magazineSize: 30, // Requirement 6.4
   totalAmmo: 120,
   reloadTime: 2000, // 2 seconds (Requirement 6.4)

@@ -108,6 +108,9 @@ export class BulletSystem {
     for (const bullet of this.bullets) {
       if (!bullet.active) continue;
       
+      // Guardar posición anterior para raycast
+      const prevPosition = { ...bullet.position };
+      
       // Update bullet position
       bullet.update(deltaTime);
       
@@ -122,7 +125,21 @@ export class BulletSystem {
         // Skip bullet owner and dead players
         if (playerId === bullet.ownerId || !player.isAlive) continue;
         
+        // Verificar colisión con posición actual
         if (this.checkCollision(bullet, player)) {
+          collisions.push({
+            bulletId: bullet.id,
+            ownerId: bullet.ownerId,
+            targetId: playerId,
+            damage: bullet.damage,
+            position: { ...bullet.position }
+          });
+          bullet.deactivate();
+          break;
+        }
+        
+        // Verificar colisión por raycast (para balas rápidas)
+        if (this.checkRayCollision(prevPosition, bullet.position, player)) {
           collisions.push({
             bulletId: bullet.id,
             ownerId: bullet.ownerId,
@@ -143,25 +160,82 @@ export class BulletSystem {
   }
 
   /**
+   * Check ray collision between previous and current bullet position
+   * Prevents bullets from passing through players at high speeds
+   * @param {Object} from - Previous position
+   * @param {Object} to - Current position
+   * @param {PlayerState} player - Player to check against
+   * @returns {boolean} - True if ray intersects player
+   */
+  checkRayCollision(from, to, player) {
+    const playerRadius = 0.6;
+    const playerHeight = 2.0;
+    const playerCenterY = player.position.y - 0.7;
+    
+    // Calcular el punto más cercano en el segmento de línea al centro del jugador
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const dz = to.z - from.z;
+    
+    const fx = from.x - player.position.x;
+    const fy = from.y - playerCenterY;
+    const fz = from.z - player.position.z;
+    
+    // Proyección paramétrica
+    const a = dx * dx + dz * dz; // Solo horizontal para cilindro
+    const b = 2 * (fx * dx + fz * dz);
+    const c = fx * fx + fz * fz - playerRadius * playerRadius;
+    
+    let discriminant = b * b - 4 * a * c;
+    
+    if (discriminant < 0 || a === 0) {
+      return false;
+    }
+    
+    discriminant = Math.sqrt(discriminant);
+    
+    const t1 = (-b - discriminant) / (2 * a);
+    const t2 = (-b + discriminant) / (2 * a);
+    
+    // Verificar si algún punto de intersección está en el segmento [0, 1]
+    for (const t of [t1, t2]) {
+      if (t >= 0 && t <= 1) {
+        // Verificar altura en ese punto
+        const intersectY = from.y + dy * t;
+        const verticalDist = Math.abs(intersectY - playerCenterY);
+        if (verticalDist < playerHeight / 2) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  /**
    * Check collision between bullet and player
-   * Uses simple sphere collision detection
+   * Uses ray-based collision detection for better accuracy
    * @param {Bullet} bullet - The bullet to check
    * @param {PlayerState} player - The player to check against
    * @returns {boolean} - True if collision detected
    */
   checkCollision(bullet, player) {
-    const playerRadius = 0.5; // Player hitbox radius
-    const playerHeight = 1.7; // Player height
+    const playerRadius = 0.6; // Radio del hitbox (un poco más grande que el cubo de 1x1)
+    const playerHeight = 2.0; // Altura del hitbox (igual al cubo)
     
-    // Calculate distance from bullet to player center
+    // Centro del jugador (el cubo tiene centro en position.y - altura/2 + 1)
+    const playerCenterY = player.position.y - 0.7; // Ajustar al centro del cubo
+    
+    // Calcular distancia desde la bala al centro del jugador
     const dx = bullet.position.x - player.position.x;
-    const dy = bullet.position.y - (player.position.y - playerHeight / 2);
+    const dy = bullet.position.y - playerCenterY;
     const dz = bullet.position.z - player.position.z;
     
-    // Simple cylinder collision (horizontal distance + height check)
+    // Colisión de cilindro (distancia horizontal + verificación de altura)
     const horizontalDist = Math.sqrt(dx * dx + dz * dz);
     const verticalDist = Math.abs(dy);
     
+    // La bala colisiona si está dentro del cilindro
     return horizontalDist < playerRadius && verticalDist < playerHeight / 2;
   }
 

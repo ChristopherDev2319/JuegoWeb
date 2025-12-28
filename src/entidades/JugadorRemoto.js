@@ -111,23 +111,29 @@ export class RemotePlayer {
   loadWeaponModel() {
     const fbxLoader = new THREE.FBXLoader();
     
+    // Crear un contenedor para el arma que rote con el jugador
+    this.weaponContainer = new THREE.Group();
+    this.weaponContainer.position.set(0, 0.3, 0); // A la altura del pecho
+    this.group.add(this.weaponContainer);
+    
     fbxLoader.load('modelos/FBX/Weapons/M4A1.fbx', (weapon) => {
       this.weaponModel = weapon;
       
-      // Calculate scale
+      // Calcular escala - más grande para que se vea proporcional al cubo
       const box = new THREE.Box3().setFromObject(weapon);
       const size = new THREE.Vector3();
       box.getSize(size);
       
-      const desiredLength = 0.6;
-      const scale = desiredLength / size.z;
-      weapon.scale.setScalar(scale);
+      const longitudDeseada = 1.0; // Más grande
+      const escala = longitudDeseada / size.z;
+      weapon.scale.setScalar(escala);
       
-      // Position weapon at player's side
-      weapon.position.set(0.5, 0.3, 0.3);
-      weapon.rotation.set(0, Math.PI / 2, 0);
+      // Posicionar el arma al lado derecho del jugador
+      // Rotación de 180 grados (Math.PI) para que apunte hacia adelante
+      weapon.position.set(0.6, 0, 0); // Lado derecho
+      weapon.rotation.set(0, Math.PI, 0); // Rotar 180 grados para que apunte hacia adelante
       
-      // Configure shadows
+      // Configurar sombras
       weapon.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
@@ -135,7 +141,7 @@ export class RemotePlayer {
         }
       });
       
-      this.group.add(weapon);
+      this.weaponContainer.add(weapon);
     });
   }
 
@@ -146,6 +152,13 @@ export class RemotePlayer {
   updateFromState(state) {
     // Detectar si el jugador acaba de revivir
     const acabaDeRevivir = !this.serverState.isAlive && state.isAlive;
+    
+    // Detectar si es un dash (movimiento muy grande en poco tiempo)
+    const distanciaMovimiento = Math.sqrt(
+      Math.pow(state.position.x - this.serverState.position.x, 2) +
+      Math.pow(state.position.z - this.serverState.position.z, 2)
+    );
+    const esDash = distanciaMovimiento > 3; // Si se movió más de 3 unidades, es dash
     
     // Store previous state for interpolation
     this.previousState = {
@@ -165,9 +178,14 @@ export class RemotePlayer {
       );
       this.previousState.position = { ...state.position };
       this.interpolationAlpha = 1;
+    } else if (esDash) {
+      // Para dash, usar interpolación más rápida pero no instantánea
+      this.interpolationAlpha = 0;
+      this.dashInterpolation = true;
     } else {
       // Reset interpolation para movimiento normal
       this.interpolationAlpha = 0;
+      this.dashInterpolation = false;
     }
     
     // Update health bar
@@ -204,9 +222,15 @@ export class RemotePlayer {
    * @param {number} deltaTime - Time since last frame in seconds
    */
   interpolate(deltaTime) {
-    // Interpolation speed (complete interpolation in ~100ms)
-    const interpolationSpeed = 10;
+    // Velocidad de interpolación diferente para dash vs movimiento normal
+    // Dash: más rápido (completar en ~150ms)
+    // Normal: suave (completar en ~100ms)
+    // Salto: usar interpolación continua para suavidad
+    const interpolationSpeed = this.dashInterpolation ? 15 : 12;
     this.interpolationAlpha = Math.min(1, this.interpolationAlpha + deltaTime * interpolationSpeed);
+    
+    // Usar easing para movimiento más suave
+    const easedAlpha = easeOutQuad(this.interpolationAlpha);
     
     // Lerp position
     const targetX = this.serverState.position.x;
@@ -217,14 +241,18 @@ export class RemotePlayer {
     const prevY = this.previousState.position.y - CONFIG.jugador.alturaOjos + 1;
     const prevZ = this.previousState.position.z;
     
-    this.group.position.x = lerp(prevX, targetX, this.interpolationAlpha);
-    this.group.position.y = lerp(prevY, targetY, this.interpolationAlpha);
-    this.group.position.z = lerp(prevZ, targetZ, this.interpolationAlpha);
+    // Usar easing para X y Z, pero interpolación más suave para Y (salto)
+    this.group.position.x = lerp(prevX, targetX, easedAlpha);
+    this.group.position.y = lerp(prevY, targetY, easedAlpha);
+    this.group.position.z = lerp(prevZ, targetZ, easedAlpha);
     
-    // Lerp rotation (only Y axis for horizontal rotation)
+    // Lerp rotation (Y axis for horizontal rotation)
     const targetRotY = this.serverState.rotation.y;
     const prevRotY = this.previousState.rotation.y;
-    this.group.rotation.y = lerpAngle(prevRotY, targetRotY, this.interpolationAlpha);
+    const currentRotY = lerpAngle(prevRotY, targetRotY, easedAlpha);
+    
+    // Aplicar rotación al grupo principal (el cubo rota)
+    this.group.rotation.y = currentRotY;
     
     // Make health bar face camera (billboard effect)
     this.updateHealthBarOrientation();
@@ -297,6 +325,9 @@ export class RemotePlayer {
         }
       });
     }
+    
+    // Limpiar contenedor del arma
+    this.weaponContainer = null;
   }
 }
 
@@ -309,6 +340,15 @@ export class RemotePlayer {
  */
 function lerp(a, b, t) {
   return a + (b - a) * t;
+}
+
+/**
+ * Easing function for smoother movement
+ * @param {number} t - Input value (0-1)
+ * @returns {number} - Eased value
+ */
+function easeOutQuad(t) {
+  return t * (2 - t);
 }
 
 /**
