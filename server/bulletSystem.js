@@ -1,0 +1,328 @@
+/**
+ * Bullet System Module
+ * Manages bullet creation, movement, and collision detection
+ * 
+ * Requirements: 5.2, 5.3
+ */
+
+import { WEAPON_CONFIG, BULLET_CONFIG } from './config.js';
+
+let bulletIdCounter = 0;
+
+// Hitbox del personaje cartoon (rectangular)
+const CHARACTER_HITBOX = {
+  width: 0.8,   // Ancho (X)
+  height: 2.0,  // Altura (Y)
+  depth: 0.6    // Profundidad (Z)
+};
+
+/**
+ * Bullet class representing a projectile
+ */
+export class Bullet {
+  constructor(ownerId, position, direction) {
+    this.id = `bullet_${++bulletIdCounter}`;
+    this.ownerId = ownerId;
+    this.position = { ...position };
+    this.direction = normalizeDirection(direction);
+    this.speed = WEAPON_CONFIG.bulletSpeed;
+    this.damage = WEAPON_CONFIG.damage;
+    this.createdAt = Date.now();
+    this.active = true;
+  }
+
+  /**
+   * Update bullet position based on direction and speed
+   * @param {number} deltaTime - Time since last update in seconds
+   */
+  update(deltaTime) {
+    if (!this.active) return;
+    
+    this.position.x += this.direction.x * this.speed * deltaTime;
+    this.position.y += this.direction.y * this.speed * deltaTime;
+    this.position.z += this.direction.z * this.speed * deltaTime;
+  }
+
+  /**
+   * Check if bullet has exceeded its lifetime
+   */
+  isExpired() {
+    return Date.now() - this.createdAt > BULLET_CONFIG.lifetime;
+  }
+
+  /**
+   * Check if bullet has traveled too far
+   */
+  isTooFar() {
+    const distance = Math.sqrt(
+      this.position.x * this.position.x +
+      this.position.y * this.position.y +
+      this.position.z * this.position.z
+    );
+    return distance > BULLET_CONFIG.maxDistance;
+  }
+
+  /**
+   * Deactivate bullet
+   */
+  deactivate() {
+    this.active = false;
+  }
+
+  /**
+   * Serialize bullet for network transmission
+   */
+  toJSON() {
+    return {
+      id: this.id,
+      ownerId: this.ownerId,
+      position: { ...this.position },
+      direction: { ...this.direction }
+    };
+  }
+}
+
+/**
+ * BulletSystem class managing all bullets
+ */
+export class BulletSystem {
+  constructor() {
+    this.bullets = [];
+  }
+
+  /**
+   * Create a new bullet (Requirement 5.2)
+   * @param {string} ownerId - ID of the player who fired
+   * @param {Object} position - Starting position {x, y, z}
+   * @param {Object} direction - Direction vector {x, y, z}
+   * @returns {Bullet} - The created bullet
+   */
+  createBullet(ownerId, position, direction) {
+    const bullet = new Bullet(ownerId, position, direction);
+    this.bullets.push(bullet);
+    return bullet;
+  }
+
+  /**
+   * Update all bullets and check for collisions (Requirement 5.3)
+   * @param {number} deltaTime - Time since last update in seconds
+   * @param {Map<string, PlayerState>} players - Map of all players
+   * @returns {Array} - Array of collision results
+   */
+  update(deltaTime, players) {
+    const collisions = [];
+    
+    for (const bullet of this.bullets) {
+      if (!bullet.active) continue;
+      
+      // Guardar posición anterior para raycast
+      const prevPosition = { ...bullet.position };
+      
+      // Update bullet position
+      bullet.update(deltaTime);
+      
+      // Check for expiration
+      if (bullet.isExpired() || bullet.isTooFar()) {
+        bullet.deactivate();
+        continue;
+      }
+      
+      // Check for collisions with players
+      for (const [playerId, player] of players) {
+        // Skip bullet owner and dead players
+        if (playerId === bullet.ownerId || !player.isAlive) continue;
+        
+        // Verificar colisión con posición actual
+        if (this.checkCollision(bullet, player)) {
+          collisions.push({
+            bulletId: bullet.id,
+            ownerId: bullet.ownerId,
+            targetId: playerId,
+            damage: bullet.damage,
+            position: { ...bullet.position }
+          });
+          bullet.deactivate();
+          break;
+        }
+        
+        // Verificar colisión por raycast (para balas rápidas)
+        if (this.checkRayCollision(prevPosition, bullet.position, player)) {
+          collisions.push({
+            bulletId: bullet.id,
+            ownerId: bullet.ownerId,
+            targetId: playerId,
+            damage: bullet.damage,
+            position: { ...bullet.position }
+          });
+          bullet.deactivate();
+          break;
+        }
+      }
+    }
+    
+    // Clean up inactive bullets
+    this.cleanup();
+    
+    return collisions;
+  }
+
+  /**
+   * Check ray collision between previous and current bullet position
+   * Prevents bullets from passing through players at high speeds
+   * Uses rectangular hitbox for cartoon character
+   * @param {Object} from - Previous position
+   * @param {Object} to - Current position
+   * @param {PlayerState} player - Player to check against
+   * @returns {boolean} - True if ray intersects player
+   */
+  checkRayCollision(from, to, player) {
+    const halfWidth = CHARACTER_HITBOX.width / 2;
+    const halfDepth = CHARACTER_HITBOX.depth / 2;
+    const playerHeight = CHARACTER_HITBOX.height;
+    const playerCenterY = player.position.y - 0.7;
+    
+    // Usar AABB (Axis-Aligned Bounding Box) para el raycast
+    const minX = player.position.x - halfWidth;
+    const maxX = player.position.x + halfWidth;
+    const minY = playerCenterY - playerHeight / 2;
+    const maxY = playerCenterY + playerHeight / 2;
+    const minZ = player.position.z - halfDepth;
+    const maxZ = player.position.z + halfDepth;
+    
+    // Dirección del rayo
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const dz = to.z - from.z;
+    
+    // Calcular t para cada plano
+    let tMin = 0;
+    let tMax = 1;
+    
+    // X axis
+    if (Math.abs(dx) > 0.0001) {
+      const t1 = (minX - from.x) / dx;
+      const t2 = (maxX - from.x) / dx;
+      tMin = Math.max(tMin, Math.min(t1, t2));
+      tMax = Math.min(tMax, Math.max(t1, t2));
+    } else if (from.x < minX || from.x > maxX) {
+      return false;
+    }
+    
+    // Y axis
+    if (Math.abs(dy) > 0.0001) {
+      const t1 = (minY - from.y) / dy;
+      const t2 = (maxY - from.y) / dy;
+      tMin = Math.max(tMin, Math.min(t1, t2));
+      tMax = Math.min(tMax, Math.max(t1, t2));
+    } else if (from.y < minY || from.y > maxY) {
+      return false;
+    }
+    
+    // Z axis
+    if (Math.abs(dz) > 0.0001) {
+      const t1 = (minZ - from.z) / dz;
+      const t2 = (maxZ - from.z) / dz;
+      tMin = Math.max(tMin, Math.min(t1, t2));
+      tMax = Math.min(tMax, Math.max(t1, t2));
+    } else if (from.z < minZ || from.z > maxZ) {
+      return false;
+    }
+    
+    return tMin <= tMax;
+  }
+
+  /**
+   * Check collision between bullet and player
+   * Uses rectangular AABB hitbox for cartoon character
+   * @param {Bullet} bullet - The bullet to check
+   * @param {PlayerState} player - The player to check against
+   * @returns {boolean} - True if collision detected
+   */
+  checkCollision(bullet, player) {
+    const halfWidth = CHARACTER_HITBOX.width / 2;
+    const halfDepth = CHARACTER_HITBOX.depth / 2;
+    const playerHeight = CHARACTER_HITBOX.height;
+    
+    // Centro del jugador
+    const playerCenterY = player.position.y - 0.7;
+    
+    // Calcular distancia desde la bala al centro del jugador
+    const dx = Math.abs(bullet.position.x - player.position.x);
+    const dy = Math.abs(bullet.position.y - playerCenterY);
+    const dz = Math.abs(bullet.position.z - player.position.z);
+    
+    // Colisión AABB (Axis-Aligned Bounding Box)
+    return dx < halfWidth && dy < playerHeight / 2 && dz < halfDepth;
+  }
+
+  /**
+   * Remove a specific bullet by ID
+   * @param {string} bulletId - ID of bullet to remove
+   */
+  removeBullet(bulletId) {
+    const index = this.bullets.findIndex(b => b.id === bulletId);
+    if (index !== -1) {
+      this.bullets.splice(index, 1);
+    }
+  }
+
+  /**
+   * Clean up inactive bullets
+   */
+  cleanup() {
+    this.bullets = this.bullets.filter(b => b.active);
+  }
+
+  /**
+   * Get all active bullets
+   * @returns {Array<Bullet>} - Array of active bullets
+   */
+  getActiveBullets() {
+    return this.bullets.filter(b => b.active);
+  }
+
+  /**
+   * Serialize all bullets for network transmission
+   */
+  toJSON() {
+    return this.bullets.filter(b => b.active).map(b => b.toJSON());
+  }
+
+  /**
+   * Clear all bullets
+   */
+  clear() {
+    this.bullets = [];
+  }
+}
+
+/**
+ * Normalize a direction vector
+ * @param {Object} direction - Direction vector {x, y, z}
+ * @returns {Object} - Normalized direction vector
+ */
+function normalizeDirection(direction) {
+  const length = Math.sqrt(
+    direction.x * direction.x +
+    direction.y * direction.y +
+    direction.z * direction.z
+  );
+  
+  if (length === 0) {
+    return { x: 0, y: 0, z: 1 }; // Default forward direction
+  }
+  
+  return {
+    x: direction.x / length,
+    y: direction.y / length,
+    z: direction.z / length
+  };
+}
+
+/**
+ * Create a new bullet system instance
+ * @returns {BulletSystem} - New bullet system
+ */
+export function createBulletSystem() {
+  return new BulletSystem();
+}

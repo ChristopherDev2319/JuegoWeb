@@ -2,6 +2,7 @@
  * Sistema de Dash
  * Gestiona las cargas de dash, ejecución y recarga
  * 
+ * Requirements: 7.1, 7.5
  * @requires THREE - Three.js debe estar disponible globalmente
  */
 
@@ -160,4 +161,29 @@ export function reiniciarDash() {
   sistemaDash.estaEnDash = false;
   sistemaDash.cargasRecargando = [false, false, false];
   sistemaDash.inicioRecarga = [0, 0, 0];
+}
+
+/**
+ * Update dash state from server (Requirement 7.5)
+ * @param {Object} serverState - Player state from server containing dash info
+ */
+export function actualizarDesdeServidor(serverState) {
+  if (!serverState) return;
+  
+  // Update dash charges from server (authoritative)
+  if (typeof serverState.dashCharges === 'number') {
+    sistemaDash.cargasActuales = serverState.dashCharges;
+  }
+  
+  // Update max charges if provided
+  if (typeof serverState.maxDashCharges === 'number') {
+    // Max charges is typically constant, but sync if server provides it
+    // CONFIG.dash.cargasMaximas = serverState.maxDashCharges;
+  }
+  
+  // Reset recharging state based on server charges
+  // If server says we have full charges, clear recharging state
+  if (sistemaDash.cargasActuales >= CONFIG.dash.cargasMaximas) {
+    sistemaDash.cargasRecargando = [false, false, false];
+  }
 }

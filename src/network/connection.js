@@ -1,0 +1,327 @@
+/**
+ * Network Connection Module
+ * Handles WebSocket connection to the game server
+ * 
+ * Requirements: 2.1, 2.2, 2.3
+ */
+
+/**
+ * NetworkConnection class manages WebSocket communication with the server
+ */
+export class NetworkConnection {
+  constructor() {
+    this.socket = null;
+    this.playerId = null;
+    this.connected = false;
+    
+    // Event callbacks
+    this._onGameState = null;
+    this._onPlayerJoined = null;
+    this._onPlayerLeft = null;
+    this._onWelcome = null;
+    this._onHit = null;
+    this._onDeath = null;
+    this._onRespawn = null;
+    this._onBulletCreated = null;
+    this._onDamageDealt = null;
+    this._onError = null;
+    this._onDisconnect = null;
+  }
+
+  /**
+   * Connect to the game server (Requirement 2.1)
+   * @param {string} serverUrl - WebSocket server URL
+   * @returns {Promise<void>} - Resolves when connected, rejects on error
+   */
+  connect(serverUrl) {
+    return new Promise((resolve, reject) => {
+      try {
+        this.socket = new WebSocket(serverUrl);
+        
+        this.socket.onopen = () => {
+          this.connected = true;
+          console.log('Connected to server');
+        };
+        
+        this.socket.onmessage = (event) => {
+          this._handleMessage(event.data);
+          
+          // Resolve promise on welcome message (Requirement 2.2)
+          if (!this.playerId) {
+            // Wait for welcome message to resolve
+          }
+        };
+        
+        this.socket.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          if (this._onError) {
+            this._onError(error);
+          }
+          if (!this.connected) {
+            reject(new Error('Connection failed'));
+          }
+        };
+        
+        this.socket.onclose = () => {
+          this.connected = false;
+          this.playerId = null;
+          console.log('Disconnected from server');
+          if (this._onDisconnect) {
+            this._onDisconnect();
+          }
+        };
+        
+        // Set up welcome handler to resolve promise
+        const originalOnWelcome = this._onWelcome;
+        this._onWelcome = (data) => {
+          this.playerId = data.playerId;
+          if (originalOnWelcome) {
+            originalOnWelcome(data);
+          }
+          resolve();
+        };
+        
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Disconnect from the server
+   */
+  disconnect() {
+    if (this.socket) {
+      this.socket.close();
+      this.socket = null;
+      this.connected = false;
+      this.playerId = null;
+    }
+  }
+
+  /**
+   * Send a message to the server
+   * @param {string} type - Message type
+   * @param {Object} data - Message data
+   */
+  send(type, data) {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      console.warn('Cannot send message: not connected');
+      return;
+    }
+    
+    const message = {
+      type: type,
+      data: data,
+      timestamp: Date.now()
+    };
+    
+    this.socket.send(JSON.stringify(message));
+  }
+
+  /**
+   * Handle incoming message from server
+   * @param {string} data - Raw message data
+   * @private
+   */
+  _handleMessage(data) {
+    let message;
+    try {
+      message = JSON.parse(data);
+    } catch (error) {
+      console.warn('Failed to parse message:', error);
+      return;
+    }
+    
+    if (!message || !message.type) {
+      return;
+    }
+    
+    switch (message.type) {
+      case 'welcome':
+        // Requirement 2.2: Receive player ID and initial game state
+        if (this._onWelcome) {
+          this._onWelcome(message.data);
+        }
+        break;
+        
+      case 'state':
+        // Game state update
+        if (this._onGameState) {
+          this._onGameState(message.data);
+        }
+        break;
+        
+      case 'playerJoined':
+        if (this._onPlayerJoined) {
+          this._onPlayerJoined(message.data.player);
+        }
+        break;
+        
+      case 'playerLeft':
+        if (this._onPlayerLeft) {
+          this._onPlayerLeft(message.data.playerId);
+        }
+        break;
+        
+      case 'hit':
+        if (this._onHit) {
+          this._onHit(message.data);
+        }
+        break;
+        
+      case 'death':
+        if (this._onDeath) {
+          this._onDeath(message.data);
+        }
+        break;
+        
+      case 'respawn':
+        if (this._onRespawn) {
+          this._onRespawn(message.data);
+        }
+        break;
+        
+      case 'bulletCreated':
+        if (this._onBulletCreated) {
+          this._onBulletCreated(message.data.bullet);
+        }
+        break;
+        
+      case 'damageDealt':
+        if (this._onDamageDealt) {
+          this._onDamageDealt(message.data);
+        }
+        break;
+        
+      default:
+        console.log('Unknown message type:', message.type);
+    }
+  }
+
+  /**
+   * Register callback for game state updates
+   * @param {Function} callback - Function to call with game state
+   */
+  onGameState(callback) {
+    this._onGameState = callback;
+  }
+
+  /**
+   * Register callback for player joined events
+   * @param {Function} callback - Function to call with player data
+   */
+  onPlayerJoined(callback) {
+    this._onPlayerJoined = callback;
+  }
+
+  /**
+   * Register callback for player left events
+   * @param {Function} callback - Function to call with player ID
+   */
+  onPlayerLeft(callback) {
+    this._onPlayerLeft = callback;
+  }
+
+  /**
+   * Register callback for welcome message
+   * @param {Function} callback - Function to call with welcome data
+   */
+  onWelcome(callback) {
+    this._onWelcome = callback;
+  }
+
+  /**
+   * Register callback for hit events
+   * @param {Function} callback - Function to call with hit data
+   */
+  onHit(callback) {
+    this._onHit = callback;
+  }
+
+  /**
+   * Register callback for death events
+   * @param {Function} callback - Function to call with death data
+   */
+  onDeath(callback) {
+    this._onDeath = callback;
+  }
+
+  /**
+   * Register callback for respawn events
+   * @param {Function} callback - Function to call with respawn data
+   */
+  onRespawn(callback) {
+    this._onRespawn = callback;
+  }
+
+  /**
+   * Register callback for bullet created events
+   * @param {Function} callback - Function to call with bullet data
+   */
+  onBulletCreated(callback) {
+    this._onBulletCreated = callback;
+  }
+
+  /**
+   * Register callback for damage dealt events (when local player hits someone)
+   * @param {Function} callback - Function to call with damage data
+   */
+  onDamageDealt(callback) {
+    this._onDamageDealt = callback;
+  }
+
+  /**
+   * Register callback for connection errors (Requirement 2.3)
+   * @param {Function} callback - Function to call on error
+   */
+  onError(callback) {
+    this._onError = callback;
+  }
+
+  /**
+   * Register callback for disconnection
+   * @param {Function} callback - Function to call on disconnect
+   */
+  onDisconnect(callback) {
+    this._onDisconnect = callback;
+  }
+
+  /**
+   * Check if connected to server
+   * @returns {boolean} - True if connected
+   */
+  isConnected() {
+    return this.connected && this.socket && this.socket.readyState === WebSocket.OPEN;
+  }
+
+  /**
+   * Get the local player ID
+   * @returns {string|null} - Player ID or null if not connected
+   */
+  getPlayerId() {
+    return this.playerId;
+  }
+}
+
+// Singleton instance for easy access
+let connectionInstance = null;
+
+/**
+ * Get the network connection singleton
+ * @returns {NetworkConnection}
+ */
+export function getConnection() {
+  if (!connectionInstance) {
+    connectionInstance = new NetworkConnection();
+  }
+  return connectionInstance;
+}
+
+/**
+ * Create a new network connection (for testing or multiple connections)
+ * @returns {NetworkConnection}
+ */
+export function createConnection() {
+  return new NetworkConnection();
+}
