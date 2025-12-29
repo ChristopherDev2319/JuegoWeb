@@ -63,6 +63,9 @@ export class RemotePlayer {
     // Character model reference
     this.characterModel = null;
     
+    // Current weapon type
+    this.currentWeapon = state.currentWeapon || 'M4A1';
+    
     // Create hitbox mesh (invisible, for collision detection)
    // this.createHitbox();
     
@@ -71,7 +74,8 @@ export class RemotePlayer {
     
     // Load weapon model
     this.weaponModel = null;
-    this.loadWeaponModel();
+    this.weaponModelsCache = {}; // Cache de modelos de armas
+    this.loadWeaponModel(this.currentWeapon);
     
     // Set initial position and rotation
     this.group.position.set(
@@ -207,38 +211,47 @@ export class RemotePlayer {
 
 
   /**
-   * Load the M4A1 weapon model (Requirement 3.1)
+   * Load weapon model for remote player
+   * @param {string} weaponType - Type of weapon to load
    */
-  loadWeaponModel() {
+  loadWeaponModel(weaponType = 'M4A1') {
     const fbxLoader = new THREE.FBXLoader();
     
-    // Crear un contenedor para el arma que rote con el jugador
-    this.weaponContainer = new THREE.Group();
-    // Posicionar el arma según la configuración del personaje
-    this.weaponContainer.position.set(
-      CHARACTER_CONFIG.weaponPosition.x,
-      CHARACTER_CONFIG.weaponPosition.y,
-      CHARACTER_CONFIG.weaponPosition.z
-    );
-    this.group.add(this.weaponContainer);
+    // Crear un contenedor para el arma si no existe
+    if (!this.weaponContainer) {
+      this.weaponContainer = new THREE.Group();
+      this.weaponContainer.position.set(
+        CHARACTER_CONFIG.weaponPosition.x,
+        CHARACTER_CONFIG.weaponPosition.y,
+        CHARACTER_CONFIG.weaponPosition.z
+      );
+      this.group.add(this.weaponContainer);
+    }
     
-    fbxLoader.load('modelos/FBX/Weapons/M4A1.fbx', (weapon) => {
-      this.weaponModel = weapon;
-      
-      // Calcular escala - proporcional al personaje
+    // Obtener configuración del arma
+    const configArma = CONFIG.armas[weaponType];
+    if (!configArma || !configArma.modelo) {
+      console.warn(`No config found for weapon: ${weaponType}`);
+      return;
+    }
+    
+    // Si ya está en cache, usarlo
+    if (this.weaponModelsCache[weaponType]) {
+      this.setWeaponModel(this.weaponModelsCache[weaponType].clone(), configArma);
+      return;
+    }
+    
+    fbxLoader.load(configArma.modelo, (weapon) => {
+      // Calcular escala
       const box = new THREE.Box3().setFromObject(weapon);
       const size = new THREE.Vector3();
       box.getSize(size);
       
-      const longitudDeseada = 0.8; // Tamaño del arma
-      const escala = longitudDeseada / size.z;
+      const longitudDeseada = 0.8;
+      const escala = longitudDeseada / Math.max(size.x, size.y, size.z);
       weapon.scale.setScalar(escala);
       
-      // Posicionar el arma al lado derecho del jugador
-      weapon.position.set(0.2, 0, 0);
-      weapon.rotation.set(0, Math.PI, 0); // Rotar 180 grados para que apunte hacia adelante
-      
-      // Sin sombras para mejor rendimiento
+      // Sin sombras
       weapon.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = false;
@@ -246,8 +259,50 @@ export class RemotePlayer {
         }
       });
       
-      this.weaponContainer.add(weapon);
+      // Guardar en cache
+      this.weaponModelsCache[weaponType] = weapon.clone();
+      
+      // Aplicar el modelo
+      this.setWeaponModel(weapon, configArma);
+      
+    }, undefined, (error) => {
+      console.error(`Error loading weapon ${weaponType}:`, error);
     });
+  }
+
+  /**
+   * Set the weapon model in the container
+   * @param {THREE.Object3D} weapon - Weapon model
+   * @param {Object} configArma - Weapon configuration
+   */
+  setWeaponModel(weapon, configArma) {
+    // Remover modelo anterior
+    if (this.weaponModel) {
+      this.weaponContainer.remove(this.weaponModel);
+    }
+    
+    this.weaponModel = weapon;
+    
+    // Posicionar según configuración
+    weapon.position.set(0.2, 0, 0);
+    
+    // Aplicar rotación del arma
+    const rotConfig = configArma.rotacion || { x: 0, y: Math.PI, z: 0 };
+    weapon.rotation.set(rotConfig.x, rotConfig.y, rotConfig.z);
+    
+    this.weaponContainer.add(weapon);
+  }
+
+  /**
+   * Change weapon model
+   * @param {string} weaponType - New weapon type
+   */
+  changeWeapon(weaponType) {
+    if (this.currentWeapon === weaponType) return;
+    
+    this.currentWeapon = weaponType;
+    this.loadWeaponModel(weaponType);
+    console.log(`Remote player ${this.id} changed weapon to ${weaponType}`);
   }
 
   /**
@@ -264,6 +319,11 @@ export class RemotePlayer {
       Math.pow(state.position.z - this.serverState.position.z, 2)
     );
     const esDash = distanciaMovimiento > 3; // Si se movió más de 3 unidades, es dash
+    
+    // Detectar cambio de arma
+    if (state.currentWeapon && state.currentWeapon !== this.currentWeapon) {
+      this.changeWeapon(state.currentWeapon);
+    }
     
     // Store previous state for interpolation
     this.previousState = {

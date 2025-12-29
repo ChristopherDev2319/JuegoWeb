@@ -20,7 +20,9 @@ export const arma = {
   puedeDisparar: true,
   ultimoDisparo: 0,
   estaApuntando: false,
-  transicionApuntado: 0 // 0 = no apuntando, 1 = completamente apuntando
+  transicionApuntado: 0, // 0 = no apuntando, 1 = completamente apuntando
+  retrocesoacumulado: 0, // Retroceso acumulado que afecta precisión
+  disparosConsecutivos: 0 // Contador de disparos consecutivos
 };
 
 /**
@@ -52,6 +54,44 @@ let animacionApuntado = null;
  */
 function obtenerConfigArmaActual() {
   return CONFIG.armas[arma.tipoActual];
+}
+
+/**
+ * Obtiene la dispersión actual por retroceso acumulado
+ * @returns {number} - Dispersión adicional por retroceso
+ */
+export function obtenerDispersionRetroceso() {
+  const configArma = obtenerConfigArmaActual();
+  const retroceso = configArma.retroceso || {};
+  
+  // Calcular dispersión basada en disparos consecutivos
+  // Máximo de dispersión después de ~10 disparos
+  const maxDispersion = (retroceso.cantidad || 0.05) * 2;
+  const dispersionBase = arma.disparosConsecutivos * (retroceso.cantidad || 0.05) * 0.3;
+  
+  let dispersion = Math.min(dispersionBase, maxDispersion);
+  
+  // Reducir dispersión si está apuntando
+  if (arma.estaApuntando && configArma.apuntado && configArma.apuntado.reduccionRetroceso) {
+    dispersion *= configArma.apuntado.reduccionRetroceso;
+  }
+  
+  return dispersion;
+}
+
+/**
+ * Actualiza el retroceso acumulado (llamar cada frame)
+ */
+export function actualizarRetroceso() {
+  const ahora = performance.now();
+  const tiempoSinDisparo = ahora - arma.ultimoDisparo;
+  
+  // Si no ha disparado en 200ms, empezar a reducir el retroceso
+  if (tiempoSinDisparo > 200) {
+    // Reducir disparos consecutivos gradualmente
+    const reduccion = (tiempoSinDisparo - 200) / 100; // Reduce 1 disparo cada 100ms
+    arma.disparosConsecutivos = Math.max(0, arma.disparosConsecutivos - reduccion * 0.1);
+  }
 }
 
 /**
@@ -453,6 +493,9 @@ export function animarRetroceso() {
   const configArma = obtenerConfigArmaActual();
   let retroceso = configArma.retroceso.cantidad || 0.08;
   let subirArma = configArma.retroceso.arriba || 0.02;
+  
+  // Incrementar disparos consecutivos para afectar precisión
+  arma.disparosConsecutivos = Math.min(arma.disparosConsecutivos + 1, 15);
   
   // Reducir retroceso si está apuntando
   if (arma.estaApuntando && configArma.apuntado && configArma.apuntado.reduccionRetroceso) {

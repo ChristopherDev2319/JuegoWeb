@@ -56,8 +56,9 @@ export class InputSender {
    * Send shoot input to server (Requirement 5.1)
    * @param {Object} position - Bullet start position { x, y, z }
    * @param {Object} direction - Bullet direction { x, y, z }
+   * @param {string} weaponType - Type of weapon being fired
    */
-  sendShoot(position, direction) {
+  sendShoot(position, direction, weaponType = 'M4A1') {
     if (!this.connection.isConnected()) {
       return;
     }
@@ -72,7 +73,22 @@ export class InputSender {
         x: direction.x || 0,
         y: direction.y || 0,
         z: direction.z || 0
-      }
+      },
+      weaponType: weaponType
+    });
+  }
+
+  /**
+   * Send weapon change to server
+   * @param {string} weaponType - Type of weapon to switch to
+   */
+  sendWeaponChange(weaponType) {
+    if (!this.connection.isConnected()) {
+      return;
+    }
+    
+    this.connection.send('weaponChange', {
+      weaponType: weaponType
     });
   }
 

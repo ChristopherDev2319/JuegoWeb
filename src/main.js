@@ -24,7 +24,8 @@ import {
   saltar, 
   actualizarRotacion, 
   sincronizarCamara,
-  aplicarEstadoServidor
+  aplicarEstadoServidor,
+  marcarInicioDash
 } from './entidades/Jugador.js';
 
 import { 
@@ -42,7 +43,9 @@ import {
   obtenerEstado,
   establecerCamara,
   alternarApuntado,
-  estaApuntando
+  estaApuntando,
+  obtenerDispersionRetroceso,
+  actualizarRetroceso
 } from './sistemas/armas.js';
 
 import { Bala } from './entidades/Bala.js';
@@ -357,11 +360,10 @@ async function inicializarSistemaArmas() {
   agregarArma('ESCOPETA');
   agregarArma('MP5');
   agregarArma('SCAR');
-  agregarArma('USP');
   
-  // Cargar modelo inicial (M4A1)
+  // Cargar modelo inicial (M4A1) - usar cambiarModeloArma para que se agregue al contenedor
   try {
-    await cargarModeloArma('M4A1', weaponContainer);
+    await cambiarModeloArma('M4A1', weaponContainer);
     console.log('✅ Modelo inicial cargado');
   } catch (error) {
     console.error('❌ Error cargando modelo inicial:', error);
@@ -384,6 +386,11 @@ function manejarSiguienteArma() {
   mostrarCambioArma(estado.nombre);
   actualizarInfoArma(estado);
   actualizarDisplayMunicion();
+  
+  // Notificar al servidor del cambio de arma
+  if (isMultiplayerConnected) {
+    inputSender.sendWeaponChange(estado.tipoActual);
+  }
   console.log(`🔄 Cambiado a: ${estado.nombre}`);
 }
 
@@ -396,6 +403,11 @@ function manejarArmaAnterior() {
   mostrarCambioArma(estado.nombre);
   actualizarInfoArma(estado);
   actualizarDisplayMunicion();
+  
+  // Notificar al servidor del cambio de arma
+  if (isMultiplayerConnected) {
+    inputSender.sendWeaponChange(estado.tipoActual);
+  }
   console.log(`🔄 Cambiado a: ${estado.nombre}`);
 }
 
@@ -412,6 +424,11 @@ function manejarSeleccionarArma(indice) {
       mostrarCambioArma(nuevoEstado.nombre);
       actualizarInfoArma(nuevoEstado);
       actualizarDisplayMunicion();
+      
+      // Notificar al servidor del cambio de arma
+      if (isMultiplayerConnected) {
+        inputSender.sendWeaponChange(nuevoEstado.tipoActual);
+      }
       console.log(`🎯 Seleccionado: ${nuevoEstado.nombre}`);
     }
   }
@@ -456,10 +473,28 @@ function manejarDash() {
     // Calculate dash direction
     const direccion = calcularDireccionDash();
     
+    // Marcar inicio de dash para evitar reconciliación brusca
+    marcarInicioDash();
+    
+    // Aplicar dash localmente para predicción inmediata
+    const dashPower = CONFIG.dash.poder;
+    jugador.posicion.x += direccion.x * dashPower;
+    jugador.posicion.z += direccion.z * dashPower;
+    
+    // Aplicar límites del mapa
+    jugador.posicion.x = Math.max(
+      CONFIG.jugador.limites.min,
+      Math.min(CONFIG.jugador.limites.max, jugador.posicion.x)
+    );
+    jugador.posicion.z = Math.max(
+      CONFIG.jugador.limites.min,
+      Math.min(CONFIG.jugador.limites.max, jugador.posicion.z)
+    );
+    
     // Send dash input to server
     inputSender.sendDash(direccion);
     
-    // Local visual effect (prediction)
+    // Local visual effect
     crearEfectoDash(jugador.posicion, scene);
   } else {
     // Fallback to local processing
@@ -541,23 +576,28 @@ function manejarDisparo() {
     direccion.applyQuaternion(camera.quaternion);
     direccion.normalize();
     
-    // Enviar input de disparo al servidor
+    // Obtener dispersión por retroceso acumulado
+    const dispersionRetroceso = obtenerDispersionRetroceso();
+    
+    // Enviar input de disparo al servidor con el tipo de arma
     inputSender.sendShoot(
       { x: posicionBala.x, y: posicionBala.y, z: posicionBala.z },
-      { x: direccion.x, y: direccion.y, z: direccion.z }
+      { x: direccion.x, y: direccion.y, z: direccion.z },
+      estadoArma.tipoActual
     );
     
     // Para escopetas, crear múltiples balas visuales
     const numProyectiles = configArma.proyectiles || 1;
-    const dispersion = configArma.dispersion || 0;
+    const dispersionArma = configArma.dispersion || 0;
     
     for (let i = 0; i < numProyectiles; i++) {
       const direccionBala = direccion.clone();
       
-      // Aplicar dispersión si es necesario
-      if (dispersion > 0) {
-        direccionBala.x += (Math.random() - 0.5) * dispersion;
-        direccionBala.y += (Math.random() - 0.5) * dispersion;
+      // Aplicar dispersión del arma (escopeta) + dispersión por retroceso
+      const dispersionTotal = dispersionArma + dispersionRetroceso;
+      if (dispersionTotal > 0) {
+        direccionBala.x += (Math.random() - 0.5) * dispersionTotal;
+        direccionBala.y += (Math.random() - 0.5) * dispersionTotal;
         direccionBala.normalize();
       }
       
@@ -682,10 +722,19 @@ function bucleJuego() {
     actualizarRecargaDash();
   }
   actualizarDisplayDash();
+  
+  // Actualizar retroceso acumulado (se reduce con el tiempo)
+  actualizarRetroceso();
 
-  // Disparo automático si el mouse está presionado
+  // Disparo automático si el mouse está presionado (solo para armas automáticas)
   if (estaMousePresionado() && estaPointerLockActivo()) {
-    manejarDisparo();
+    const estadoArma = obtenerEstado();
+    const configArma = CONFIG.armas[estadoArma.tipoActual];
+    
+    // Solo disparar automáticamente si el arma NO es semiautomática
+    if (!configArma.semiAutomatica) {
+      manejarDisparo();
+    }
   }
 
   // Update local movement (for prediction)

@@ -104,6 +104,24 @@ function handleMessage(ws, data) {
     };
   }
   
+  // Manejar cambio de arma
+  if (message.type === 'weaponChange') {
+    const player = gameManager.getPlayer(playerId);
+    if (player && inputData.weaponType) {
+      player.changeWeapon(inputData.weaponType);
+      console.log(`[WEAPON] Player ${playerId} changed to ${inputData.weaponType}`);
+    }
+    return;
+  }
+  
+  // Para disparos, actualizar el arma del jugador antes de procesar
+  if (message.type === 'shoot' && inputData.weaponType) {
+    const player = gameManager.getPlayer(playerId);
+    if (player && player.currentWeapon !== inputData.weaponType) {
+      player.changeWeapon(inputData.weaponType);
+    }
+  }
+  
   // Route message to game manager based on type
   const input = {
     type: inputType,

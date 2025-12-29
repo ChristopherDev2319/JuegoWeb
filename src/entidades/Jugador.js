@@ -21,11 +21,16 @@ export const jugador = {
   serverRotation: null,
   health: 200,
   maxHealth: 200,
-  isAlive: true
+  isAlive: true,
+  // Dash state for reconciliation
+  ultimoDash: 0,
+  dashEnProgreso: false
 };
 
 // Reconciliation threshold - if local differs from server by more than this, snap to server
 const RECONCILIATION_THRESHOLD = 2.0;
+// Tiempo de gracia después de un dash para no reconciliar (ms)
+const DASH_GRACE_PERIOD = 500;
 
 /**
  * Inicializa el estado del jugador
@@ -41,6 +46,16 @@ export function inicializarJugador() {
   jugador.health = 200;
   jugador.maxHealth = 200;
   jugador.isAlive = true;
+  jugador.ultimoDash = 0;
+  jugador.dashEnProgreso = false;
+}
+
+/**
+ * Marca que se inició un dash (para evitar reconciliación durante el dash)
+ */
+export function marcarInicioDash() {
+  jugador.ultimoDash = performance.now();
+  jugador.dashEnProgreso = true;
 }
 
 /**
@@ -215,13 +230,29 @@ export function aplicarEstadoServidor(serverState) {
     jugador.posicion.copy(jugador.serverPosition);
     jugador.velocidad.set(0, 0, 0);
     jugador.enSuelo = true;
+    jugador.dashEnProgreso = false;
     console.log('Jugador revivido - posición sincronizada');
   } else {
+    // Verificar si estamos en período de gracia del dash
+    const tiempoDesdeUltimoDash = performance.now() - jugador.ultimoDash;
+    const enGraciaDash = tiempoDesdeUltimoDash < DASH_GRACE_PERIOD;
+    
+    // Si el dash terminó, marcar como no en progreso
+    if (jugador.dashEnProgreso && !enGraciaDash) {
+      jugador.dashEnProgreso = false;
+    }
+    
     // Calcular distancia entre posición local y del servidor
     const distancia = jugador.posicion.distanceTo(jugador.serverPosition);
     
-    // Si la posición local difiere mucho del servidor, sincronizar (reconciliación)
-    if (distancia > RECONCILIATION_THRESHOLD) {
+    // Si estamos en dash, usar interpolación suave hacia el servidor en lugar de snap
+    if (enGraciaDash && distancia > 0.5) {
+      // Interpolar suavemente hacia la posición del servidor
+      const factor = 0.15; // Factor de interpolación suave
+      jugador.posicion.x += (jugador.serverPosition.x - jugador.posicion.x) * factor;
+      jugador.posicion.z += (jugador.serverPosition.z - jugador.posicion.z) * factor;
+    } else if (!enGraciaDash && distancia > RECONCILIATION_THRESHOLD) {
+      // Si no estamos en dash y la diferencia es grande, sincronizar
       jugador.posicion.copy(jugador.serverPosition);
       console.log('Posición reconciliada con servidor');
     }
