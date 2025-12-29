@@ -34,6 +34,8 @@ canvas {
   border-radius: 50%;
   pointer-events: none;
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5);
+  transition: all 0.2s ease;
+  z-index: 100;
 }
 
 #crosshair::before,
@@ -41,6 +43,7 @@ canvas {
   content: "";
   position: absolute;
   background: white;
+  transition: all 0.2s ease;
 }
 
 #crosshair::before {
@@ -57,8 +60,19 @@ canvas {
   left: 1px;
 }
 
+/* Crosshair cuando está apuntando */
+#crosshair.aiming {
+  background: #00ff00;
+  box-shadow: 0 0 0 1px rgba(0, 255, 0, 0.8);
+}
+
+#crosshair.aiming::before,
+#crosshair.aiming::after {
+  background: #00ff00;
+}
+
 /* Display de munición */
-#ammo {
+#weapon-info {
   position: absolute;
   bottom: 30px;
   right: 30px;
@@ -66,8 +80,104 @@ canvas {
   background: rgba(0, 0, 0, 0.7);
   padding: 15px 25px;
   border-radius: 5px;
-  font-size: 24px;
   font-weight: bold;
+  text-align: right;
+}
+
+#weapon-name {
+  font-size: 18px;
+  color: #ffaa00;
+  margin-bottom: 5px;
+}
+
+#ammo {
+  font-size: 24px;
+}
+
+/* Lista de armas */
+#weapon-list {
+  position: absolute;
+  bottom: 120px;
+  right: 30px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 5px;
+  padding: 10px;
+  min-width: 150px;
+}
+
+.weapon-item {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  margin: 2px 0;
+  border-radius: 3px;
+  color: #aaa;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.weapon-item.active {
+  background: rgba(255, 170, 0, 0.3);
+  color: #ffaa00;
+  border-left: 3px solid #ffaa00;
+}
+
+.weapon-number {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.weapon-item.active .weapon-number {
+  background: #ffaa00;
+  color: black;
+}
+
+.weapon-name {
+  flex: 1;
+}
+
+/* Indicador de apuntado */
+#aim-indicator {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #00ff00;
+  font-size: 16px;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+  z-index: 100;
+}
+
+#aim-indicator.active {
+  opacity: 1;
+}
+#weapon-change-notification {
+  position: fixed;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-size: 18px;
+  font-weight: bold;
+  z-index: 900;
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 /* Indicador de daño */

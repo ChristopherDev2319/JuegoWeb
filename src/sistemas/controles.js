@@ -30,7 +30,11 @@ let callbacks = {
   onDash: null,
   onDisparar: null,
   onSaltar: null,
-  onMovimientoMouse: null
+  onMovimientoMouse: null,
+  onSiguienteArma: null,
+  onArmaAnterior: null,
+  onSeleccionarArma: null,
+  onApuntar: null
 };
 
 /**
@@ -41,6 +45,10 @@ let callbacks = {
  * @param {Function} eventCallbacks.onDisparar - Callback para disparar (clic izquierdo)
  * @param {Function} eventCallbacks.onSaltar - Callback para saltar (espacio)
  * @param {Function} eventCallbacks.onMovimientoMouse - Callback para movimiento del mouse
+ * @param {Function} eventCallbacks.onSiguienteArma - Callback para siguiente arma (rueda del mouse hacia arriba o Q)
+ * @param {Function} eventCallbacks.onArmaAnterior - Callback para arma anterior (rueda del mouse hacia abajo)
+ * @param {Function} eventCallbacks.onSeleccionarArma - Callback para seleccionar arma por número (teclas 1-5)
+ * @param {Function} eventCallbacks.onApuntar - Callback para apuntar (clic derecho)
  */
 export function inicializarControles(eventCallbacks = {}) {
   callbacks = { ...callbacks, ...eventCallbacks };
@@ -55,6 +63,8 @@ export function inicializarControles(eventCallbacks = {}) {
   document.addEventListener('mousemove', manejarMovimientoMouse);
   document.addEventListener('mousedown', manejarMouseDown);
   document.addEventListener('mouseup', manejarMouseUp);
+  document.addEventListener('wheel', manejarRuedaMouse);
+  document.addEventListener('contextmenu', manejarMenuContextual);
 
   // Activar pointer lock automáticamente al iniciar
   document.body.requestPointerLock();
@@ -81,6 +91,29 @@ function manejarTeclaPresionada(evento) {
 
   if (evento.code === 'Space' && callbacks.onSaltar) {
     callbacks.onSaltar();
+  }
+
+  // Cambio de armas con Q
+  if (evento.code === 'KeyQ' && callbacks.onSiguienteArma) {
+    callbacks.onSiguienteArma();
+  }
+
+  // Selección directa de armas con números 1-8
+  if (callbacks.onSeleccionarArma) {
+    const numeroArma = {
+      'Digit1': 0,
+      'Digit2': 1,
+      'Digit3': 2,
+      'Digit4': 3,
+      'Digit5': 4,
+      'Digit6': 5,
+      'Digit7': 6,
+      'Digit8': 7
+    }[evento.code];
+
+    if (numeroArma !== undefined) {
+      callbacks.onSeleccionarArma(numeroArma);
+    }
   }
 }
 
@@ -127,10 +160,18 @@ function manejarMovimientoMouse(evento) {
  * @param {MouseEvent} evento
  */
 function manejarMouseDown(evento) {
-  if (pointerLockActivo && evento.button === 0) {
+  if (!pointerLockActivo) return;
+  
+  if (evento.button === 0) {
+    // Clic izquierdo - disparar
     mousePresionado = true;
     if (callbacks.onDisparar) {
       callbacks.onDisparar();
+    }
+  } else if (evento.button === 2) {
+    // Clic derecho - apuntar
+    if (callbacks.onApuntar) {
+      callbacks.onApuntar(true);
     }
   }
 }
@@ -142,6 +183,39 @@ function manejarMouseDown(evento) {
 function manejarMouseUp(evento) {
   if (evento.button === 0) {
     mousePresionado = false;
+  } else if (evento.button === 2) {
+    // Soltar clic derecho - dejar de apuntar
+    if (callbacks.onApuntar) {
+      callbacks.onApuntar(false);
+    }
+  }
+}
+
+/**
+ * Maneja el evento de la rueda del mouse
+ * @param {WheelEvent} evento
+ */
+function manejarRuedaMouse(evento) {
+  if (!pointerLockActivo) return;
+
+  evento.preventDefault();
+
+  if (evento.deltaY < 0 && callbacks.onSiguienteArma) {
+    // Rueda hacia arriba - siguiente arma
+    callbacks.onSiguienteArma();
+  } else if (evento.deltaY > 0 && callbacks.onArmaAnterior) {
+    // Rueda hacia abajo - arma anterior
+    callbacks.onArmaAnterior();
+  }
+}
+
+/**
+ * Previene el menú contextual del clic derecho
+ * @param {Event} evento
+ */
+function manejarMenuContextual(evento) {
+  if (pointerLockActivo) {
+    evento.preventDefault();
   }
 }
 
@@ -208,6 +282,8 @@ export function destruirControles() {
   document.removeEventListener('mousemove', manejarMovimientoMouse);
   document.removeEventListener('mousedown', manejarMouseDown);
   document.removeEventListener('mouseup', manejarMouseUp);
+  document.removeEventListener('wheel', manejarRuedaMouse);
+  document.removeEventListener('contextmenu', manejarMenuContextual);
 
   // Limpiar estado
   Object.keys(teclas).forEach(key => delete teclas[key]);

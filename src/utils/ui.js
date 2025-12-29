@@ -11,13 +11,135 @@ export function actualizarMunicion(arma) {
   const ammoDiv = document.getElementById('ammo');
   if (!ammoDiv) return;
 
-  if (arma.isReloading) {
+  if (arma.isReloading || arma.estaRecargando) {
     ammoDiv.textContent = 'RECARGANDO...';
     ammoDiv.style.color = '#ffaa00';
   } else {
-    ammoDiv.textContent = `${arma.currentAmmo} / ${arma.totalAmmo}`;
-    ammoDiv.style.color = arma.currentAmmo <= 5 ? '#ff0000' : 'white';
+    const municionActual = arma.currentAmmo || arma.municionActual;
+    const municionTotal = arma.totalAmmo || arma.municionTotal;
+    ammoDiv.textContent = `${municionActual} / ${municionTotal}`;
+    ammoDiv.style.color = municionActual <= 5 ? '#ff0000' : 'white';
   }
+}
+
+/**
+ * Actualiza el display del arma actual
+ * @param {Object} estadoArma - Estado completo del arma
+ */
+export function actualizarInfoArma(estadoArma) {
+  // Actualizar nombre del arma
+  const weaponNameDiv = document.getElementById('weapon-name');
+  if (weaponNameDiv && estadoArma.nombre) {
+    let nombreTexto = estadoArma.nombre;
+    if (estadoArma.estaApuntando) {
+      nombreTexto += ' [APUNTANDO]';
+    }
+    weaponNameDiv.textContent = nombreTexto;
+    
+    // Cambiar color si está apuntando
+    weaponNameDiv.style.color = estadoArma.estaApuntando ? '#00ff00' : '#ffaa00';
+  }
+
+  // Actualizar munición
+  actualizarMunicion(estadoArma);
+
+  // Actualizar lista de armas disponibles
+  actualizarListaArmas(estadoArma.armasDisponibles, estadoArma.tipoActual);
+  
+  // Actualizar crosshair
+  actualizarCrosshair(estadoArma);
+}
+
+/**
+ * Actualiza el crosshair basado en el estado de apuntado
+ * @param {Object} estadoArma - Estado del arma
+ */
+export function actualizarCrosshair(estadoArma) {
+  const crosshair = document.getElementById('crosshair');
+  const aimIndicator = document.getElementById('aim-indicator');
+  
+  if (crosshair) {
+    if (estadoArma.estaApuntando) {
+      // Crosshair más pequeño y preciso al apuntar
+      crosshair.style.transform = 'translate(-50%, -50%) scale(0.5)';
+      crosshair.style.backgroundColor = '#00ff00';
+      crosshair.style.boxShadow = '0 0 0 1px rgba(0, 255, 0, 0.8)';
+      crosshair.classList.add('aiming');
+    } else {
+      // Crosshair normal
+      crosshair.style.transform = 'translate(-50%, -50%) scale(1)';
+      crosshair.style.backgroundColor = 'white';
+      crosshair.style.boxShadow = '0 0 0 2px rgba(0, 0, 0, 0.5)';
+      crosshair.classList.remove('aiming');
+    }
+  }
+  
+  if (aimIndicator) {
+    if (estadoArma.estaApuntando) {
+      aimIndicator.classList.add('active');
+    } else {
+      aimIndicator.classList.remove('active');
+    }
+  }
+}
+
+/**
+ * Actualiza la lista de armas disponibles en la UI
+ * @param {Array} armasDisponibles - Array de tipos de armas disponibles
+ * @param {string} armaActual - Tipo de arma actualmente seleccionada
+ */
+export function actualizarListaArmas(armasDisponibles, armaActual) {
+  const weaponListDiv = document.getElementById('weapon-list');
+  if (!weaponListDiv || !armasDisponibles) return;
+
+  weaponListDiv.innerHTML = '';
+
+  armasDisponibles.forEach((tipoArma, index) => {
+    const weaponItem = document.createElement('div');
+    weaponItem.className = `weapon-item ${tipoArma === armaActual ? 'active' : ''}`;
+    weaponItem.innerHTML = `
+      <span class="weapon-number">${index + 1}</span>
+      <span class="weapon-name">${tipoArma}</span>
+    `;
+    weaponListDiv.appendChild(weaponItem);
+  });
+}
+
+/**
+ * Muestra notificación de cambio de arma
+ * @param {string} nombreArma - Nombre del arma seleccionada
+ */
+export function mostrarCambioArma(nombreArma) {
+  let notification = document.getElementById('weapon-change-notification');
+  
+  if (!notification) {
+    notification = document.createElement('div');
+    notification.id = 'weapon-change-notification';
+    notification.style.cssText = `
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      font-size: 18px;
+      font-weight: bold;
+      z-index: 900;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    `;
+    document.body.appendChild(notification);
+  }
+
+  notification.textContent = `Arma: ${nombreArma}`;
+  notification.style.opacity = '1';
+
+  // Ocultar después de 2 segundos
+  setTimeout(() => {
+    notification.style.opacity = '0';
+  }, 2000);
 }
 
 /**

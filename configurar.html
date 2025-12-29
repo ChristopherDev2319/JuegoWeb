@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración del Juego</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 10px;
+        }
+        .option {
+            background: #333;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border-left: 4px solid #ffaa00;
+        }
+        .option.active {
+            border-left-color: #00ff00;
+            background: #1a3a1a;
+        }
+        button {
+            background: #ffaa00;
+            color: black;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        button:hover {
+            background: #ff8800;
+        }
+        button.active {
+            background: #00ff00;
+        }
+        .status {
+            background: #1a1a3a;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #0088ff;
+        }
+        .warning {
+            background: #3a1a1a;
+            border-left-color: #ff4444;
+        }
+        .success {
+            background: #1a3a1a;
+            border-left-color: #00ff00;
+        }
+        .play-button {
+            background: #00ff00;
+            color: black;
+            font-size: 20px;
+            padding: 20px 40px;
+            margin: 20px 0;
+        }
+        .play-button:hover {
+            background: #00dd00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Configuración del Juego FPS</h1>
+        
+        <div class="status" id="server-status">
+            <h3>Estado del Servidor:</h3>
+            <p>Verificando...</p>
+        </div>
+
+        <div class="option" id="multiplayer-option">
+            <h3>🌐 Modo Multijugador</h3>
+            <p>Juega con otros jugadores en línea. Requiere servidor activo.</p>
+            <button id="enable-multiplayer" onclick="setMultiplayer(true)">Habilitar Multijugador</button>
+            <div id="multiplayer-info" style="margin-top: 10px; display: none;">
+                <p><strong>Características:</strong></p>
+                <ul>
+                    <li>Juego en tiempo real con otros jugadores</li>
+                    <li>Sistema de kills y respawn</li>
+                    <li>Sincronización de movimiento y disparos</li>
+                    <li>Requiere conexión al servidor WebSocket</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="option" id="local-option">
+            <h3>🎯 Modo Local</h3>
+            <p>Juega solo para probar armas y mecánicas. No requiere servidor.</p>
+            <button id="enable-local" onclick="setMultiplayer(false)">Modo Local</button>
+            <div id="local-info" style="margin-top: 10px; display: none;">
+                <p><strong>Características:</strong></p>
+                <ul>
+                    <li>Juego sin conexión</li>
+                    <li>Prueba todas las armas y el sistema de apuntado</li>
+                    <li>Movimiento y controles completos</li>
+                    <li>Perfecto para practicar</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="status" id="current-config">
+            <h3>Configuración Actual:</h3>
+            <p id="config-text">Cargando...</p>
+        </div>
+
+        <div style="text-align: center;">
+            <button class="play-button" onclick="playGame()">🚀 JUGAR AHORA</button>
+        </div>
+
+        <div class="status">
+            <h3>📋 Instrucciones:</h3>
+            <ol>
+                <li><strong>Elige tu modo de juego</strong> arriba</li>
+                <li><strong>Verifica el estado del servidor</strong> si eliges multijugador</li>
+                <li><strong>Haz clic en "JUGAR AHORA"</strong> para empezar</li>
+            </ol>
+            
+            <h4>🎮 Controles del Juego:</h4>
+            <ul>
+                <li><strong>WASD</strong> - Movimiento</li>
+                <li><strong>Mouse</strong> - Mirar alrededor</li>
+                <li><strong>Clic Izquierdo</strong> - Disparar</li>
+                <li><strong>Clic Derecho</strong> - Apuntar</li>
+                <li><strong>R</strong> - Recargar</li>
+                <li><strong>Q / Rueda Mouse</strong> - Cambiar arma</li>
+                <li><strong>1-5</strong> - Seleccionar arma directamente</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let multiplayerEnabled = true;
+        
+        // Verificar estado del servidor
+        async function checkServerStatus() {
+            const statusDiv = document.getElementById('server-status');
+            
+            try {
+                // Intentar conectar al servidor WebSocket
+                const ws = new WebSocket('ws://localhost:3000');
+                
+                ws.onopen = () => {
+                    statusDiv.className = 'status success';
+                    statusDiv.innerHTML = `
+                        <h3>✅ Estado del Servidor:</h3>
+                        <p>Servidor WebSocket activo en puerto 3000</p>
+                        <p>Multijugador disponible</p>
+                    `;
+                    ws.close();
+                };
+                
+                ws.onerror = () => {
+                    statusDiv.className = 'status warning';
+                    statusDiv.innerHTML = `
+                        <h3>⚠️ Estado del Servidor:</h3>
+                        <p>No se puede conectar al servidor WebSocket</p>
+                        <p>Usa modo local o inicia el servidor con: <code>npm start</code></p>
+                    `;
+                };
+                
+            } catch (error) {
+                statusDiv.className = 'status warning';
+                statusDiv.innerHTML = `
+                    <h3>❌ Estado del Servidor:</h3>
+                    <p>Error al verificar servidor: ${error.message}</p>
+                `;
+            }
+        }
+        
+        function setMultiplayer(enabled) {
+            multiplayerEnabled = enabled;
+            
+            // Actualizar UI
+            const multiplayerOption = document.getElementById('multiplayer-option');
+            const localOption = document.getElementById('local-option');
+            const multiplayerBtn = document.getElementById('enable-multiplayer');
+            const localBtn = document.getElementById('enable-local');
+            const multiplayerInfo = document.getElementById('multiplayer-info');
+            const localInfo = document.getElementById('local-info');
+            
+            if (enabled) {
+                multiplayerOption.classList.add('active');
+                localOption.classList.remove('active');
+                multiplayerBtn.classList.add('active');
+                localBtn.classList.remove('active');
+                multiplayerInfo.style.display = 'block';
+                localInfo.style.display = 'none';
+            } else {
+                multiplayerOption.classList.remove('active');
+                localOption.classList.add('active');
+                multiplayerBtn.classList.remove('active');
+                localBtn.classList.add('active');
+                multiplayerInfo.style.display = 'none';
+                localInfo.style.display = 'block';
+            }
+            
+            updateConfigDisplay();
+        }
+        
+        function updateConfigDisplay() {
+            const configText = document.getElementById('config-text');
+            configText.innerHTML = `
+                <strong>Modo:</strong> ${multiplayerEnabled ? 'Multijugador' : 'Local'}<br>
+                <strong>Servidor:</strong> ${multiplayerEnabled ? 'ws://localhost:3000' : 'No requerido'}<br>
+                <strong>Armas:</strong> 5 armas disponibles con sistema de apuntado<br>
+                <strong>Controles:</strong> WASD + Mouse + Clic derecho para apuntar
+            `;
+        }
+        
+        function playGame() {
+            // Guardar configuración en localStorage
+            localStorage.setItem('gameConfig', JSON.stringify({
+                multiplayerEnabled: multiplayerEnabled,
+                timestamp: Date.now()
+            }));
+            
+            // Redirigir al juego
+            window.location.href = 'index.html';
+        }
+        
+        // Inicializar
+        checkServerStatus();
+        setMultiplayer(true); // Por defecto multijugador
+        
+        // Verificar servidor cada 10 segundos
+        setInterval(checkServerStatus, 10000);
+    </script>
+</body>
+</html>

@@ -31,9 +31,18 @@ import {
   arma, 
   disparar,
   recargar, 
-  establecerModeloArma,
+  cambiarModeloArma,
+  cargarModeloArma,
   animarRetroceso,
-  actualizarDesdeServidor as actualizarArmaDesdeServidor
+  actualizarDesdeServidor as actualizarArmaDesdeServidor,
+  cambiarArma,
+  agregarArma,
+  siguienteArma,
+  armaAnterior,
+  obtenerEstado,
+  establecerCamara,
+  alternarApuntado,
+  estaApuntando
 } from './sistemas/armas.js';
 
 import { Bala } from './entidades/Bala.js';
@@ -52,7 +61,7 @@ import {
 } from './sistemas/controles.js';
 
 import { crearEfectoDash } from './utils/efectos.js';
-import { mostrarIndicadorDaño, mostrarMensajeConexion, ocultarMensajeConexion, mostrarPantallaMuerte, ocultarPantallaMuerte, agregarEntradaKillFeed, actualizarBarraVida, mostrarEfectoDaño, mostrarDañoCausado } from './utils/ui.js';
+import { mostrarIndicadorDaño, mostrarMensajeConexion, ocultarMensajeConexion, mostrarPantallaMuerte, ocultarPantallaMuerte, agregarEntradaKillFeed, actualizarBarraVida, mostrarEfectoDaño, mostrarDañoCausado, actualizarInfoArma, mostrarCambioArma } from './utils/ui.js';
 
 // Network imports
 import { getConnection } from './network/connection.js';
@@ -67,6 +76,28 @@ let modeloArma = null;
 
 // Control de tiempo
 let ultimoTiempo = performance.now();
+
+/**
+ * Lee la configuración guardada del juego
+ */
+function leerConfiguracionGuardada() {
+  try {
+    const configGuardada = localStorage.getItem('gameConfig');
+    if (configGuardada) {
+      const config = JSON.parse(configGuardada);
+      CONFIG.red.habilitarMultijugador = config.multiplayerEnabled;
+      
+      console.log('📋 Configuración cargada:');
+      console.log(`   Multijugador: ${config.multiplayerEnabled ? 'Habilitado' : 'Deshabilitado'}`);
+      
+      if (!config.multiplayerEnabled) {
+        console.log('🎯 Modo local activado');
+      }
+    }
+  } catch (error) {
+    console.warn('No se pudo cargar la configuración guardada:', error);
+  }
+}
 
 // Network state
 let connection = null;
@@ -83,14 +114,17 @@ let lastInputSendTime = 0;
  * Inicializa el juego
  */
 async function inicializar() {
+  // Leer configuración guardada
+  leerConfiguracionGuardada();
+
   // Inicializar escena de Three.js
   inicializarEscena();
 
   // Inicializar jugador
   inicializarJugador();
 
-  // Cargar modelo del arma
-  cargarModeloArma();
+  // Inicializar sistema de armas (incluye carga de modelos)
+  await inicializarSistemaArmas();
 
   // Inicializar controles
   inicializarControles({
@@ -98,8 +132,15 @@ async function inicializar() {
     onDash: manejarDash,
     onDisparar: manejarDisparo,
     onSaltar: manejarSalto,
-    onMovimientoMouse: manejarMovimientoMouse
+    onMovimientoMouse: manejarMovimientoMouse,
+    onSiguienteArma: manejarSiguienteArma,
+    onArmaAnterior: manejarArmaAnterior,
+    onSeleccionarArma: manejarSeleccionarArma,
+    onApuntar: manejarApuntado
   });
+
+  // Establecer referencia de cámara para el sistema de apuntado
+  establecerCamara(camera);
 
   // Inicializar displays de UI
   actualizarDisplayMunicion();
@@ -117,6 +158,12 @@ async function inicializar() {
  * Requirements: 2.1, 2.2
  */
 async function inicializarRed() {
+  // Verificar si el multijugador está habilitado
+  if (!CONFIG.red.habilitarMultijugador) {
+    console.log('🎮 Modo local: Multijugador deshabilitado');
+    return;
+  }
+
   mostrarMensajeConexion('Conectando al servidor...');
   
   connection = getConnection();
@@ -131,18 +178,34 @@ async function inicializarRed() {
   // Get server URL (default to localhost:3000)
   const serverUrl = obtenerUrlServidor();
   
-  try {
-    await connection.connect(serverUrl);
-    console.log('Connected to server successfully');
-  } catch (error) {
-    console.error('Failed to connect to server:', error);
-    mostrarMensajeConexion('Error de conexión. Click para reintentar.', true);
-    
-    // Set up retry on click
-    document.body.addEventListener('click', async function retryConnection() {
-      document.body.removeEventListener('click', retryConnection);
-      await inicializarRed();
-    }, { once: true });
+  let intentos = 0;
+  const maxIntentos = CONFIG.red.reintentos;
+  
+  while (intentos < maxIntentos) {
+    try {
+      console.log(`Intento de conexión ${intentos + 1}/${maxIntentos} a ${serverUrl}`);
+      await connection.connect(serverUrl);
+      console.log('✅ Conectado al servidor exitosamente');
+      return;
+    } catch (error) {
+      intentos++;
+      console.error(`❌ Fallo en intento ${intentos}:`, error.message);
+      
+      if (intentos >= maxIntentos) {
+        console.log('🎮 Cambiando a modo local (sin multijugador)');
+        mostrarMensajeConexion('Modo local - Sin conexión al servidor', false);
+        
+        // Ocultar mensaje después de 3 segundos
+        setTimeout(() => {
+          ocultarMensajeConexion();
+        }, 3000);
+        
+        return;
+      }
+      
+      // Esperar antes del siguiente intento
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
 }
 
@@ -153,13 +216,9 @@ function obtenerUrlServidor() {
   // Use current host for WebSocket connection
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = window.location.hostname || 'localhost';
-  const port = window.location.port;
+  const puerto = CONFIG.red.puertoServidor || 3000;
   
-  // In production (Render), don't include port as it uses standard 443/80
-  if (port) {
-    return `${protocol}//${host}:${port}`;
-  }
-  return `${protocol}//${host}`;
+  return `${protocol}//${host}:${puerto}`;
 }
 
 /**
@@ -281,43 +340,93 @@ function procesarEstadoJuego(gameState) {
 }
 
 /**
- * Carga el modelo 3D del arma
+ * Inicializa el sistema de armas con armas adicionales
  */
-function cargarModeloArma() {
-  const fbxLoader = new THREE.FBXLoader();
-
-  fbxLoader.load('modelos/FBX/Weapons/M4A1.fbx', (armaCaregada) => {
-    modeloArma = armaCaregada;
-
-    // Calcular escala
-    const box = new THREE.Box3().setFromObject(armaCaregada);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-
-    const longitudDeseada = 0.8;
-    const escala = longitudDeseada / size.z;
-    armaCaregada.scale.setScalar(escala);
-
-    // Posicionar el arma
-    armaCaregada.position.set(0.3, -0.3, -0.5);
-    armaCaregada.rotation.set(0, Math.PI, 0);
-
-    // Sin sombras
-    armaCaregada.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = false;
-        child.receiveShadow = false;
-      }
-    });
-
-    // Añadir al contenedor del arma
-    weaponContainer.add(armaCaregada);
-
-    // Establecer referencia para animaciones de retroceso
-    establecerModeloArma(armaCaregada);
-  });
+async function inicializarSistemaArmas() {
+  console.log('🔫 Inicializando sistema de armas...');
+  
+  // Agregar armas al inventario (el jugador empieza con M4A1)
+  agregarArma('PISTOLA');
+  agregarArma('AK47');
+  agregarArma('SNIPER');
+  agregarArma('ESCOPETA');
+  agregarArma('MP5');
+  agregarArma('SCAR');
+  agregarArma('USP');
+  
+  // Cargar modelo inicial (M4A1)
+  try {
+    await cargarModeloArma('M4A1', weaponContainer);
+    console.log('✅ Modelo inicial cargado');
+  } catch (error) {
+    console.error('❌ Error cargando modelo inicial:', error);
+  }
+  
+  // Actualizar UI inicial
+  const estadoInicial = obtenerEstado();
+  actualizarInfoArma(estadoInicial);
+  
+  console.log('🎮 Armas disponibles:', estadoInicial.armasDisponibles);
+  console.log('🔫 Arma actual:', estadoInicial.nombre);
 }
 
+/**
+ * Maneja el cambio a la siguiente arma
+ */
+function manejarSiguienteArma() {
+  siguienteArma(weaponContainer);
+  const estado = obtenerEstado();
+  mostrarCambioArma(estado.nombre);
+  actualizarInfoArma(estado);
+  actualizarDisplayMunicion();
+  console.log(`🔄 Cambiado a: ${estado.nombre}`);
+}
+
+/**
+ * Maneja el cambio a la arma anterior
+ */
+function manejarArmaAnterior() {
+  armaAnterior(weaponContainer);
+  const estado = obtenerEstado();
+  mostrarCambioArma(estado.nombre);
+  actualizarInfoArma(estado);
+  actualizarDisplayMunicion();
+  console.log(`🔄 Cambiado a: ${estado.nombre}`);
+}
+
+/**
+ * Maneja la selección directa de arma por número
+ * @param {number} indice - Índice del arma a seleccionar
+ */
+function manejarSeleccionarArma(indice) {
+  const estado = obtenerEstado();
+  if (indice < estado.armasDisponibles.length) {
+    const tipoArma = estado.armasDisponibles[indice];
+    if (cambiarArma(tipoArma, weaponContainer)) {
+      const nuevoEstado = obtenerEstado();
+      mostrarCambioArma(nuevoEstado.nombre);
+      actualizarInfoArma(nuevoEstado);
+      actualizarDisplayMunicion();
+      console.log(`🎯 Seleccionado: ${nuevoEstado.nombre}`);
+    }
+  }
+}
+
+/**
+ * Maneja el apuntado del arma
+ * @param {boolean} apuntar - true para apuntar, false para dejar de apuntar
+ */
+function manejarApuntado(apuntar) {
+  alternarApuntado(apuntar);
+  const estado = obtenerEstado();
+  actualizarInfoArma(estado);
+  
+  if (apuntar) {
+    console.log(`Apuntando con ${estado.nombre}`);
+  } else {
+    console.log(`Dejando de apuntar con ${estado.nombre}`);
+  }
+}
 /**
  * Maneja el evento de recarga
  * Requirement 6.1: Send reload input to server
@@ -405,9 +514,13 @@ function manejarDisparo() {
       return;
     }
     
+    // Obtener configuración del arma actual
+    const estadoArma = obtenerEstado();
+    const configArma = CONFIG.armas[estadoArma.tipoActual];
+    
     // Verificar cadencia de disparo
     const ahora = performance.now();
-    const tiempoEntreDisparos = (60 / CONFIG.arma.cadenciaDisparo) * 1000;
+    const tiempoEntreDisparos = (60 / configArma.cadenciaDisparo) * 1000;
     if (ahora - arma.ultimoDisparo < tiempoEntreDisparos) {
       return;
     }
@@ -429,9 +542,27 @@ function manejarDisparo() {
       { x: direccion.x, y: direccion.y, z: direccion.z }
     );
     
-    // Crear bala visual local (predicción del cliente)
-    const bala = new Bala(scene, posicionBala, direccion, null);
-    balas.push(bala);
+    // Para escopetas, crear múltiples balas visuales
+    const numProyectiles = configArma.proyectiles || 1;
+    const dispersion = configArma.dispersion || 0;
+    
+    for (let i = 0; i < numProyectiles; i++) {
+      const direccionBala = direccion.clone();
+      
+      // Aplicar dispersión si es necesario
+      if (dispersion > 0) {
+        direccionBala.x += (Math.random() - 0.5) * dispersion;
+        direccionBala.y += (Math.random() - 0.5) * dispersion;
+        direccionBala.normalize();
+      }
+      
+      // Crear bala visual local (predicción del cliente)
+      const bala = new Bala(scene, posicionBala.clone(), direccionBala, null, {
+        velocidad: configArma.velocidadBala,
+        daño: configArma.daño
+      });
+      balas.push(bala);
+    }
     
     // Animar retroceso del arma
     animarRetroceso();
@@ -507,16 +638,8 @@ function enviarInputMovimiento() {
  * Actualiza el display de munición en la UI
  */
 function actualizarDisplayMunicion() {
-  const ammoDiv = document.getElementById('ammo');
-  if (!ammoDiv) return;
-
-  if (arma.estaRecargando) {
-    ammoDiv.textContent = 'RECARGANDO...';
-    ammoDiv.style.color = '#ffaa00';
-  } else {
-    ammoDiv.textContent = `${arma.municionActual} / ${arma.municionTotal}`;
-    ammoDiv.style.color = arma.municionActual <= 5 ? '#ff0000' : 'white';
-  }
+  const estado = obtenerEstado();
+  actualizarInfoArma(estado);
 }
 
 /**

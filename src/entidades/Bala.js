@@ -13,10 +13,15 @@ export class Bala {
    * @param {THREE.Vector3} posicion - Posición inicial de la bala
    * @param {THREE.Vector3} direccion - Dirección de movimiento
    * @param {Function} onImpacto - Callback cuando la bala impacta un enemigo
+   * @param {Object} configBala - Configuración específica de la bala (velocidad, daño, etc.)
    */
-  constructor(scene, posicion, direccion, onImpacto = null) {
+  constructor(scene, posicion, direccion, onImpacto = null, configBala = {}) {
     this.scene = scene;
     this.onImpactoCallback = onImpacto;
+    
+    // Configuración de la bala (usar valores por defecto si no se especifican)
+    this.velocidadBala = configBala.velocidad || 30.0;
+    this.dañoBala = configBala.daño || 20;
     
     // Crear mesh de la bala
     const geometria = new THREE.CylinderGeometry(0.02, 0.02, 0.1, 6);
@@ -40,7 +45,7 @@ export class Bala {
 
     // Propiedades de movimiento
     this.direccion = direccion.clone().normalize();
-    this.velocidad = this.direccion.clone().multiplyScalar(CONFIG.arma.velocidadBala);
+    this.velocidad = this.direccion.clone().multiplyScalar(this.velocidadBala);
     this.tiempoVida = CONFIG.bala.tiempoVida;
     this.edad = 0;
     this.distanciaMaxima = CONFIG.bala.distanciaMaxima;
@@ -107,15 +112,15 @@ export class Bala {
    * @param {Enemigo} enemigo - Enemigo impactado
    */
   alImpactar(enemigo) {
-    // Aplicar daño al enemigo
-    enemigo.recibirDaño(CONFIG.arma.daño);
+    // Aplicar daño al enemigo usando el daño específico de esta bala
+    enemigo.recibirDaño(this.dañoBala);
 
     // Crear efecto de impacto
     this.crearEfectoImpacto(this.mesh.position);
 
     // Ejecutar callback si existe
     if (this.onImpactoCallback) {
-      this.onImpactoCallback(enemigo, CONFIG.arma.daño);
+      this.onImpactoCallback(enemigo, this.dañoBala);
     }
   }
 

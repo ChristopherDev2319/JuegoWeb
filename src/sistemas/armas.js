@@ -10,27 +10,336 @@ import { CONFIG } from '../config.js';
 import { Bala } from '../entidades/Bala.js';
 
 /**
- * Estado del arma
+ * Estado del arma actual
  */
 export const arma = {
-  municionActual: CONFIG.arma.tamañoCargador,
-  municionTotal: CONFIG.arma.municionTotal,
+  tipoActual: CONFIG.armaActual,
+  municionActual: CONFIG.armas[CONFIG.armaActual].tamañoCargador,
+  municionTotal: CONFIG.armas[CONFIG.armaActual].municionTotal,
   estaRecargando: false,
   puedeDisparar: true,
-  ultimoDisparo: 0
+  ultimoDisparo: 0,
+  estaApuntando: false,
+  transicionApuntado: 0 // 0 = no apuntando, 1 = completamente apuntando
+};
+
+/**
+ * Inventario de armas disponibles
+ */
+export const inventarioArmas = {
+  armasDisponibles: [CONFIG.armaActual], // Empezamos solo con el arma por defecto
+  armaSeleccionada: 0 // Índice del arma actual
 };
 
 /**
  * Referencia al modelo del arma para animaciones
  */
 let modeloArma = null;
+let modelosArmas = {}; // Cache de modelos cargados
+let cargandoModelo = false;
 
 /**
- * Establece el modelo del arma para animaciones de retroceso
- * @param {THREE.Object3D} modelo - Modelo 3D del arma
+ * Referencias para el sistema de apuntado
  */
-export function establecerModeloArma(modelo) {
-  modeloArma = modelo;
+let camera = null;
+let fovOriginal = 75;
+let posicionArmaOriginal = { x: 0, y: 0, z: 0 };
+let animacionApuntado = null;
+
+/**
+ * Obtiene la configuración del arma actual
+ * @returns {Object} - Configuración del arma actual
+ */
+function obtenerConfigArmaActual() {
+  return CONFIG.armas[arma.tipoActual];
+}
+
+/**
+ * Cambia el arma actual
+ * @param {string} tipoArma - Tipo de arma a seleccionar
+ * @param {THREE.Object3D} weaponContainer - Contenedor del arma (opcional)
+ * @returns {boolean} - true si se cambió exitosamente
+ */
+export function cambiarArma(tipoArma, weaponContainer = null) {
+  if (!CONFIG.armas[tipoArma] || !inventarioArmas.armasDisponibles.includes(tipoArma)) {
+    return false;
+  }
+
+  arma.tipoActual = tipoArma;
+  const configArma = obtenerConfigArmaActual();
+  
+  // Reiniciar munición al cambiar arma
+  arma.municionActual = configArma.tamañoCargador;
+  arma.municionTotal = configArma.municionTotal;
+  arma.estaRecargando = false;
+  arma.ultimoDisparo = 0;
+  arma.estaApuntando = false;
+  arma.transicionApuntado = 0;
+
+  // Cambiar modelo si se proporciona el contenedor
+  if (weaponContainer) {
+    cambiarModeloArma(tipoArma, weaponContainer);
+  }
+
+  return true;
+}
+
+/**
+ * Agrega un arma al inventario
+ * @param {string} tipoArma - Tipo de arma a agregar
+ * @returns {boolean} - true si se agregó exitosamente
+ */
+export function agregarArma(tipoArma) {
+  if (!CONFIG.armas[tipoArma] || inventarioArmas.armasDisponibles.includes(tipoArma)) {
+    return false;
+  }
+
+  inventarioArmas.armasDisponibles.push(tipoArma);
+  return true;
+}
+
+/**
+ * Selecciona la siguiente arma en el inventario
+ * @param {THREE.Object3D} weaponContainer - Contenedor del arma (opcional)
+ */
+export function siguienteArma(weaponContainer = null) {
+  if (inventarioArmas.armasDisponibles.length <= 1) return;
+
+  inventarioArmas.armaSeleccionada = (inventarioArmas.armaSeleccionada + 1) % inventarioArmas.armasDisponibles.length;
+  const nuevaArma = inventarioArmas.armasDisponibles[inventarioArmas.armaSeleccionada];
+  cambiarArma(nuevaArma, weaponContainer);
+}
+
+/**
+ * Selecciona la arma anterior en el inventario
+ * @param {THREE.Object3D} weaponContainer - Contenedor del arma (opcional)
+ */
+export function armaAnterior(weaponContainer = null) {
+  if (inventarioArmas.armasDisponibles.length <= 1) return;
+
+  inventarioArmas.armaSeleccionada = inventarioArmas.armaSeleccionada - 1;
+  if (inventarioArmas.armaSeleccionada < 0) {
+    inventarioArmas.armaSeleccionada = inventarioArmas.armasDisponibles.length - 1;
+  }
+  const nuevaArma = inventarioArmas.armasDisponibles[inventarioArmas.armaSeleccionada];
+  cambiarArma(nuevaArma, weaponContainer);
+}
+
+/**
+ * Carga un modelo de arma específico
+ * @param {string} tipoArma - Tipo de arma a cargar
+ * @param {THREE.Object3D} weaponContainer - Contenedor del arma
+ * @returns {Promise<THREE.Object3D>} - Modelo cargado
+ */
+export function cargarModeloArma(tipoArma, weaponContainer) {
+  return new Promise((resolve, reject) => {
+    const configArma = CONFIG.armas[tipoArma];
+    if (!configArma || !configArma.modelo) {
+      reject(new Error(`No se encontró modelo para el arma: ${tipoArma}`));
+      return;
+    }
+
+    // Si ya está cargado, devolverlo
+    if (modelosArmas[tipoArma]) {
+      resolve(modelosArmas[tipoArma]);
+      return;
+    }
+
+    // Si está cargando, esperar
+    if (cargandoModelo) {
+      setTimeout(() => cargarModeloArma(tipoArma, weaponContainer).then(resolve).catch(reject), 100);
+      return;
+    }
+
+    cargandoModelo = true;
+    const fbxLoader = new THREE.FBXLoader();
+
+    console.log(`🔫 Cargando modelo: ${configArma.modelo}`);
+
+    fbxLoader.load(
+      configArma.modelo,
+      (armaCaregada) => {
+        // Calcular escala
+        const box = new THREE.Box3().setFromObject(armaCaregada);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+
+        const longitudDeseada = 0.8;
+        const escala = longitudDeseada / Math.max(size.x, size.y, size.z);
+        armaCaregada.scale.setScalar(escala);
+
+        // Posicionar el arma usando la configuración específica
+        const posConfig = configArma.posicion || { x: 0.3, y: -0.3, z: -0.5 };
+        const rotConfig = configArma.rotacion || { x: 0, y: Math.PI, z: 0 };
+        
+        armaCaregada.position.set(posConfig.x, posConfig.y, posConfig.z);
+        armaCaregada.rotation.set(rotConfig.x, rotConfig.y, rotConfig.z);
+
+        // Sin sombras
+        armaCaregada.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = false;
+            child.receiveShadow = false;
+          }
+        });
+
+        // Guardar en cache
+        modelosArmas[tipoArma] = armaCaregada.clone();
+        
+        cargandoModelo = false;
+        console.log(`✅ Modelo cargado: ${configArma.nombre}`);
+        resolve(armaCaregada);
+      },
+      (progress) => {
+        console.log(`📦 Cargando ${configArma.nombre}: ${Math.round((progress.loaded / progress.total) * 100)}%`);
+      },
+      (error) => {
+        cargandoModelo = false;
+        console.error(`❌ Error cargando modelo ${configArma.modelo}:`, error);
+        reject(error);
+      }
+    );
+  });
+}
+
+/**
+ * Cambia el modelo del arma visualmente
+ * @param {string} tipoArma - Tipo de arma a mostrar
+ * @param {THREE.Object3D} weaponContainer - Contenedor del arma
+ */
+export async function cambiarModeloArma(tipoArma, weaponContainer) {
+  try {
+    // Remover modelo actual
+    if (modeloArma) {
+      weaponContainer.remove(modeloArma);
+    }
+
+    // Cargar nuevo modelo
+    const nuevoModelo = await cargarModeloArma(tipoArma, weaponContainer);
+    modeloArma = nuevoModelo;
+    
+    // Agregar al contenedor
+    weaponContainer.add(modeloArma);
+    
+    // Guardar posición original para apuntado
+    if (modeloArma) {
+      posicionArmaOriginal = {
+        x: modeloArma.position.x,
+        y: modeloArma.position.y,
+        z: modeloArma.position.z
+      };
+    }
+
+    console.log(`🔄 Modelo cambiado a: ${CONFIG.armas[tipoArma].nombre}`);
+  } catch (error) {
+    console.error('Error cambiando modelo de arma:', error);
+  }
+}
+
+/**
+ * Establece la referencia de la cámara para el sistema de apuntado
+ * @param {THREE.Camera} cameraRef - Referencia a la cámara del jugador
+ */
+export function establecerCamara(cameraRef) {
+  camera = cameraRef;
+  if (camera) {
+    fovOriginal = camera.fov;
+  }
+}
+
+/**
+ * Inicia o detiene el apuntado
+ * @param {boolean} apuntar - true para apuntar, false para dejar de apuntar
+ */
+export function alternarApuntado(apuntar = null) {
+  if (apuntar === null) {
+    apuntar = !arma.estaApuntando;
+  }
+  
+  arma.estaApuntando = apuntar;
+  
+  const configArma = obtenerConfigArmaActual();
+  const configApuntado = configArma.apuntado;
+  
+  if (!configApuntado) return;
+  
+  // Cancelar animación anterior si existe
+  if (animacionApuntado) {
+    cancelAnimationFrame(animacionApuntado);
+  }
+  
+  // Iniciar animación de transición
+  animarTransicionApuntado(apuntar, configApuntado);
+}
+
+/**
+ * Anima la transición de apuntado
+ * @param {boolean} apuntando - Si está apuntando o no
+ * @param {Object} configApuntado - Configuración de apuntado del arma
+ */
+function animarTransicionApuntado(apuntando, configApuntado) {
+  const tiempoInicio = performance.now();
+  const duracion = (configApuntado.tiempoTransicion || 0.2) * 1000;
+  const valorInicial = arma.transicionApuntado;
+  const valorFinal = apuntando ? 1 : 0;
+  
+  function animar() {
+    const tiempoTranscurrido = performance.now() - tiempoInicio;
+    const progreso = Math.min(tiempoTranscurrido / duracion, 1);
+    
+    // Interpolación suave (ease-out)
+    const factor = 1 - Math.pow(1 - progreso, 3);
+    arma.transicionApuntado = valorInicial + (valorFinal - valorInicial) * factor;
+    
+    // Aplicar efectos del apuntado
+    aplicarEfectosApuntado(configApuntado);
+    
+    if (progreso < 1) {
+      animacionApuntado = requestAnimationFrame(animar);
+    } else {
+      animacionApuntado = null;
+    }
+  }
+  
+  animar();
+}
+
+/**
+ * Aplica los efectos visuales del apuntado
+ * @param {Object} configApuntado - Configuración de apuntado del arma
+ */
+function aplicarEfectosApuntado(configApuntado) {
+  if (!camera || !modeloArma) return;
+  
+  const factor = arma.transicionApuntado;
+  
+  // Aplicar zoom de la cámara
+  const fovApuntado = fovOriginal / (configApuntado.zoom || 1.5);
+  camera.fov = fovOriginal + (fovApuntado - fovOriginal) * factor;
+  camera.updateProjectionMatrix();
+  
+  // Mover el arma a la posición de apuntado
+  const posApuntado = configApuntado.posicionArma || { x: 0, y: -0.1, z: -0.2 };
+  
+  modeloArma.position.x = posicionArmaOriginal.x + (posApuntado.x - posicionArmaOriginal.x) * factor;
+  modeloArma.position.y = posicionArmaOriginal.y + (posApuntado.y - posicionArmaOriginal.y) * factor;
+  modeloArma.position.z = posicionArmaOriginal.z + (posApuntado.z - posicionArmaOriginal.z) * factor;
+}
+
+/**
+ * Verifica si el arma está apuntando
+ * @returns {boolean}
+ */
+export function estaApuntando() {
+  return arma.estaApuntando;
+}
+
+/**
+ * Obtiene el factor de transición de apuntado (0-1)
+ * @returns {number}
+ */
+export function obtenerFactorApuntado() {
+  return arma.transicionApuntado;
 }
 
 /**
@@ -44,7 +353,8 @@ export function establecerModeloArma(modelo) {
  */
 export function disparar(camera, enemigos, balas, scene, onImpacto = null) {
   const ahora = performance.now();
-  const tiempoEntreDisparos = (60 / CONFIG.arma.cadenciaDisparo) * 1000;
+  const configArma = obtenerConfigArmaActual();
+  const tiempoEntreDisparos = (60 / configArma.cadenciaDisparo) * 1000;
 
   if (
     !arma.puedeDisparar ||
@@ -64,14 +374,35 @@ export function disparar(camera, enemigos, balas, scene, onImpacto = null) {
   offsetAdelante.applyQuaternion(camera.quaternion);
   posicionBala.add(offsetAdelante);
 
-  // Calcular dirección de la bala
-  const direccion = new THREE.Vector3(0, 0, -1);
-  direccion.applyQuaternion(camera.quaternion);
-  direccion.normalize();
+  // Para escopetas, disparar múltiples proyectiles
+  const numProyectiles = configArma.proyectiles || 1;
+  let dispersion = configArma.dispersion || 0;
+  
+  // Reducir dispersión si está apuntando (para escopetas)
+  if (arma.estaApuntando && configArma.apuntado && configArma.apuntado.reduccionDispersion) {
+    dispersion *= configArma.apuntado.reduccionDispersion;
+  }
 
-  // Crear la bala
-  const bala = new Bala(scene, posicionBala, direccion, onImpacto);
-  balas.push(bala);
+  for (let i = 0; i < numProyectiles; i++) {
+    // Calcular dirección de la bala con dispersión
+    const direccion = new THREE.Vector3(0, 0, -1);
+    direccion.applyQuaternion(camera.quaternion);
+    
+    // Aplicar dispersión si es necesario
+    if (dispersion > 0) {
+      direccion.x += (Math.random() - 0.5) * dispersion;
+      direccion.y += (Math.random() - 0.5) * dispersion;
+    }
+    
+    direccion.normalize();
+
+    // Crear la bala con la configuración del arma actual
+    const bala = new Bala(scene, posicionBala.clone(), direccion, onImpacto, {
+      velocidad: configArma.velocidadBala,
+      daño: configArma.daño
+    });
+    balas.push(bala);
+  }
 
   // Animar retroceso
   animarRetroceso();
@@ -85,9 +416,11 @@ export function disparar(camera, enemigos, balas, scene, onImpacto = null) {
  * @returns {boolean} - true si se inició la recarga
  */
 export function recargar(onRecargaCompleta = null) {
+  const configArma = obtenerConfigArmaActual();
+  
   if (
     arma.estaRecargando ||
-    arma.municionActual === CONFIG.arma.tamañoCargador ||
+    arma.municionActual === configArma.tamañoCargador ||
     arma.municionTotal <= 0
   ) {
     return false;
@@ -96,7 +429,7 @@ export function recargar(onRecargaCompleta = null) {
   arma.estaRecargando = true;
 
   setTimeout(() => {
-    const municionNecesaria = CONFIG.arma.tamañoCargador - arma.municionActual;
+    const municionNecesaria = configArma.tamañoCargador - arma.municionActual;
     const municionARecargar = Math.min(municionNecesaria, arma.municionTotal);
 
     arma.municionActual += municionARecargar;
@@ -106,7 +439,7 @@ export function recargar(onRecargaCompleta = null) {
     if (onRecargaCompleta) {
       onRecargaCompleta();
     }
-  }, CONFIG.arma.tiempoRecarga * 1000);
+  }, configArma.tiempoRecarga * 1000);
 
   return true;
 }
@@ -117,23 +450,31 @@ export function recargar(onRecargaCompleta = null) {
 export function animarRetroceso() {
   if (!modeloArma) return;
 
-  // Guardar posición original
-  const posicionOriginalZ = modeloArma.position.z;
-  const posicionOriginalY = modeloArma.position.y;
+  const configArma = obtenerConfigArmaActual();
+  let retroceso = configArma.retroceso.cantidad || 0.08;
+  let subirArma = configArma.retroceso.arriba || 0.02;
+  
+  // Reducir retroceso si está apuntando
+  if (arma.estaApuntando && configArma.apuntado && configArma.apuntado.reduccionRetroceso) {
+    const reduccion = configArma.apuntado.reduccionRetroceso;
+    retroceso *= reduccion;
+    subirArma *= reduccion;
+  }
+
+  // Guardar posición actual (que puede estar en apuntado)
+  const posicionActualZ = modeloArma.position.z;
+  const posicionActualY = modeloArma.position.y;
 
   // Aplicar retroceso (hacia atrás es positivo en Z local)
-  const retroceso = CONFIG.arma.retroceso.cantidad || 0.08;
-  const subirArma = CONFIG.arma.retroceso.arriba || 0.02;
-  
   modeloArma.position.z += retroceso;
   modeloArma.position.y += subirArma;
 
   // Restaurar posición después de la duración
-  const duracion = CONFIG.arma.retroceso.duracion || 80;
+  const duracion = configArma.retroceso.duracion || 80;
   setTimeout(() => {
     if (modeloArma) {
-      modeloArma.position.z = posicionOriginalZ;
-      modeloArma.position.y = posicionOriginalY;
+      modeloArma.position.z = posicionActualZ;
+      modeloArma.position.y = posicionActualY;
     }
   }, duracion);
 }
@@ -143,11 +484,18 @@ export function animarRetroceso() {
  * @returns {Object} - Estado del arma
  */
 export function obtenerEstado() {
+  const configArma = obtenerConfigArmaActual();
   return {
+    tipoActual: arma.tipoActual,
+    nombre: configArma.nombre,
     municionActual: arma.municionActual,
     municionTotal: arma.municionTotal,
     estaRecargando: arma.estaRecargando,
-    puedeDisparar: arma.puedeDisparar
+    puedeDisparar: arma.puedeDisparar,
+    armasDisponibles: inventarioArmas.armasDisponibles,
+    estaApuntando: arma.estaApuntando,
+    factorApuntado: arma.transicionApuntado,
+    tieneApuntado: !!configArma.apuntado
   };
 }
 
@@ -157,7 +505,8 @@ export function obtenerEstado() {
  */
 export function puedeDisparar() {
   const ahora = performance.now();
-  const tiempoEntreDisparos = (60 / CONFIG.arma.cadenciaDisparo) * 1000;
+  const configArma = obtenerConfigArmaActual();
+  const tiempoEntreDisparos = (60 / configArma.cadenciaDisparo) * 1000;
 
   return (
     arma.puedeDisparar &&
@@ -171,8 +520,9 @@ export function puedeDisparar() {
  * Reinicia el estado del arma a valores iniciales
  */
 export function reiniciarArma() {
-  arma.municionActual = CONFIG.arma.tamañoCargador;
-  arma.municionTotal = CONFIG.arma.municionTotal;
+  const configArma = obtenerConfigArmaActual();
+  arma.municionActual = configArma.tamañoCargador;
+  arma.municionTotal = configArma.municionTotal;
   arma.estaRecargando = false;
   arma.puedeDisparar = true;
   arma.ultimoDisparo = 0;

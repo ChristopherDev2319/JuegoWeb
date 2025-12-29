@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Sistema de Armas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .weapon-test {
+            background: #2a2a2a;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #ffaa00;
+        }
+        .controls {
+            background: #333;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .status {
+            background: #1a3a1a;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        button {
+            background: #ffaa00;
+            color: black;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #ff8800;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔫 Test del Sistema de Armas</h1>
+        
+        <div class="status" id="status">
+            <h3>Estado del Sistema:</h3>
+            <p>Cargando configuración...</p>
+        </div>
+
+        <div class="controls">
+            <h3>🎮 Controles de Prueba:</h3>
+            <button onclick="testSiguienteArma()">Siguiente Arma (Q)</button>
+            <button onclick="testArmaAnterior()">Arma Anterior</button>
+            <button onclick="testSeleccionarArma(0)">M4A1 (1)</button>
+            <button onclick="testSeleccionarArma(1)">Pistola (2)</button>
+            <button onclick="testSeleccionarArma(2)">AK-47 (3)</button>
+            <button onclick="testSeleccionarArma(3)">Sniper (4)</button>
+            <button onclick="testSeleccionarArma(4)">Escopeta (5)</button>
+            <br>
+            <button onclick="testDisparar()">Disparar</button>
+            <button onclick="testRecargar()">Recargar</button>
+            <button onclick="mostrarEstadisticas()">Ver Estadísticas</button>
+        </div>
+
+        <div id="weapon-info" class="weapon-test">
+            <h3>Información del Arma Actual:</h3>
+            <div id="current-weapon">Cargando...</div>
+        </div>
+
+        <div id="weapon-list" class="weapon-test">
+            <h3>Armas Disponibles:</h3>
+            <div id="available-weapons">Cargando...</div>
+        </div>
+
+        <div class="weapon-test">
+            <h3>📊 Estadísticas de Todas las Armas:</h3>
+            <div id="all-weapons-stats">Cargando...</div>
+        </div>
+
+        <div class="controls">
+            <h3>🎯 Instrucciones:</h3>
+            <p>1. Usa los botones para probar el cambio de armas</p>
+            <p>2. Observa cómo cambian las estadísticas</p>
+            <p>3. Prueba disparar y recargar con diferentes armas</p>
+            <p>4. Verifica que la UI se actualiza correctamente</p>
+            <p><strong>Nota:</strong> Este es solo un test del sistema. Para el juego completo, abre <a href="http://localhost:8080" style="color: #ffaa00;">http://localhost:8080</a></p>
+        </div>
+    </div>
+
+    <script type="module">
+        // Importar el sistema de armas
+        import { CONFIG } from './src/config.js';
+        import { 
+            cambiarArma, 
+            agregarArma, 
+            siguienteArma, 
+            armaAnterior, 
+            obtenerEstado,
+            recargar
+        } from './src/sistemas/armas.js';
+
+        // Variables globales para testing
+        window.testSiguienteArma = siguienteArma;
+        window.testArmaAnterior = armaAnterior;
+        window.testSeleccionarArma = (indice) => {
+            const estado = obtenerEstado();
+            if (indice < estado.armasDisponibles.length) {
+                const tipoArma = estado.armasDisponibles[indice];
+                cambiarArma(tipoArma);
+                actualizarUI();
+            }
+        };
+        window.testDisparar = () => {
+            const estado = obtenerEstado();
+            if (estado.municionActual > 0 && !estado.estaRecargando) {
+                // Simular disparo (reducir munición)
+                console.log(`💥 Disparando ${estado.nombre}!`);
+                actualizarUI();
+            } else {
+                console.log('❌ No se puede disparar (sin munición o recargando)');
+            }
+        };
+        window.testRecargar = () => {
+            recargar(() => {
+                console.log('✅ Recarga completada');
+                actualizarUI();
+            });
+            actualizarUI();
+        };
+        window.mostrarEstadisticas = () => {
+            console.log('=== ESTADÍSTICAS DE ARMAS ===');
+            Object.entries(CONFIG.armas).forEach(([tipo, config]) => {
+                console.log(`${config.nombre}: Daño ${config.daño}, Cadencia ${config.cadenciaDisparo} RPM`);
+            });
+        };
+
+        // Función para actualizar la UI
+        function actualizarUI() {
+            const estado = obtenerEstado();
+            
+            // Actualizar información del arma actual
+            document.getElementById('current-weapon').innerHTML = `
+                <strong>${estado.nombre}</strong><br>
+                Munición: ${estado.municionActual} / ${estado.municionTotal}<br>
+                Estado: ${estado.estaRecargando ? 'Recargando...' : 'Listo'}
+            `;
+
+            // Actualizar lista de armas
+            const weaponsList = estado.armasDisponibles.map((arma, index) => {
+                const config = CONFIG.armas[arma];
+                const isActive = arma === estado.tipoActual;
+                return `<div style="padding: 5px; background: ${isActive ? '#ffaa0033' : 'transparent'};">
+                    ${index + 1}. ${config.nombre} ${isActive ? '← ACTUAL' : ''}
+                </div>`;
+            }).join('');
+            document.getElementById('available-weapons').innerHTML = weaponsList;
+
+            // Actualizar estado del sistema
+            document.getElementById('status').innerHTML = `
+                <h3>Estado del Sistema:</h3>
+                <p>✅ Sistema de armas cargado correctamente</p>
+                <p>🔫 Arma actual: ${estado.nombre}</p>
+                <p>📦 Armas disponibles: ${estado.armasDisponibles.length}</p>
+            `;
+        }
+
+        // Inicializar el sistema
+        async function inicializar() {
+            try {
+                // Agregar todas las armas al inventario
+                agregarArma('PISTOLA');
+                agregarArma('AK47');
+                agregarArma('SNIPER');
+                agregarArma('ESCOPETA');
+
+                // Mostrar estadísticas de todas las armas
+                const statsHTML = Object.entries(CONFIG.armas).map(([tipo, config]) => {
+                    return `
+                        <div style="margin: 10px 0; padding: 10px; background: #333; border-radius: 3px;">
+                            <strong>${config.nombre}</strong> (${config.tipo})<br>
+                            Daño: ${config.daño} | Cadencia: ${config.cadenciaDisparo} RPM<br>
+                            Cargador: ${config.tamañoCargador} | Recarga: ${config.tiempoRecarga}s<br>
+                            Velocidad: ${config.velocidadBala}
+                            ${config.proyectiles ? `| Proyectiles: ${config.proyectiles}` : ''}
+                        </div>
+                    `;
+                }).join('');
+                document.getElementById('all-weapons-stats').innerHTML = statsHTML;
+
+                // Actualizar UI inicial
+                actualizarUI();
+
+                console.log('🎮 Sistema de armas inicializado correctamente');
+                console.log('📋 Usa los botones para probar las funcionalidades');
+            } catch (error) {
+                console.error('❌ Error al inicializar:', error);
+                document.getElementById('status').innerHTML = `
+                    <h3>Estado del Sistema:</h3>
+                    <p style="color: #ff4444;">❌ Error al cargar el sistema: ${error.message}</p>
+                `;
+            }
+        }
+
+        // Inicializar cuando la página cargue
+        inicializar();
+
+        // Actualizar UI cada segundo para mostrar cambios en tiempo real
+        setInterval(actualizarUI, 1000);
+    </script>
+</body>
+</html>
