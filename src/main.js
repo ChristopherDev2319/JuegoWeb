@@ -216,9 +216,14 @@ function obtenerUrlServidor() {
   // Use current host for WebSocket connection
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = window.location.hostname || 'localhost';
-  const puerto = CONFIG.red.puertoServidor || 3000;
+  const port = window.location.port;
   
-  return `${protocol}//${host}:${puerto}`;
+  // En producción (Render, etc.) no incluir puerto - usa el estándar 443/80
+  // Solo incluir puerto en desarrollo local
+  if (port) {
+    return `${protocol}//${host}:${port}`;
+  }
+  return `${protocol}//${host}`;
 }
 
 /**
