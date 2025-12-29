@@ -8,6 +8,32 @@
 
 import { CONFIG } from '../config.js';
 
+// Configuración del modelo del personaje
+const CHARACTER_CONFIG = {
+  modelPath: 'modelos/cubed_bear.glb',
+  scale: 7.0,           // Escala del modelo (más grande)
+  rotationOffset: Math.PI, // Rotar 180 grados para que mire hacia adelante
+  heightOffset: 0,      // Ajuste de altura desde el suelo
+  // Posición del arma relativa al modelo
+  weaponPosition: {
+    x: 0.5,
+    y: 1.5,
+    z: -0.3
+  }
+};
+
+// Hitbox del servidor (DEBE coincidir con server/bulletSystem.js)
+// Esta es la hitbox REAL usada para detección de daño
+const SERVER_HITBOX = {
+  width: 0.8,   // Ancho (X)
+  height: 2.0,  // Altura (Y)
+  depth: 0.6,   // Profundidad (Z)
+  centerYOffset: -0.7 // Offset del centro Y desde player.position.y
+};
+
+// DEBUG: Activar helpers visuales (cambiar a false para producción)
+const DEBUG_HELPERS = false;
+
 /**
  * RemotePlayer class for rendering other players
  * Extends THREE.Group to contain player mesh, weapon, and health bar
@@ -34,11 +60,14 @@ export class RemotePlayer {
     // Interpolation progress (0 to 1)
     this.interpolationAlpha = 1;
     
-    // Create player mesh (cube)
-    this.createPlayerMesh();
+    // Character model reference
+    this.characterModel = null;
     
-    // Create health bar
-    this.createHealthBar();
+    // Create hitbox mesh (invisible, for collision detection)
+   // this.createHitbox();
+    
+    // Load character model
+    this.loadCharacterModel();
     
     // Load weapon model
     this.weaponModel = null;
@@ -47,7 +76,7 @@ export class RemotePlayer {
     // Set initial position and rotation
     this.group.position.set(
       state.position.x,
-      state.position.y - CONFIG.jugador.alturaOjos + 1, // Adjust for cube center
+      state.position.y - CONFIG.jugador.alturaOjos + CHARACTER_CONFIG.heightOffset,
       state.position.z
     );
     this.group.rotation.y = state.rotation.y;
@@ -57,10 +86,79 @@ export class RemotePlayer {
   }
 
   /**
-   * Create the player cube mesh (Requirement 3.1)
+   * Create hitbox visualization matching server collision detection
+   * This shows the EXACT hitbox used for damage calculation on the server
    */
-  createPlayerMesh() {
-    const geometry = new THREE.BoxGeometry(1, 2, 1);
+  createHitbox() {
+    const { width, height, depth, centerYOffset } = SERVER_HITBOX;
+    const geometry = new THREE.BoxGeometry(width, height, depth);
+    const material = new THREE.MeshBasicMaterial({ 
+      color: 0x00ff00, // Verde para indicar hitbox de daño
+      wireframe: true,
+      visible: DEBUG_HELPERS
+    });
+    
+    this.hitbox = new THREE.Mesh(geometry, material);
+    
+    // Posicionar la hitbox exactamente como el servidor la calcula
+    // El servidor usa: playerCenterY = player.position.y - 0.7
+    // Y el grupo está en: state.position.y - CONFIG.jugador.alturaOjos
+    // Entonces el offset relativo al grupo es:
+    // centerY_servidor = position.y + centerYOffset = position.y - 0.7
+    // grupo.y = position.y - alturaOjos = position.y - 1.7
+    // hitbox.y (relativo al grupo) = centerY_servidor - grupo.y = (position.y - 0.7) - (position.y - 1.7) = 1.0
+    this.hitbox.position.y = CONFIG.jugador.alturaOjos + centerYOffset; // 1.7 - 0.7 = 1.0
+    
+    this.group.add(this.hitbox);
+    
+    // DEBUG: Añadir AxesHelper para ver la orientación del grupo principal
+    if (DEBUG_HELPERS) {
+      this.axesHelper = new THREE.AxesHelper(2);
+      this.group.add(this.axesHelper);
+    }
+  }
+
+  /**
+   * Load the cartoon character GLB model (Requirement 3.1)
+   */
+  loadCharacterModel() {
+    const gltfLoader = new THREE.GLTFLoader();
+    
+    gltfLoader.load(CHARACTER_CONFIG.modelPath, (gltf) => {
+      this.characterModel = gltf.scene;
+      
+      // Aplicar escala
+      this.characterModel.scale.setScalar(CHARACTER_CONFIG.scale);
+      
+      // Posicionar el modelo en el suelo
+      this.characterModel.position.y = 0;
+      
+      // Rotar el modelo para que mire hacia adelante
+      this.characterModel.rotation.y = CHARACTER_CONFIG.rotationOffset;
+      
+      // Sin sombras para mejor rendimiento
+      this.characterModel.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = false;
+          child.receiveShadow = false;
+        }
+      });
+      
+      this.group.add(this.characterModel);
+      
+      console.log(`Character model loaded for player ${this.id}`);
+    }, undefined, (error) => {
+      console.error(`Error loading character model for player ${this.id}:`, error);
+      // Fallback: crear un cubo si el modelo no carga
+      this.createFallbackMesh();
+    });
+  }
+
+  /**
+   * Create fallback cube mesh if GLB fails to load
+   */
+  createFallbackMesh() {
+    const geometry = new THREE.BoxGeometry(0.8, 2, 0.6);
     const material = new THREE.MeshStandardMaterial({ 
       color: 0x4488ff,
       roughness: 0.7,
@@ -68,8 +166,9 @@ export class RemotePlayer {
     });
     
     this.mesh = new THREE.Mesh(geometry, material);
-    this.mesh.castShadow = true;
-    this.mesh.receiveShadow = true;
+    this.mesh.position.y = 1; // Centrar verticalmente
+    this.mesh.castShadow = false;
+    this.mesh.receiveShadow = false;
     
     this.group.add(this.mesh);
   }
@@ -80,7 +179,9 @@ export class RemotePlayer {
   createHealthBar() {
     // Health bar container
     this.healthBarGroup = new THREE.Group();
-    this.healthBarGroup.position.y = 1.5; // Above the cube
+    // Posicionar encima de la hitbox del servidor
+    const hitboxTop = CONFIG.jugador.alturaOjos + SERVER_HITBOX.centerYOffset + SERVER_HITBOX.height / 2;
+    this.healthBarGroup.position.y = hitboxTop + 0.3;
     
     // Background bar (dark)
     const bgGeometry = new THREE.PlaneGeometry(1.2, 0.15);
@@ -113,31 +214,35 @@ export class RemotePlayer {
     
     // Crear un contenedor para el arma que rote con el jugador
     this.weaponContainer = new THREE.Group();
-    this.weaponContainer.position.set(0, 0.3, 0); // A la altura del pecho
+    // Posicionar el arma según la configuración del personaje
+    this.weaponContainer.position.set(
+      CHARACTER_CONFIG.weaponPosition.x,
+      CHARACTER_CONFIG.weaponPosition.y,
+      CHARACTER_CONFIG.weaponPosition.z
+    );
     this.group.add(this.weaponContainer);
     
     fbxLoader.load('modelos/FBX/Weapons/M4A1.fbx', (weapon) => {
       this.weaponModel = weapon;
       
-      // Calcular escala - más grande para que se vea proporcional al cubo
+      // Calcular escala - proporcional al personaje
       const box = new THREE.Box3().setFromObject(weapon);
       const size = new THREE.Vector3();
       box.getSize(size);
       
-      const longitudDeseada = 1.0; // Más grande
+      const longitudDeseada = 0.8; // Tamaño del arma
       const escala = longitudDeseada / size.z;
       weapon.scale.setScalar(escala);
       
       // Posicionar el arma al lado derecho del jugador
-      // Rotación de 180 grados (Math.PI) para que apunte hacia adelante
-      weapon.position.set(0.6, 0, 0); // Lado derecho
+      weapon.position.set(0.2, 0, 0);
       weapon.rotation.set(0, Math.PI, 0); // Rotar 180 grados para que apunte hacia adelante
       
-      // Configurar sombras
+      // Sin sombras para mejor rendimiento
       weapon.traverse((child) => {
         if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
+          child.castShadow = false;
+          child.receiveShadow = false;
         }
       });
       
@@ -173,7 +278,7 @@ export class RemotePlayer {
     if (acabaDeRevivir) {
       this.group.position.set(
         state.position.x,
-        state.position.y - CONFIG.jugador.alturaOjos + 1,
+        state.position.y - CONFIG.jugador.alturaOjos + CHARACTER_CONFIG.heightOffset,
         state.position.z
       );
       this.previousState.position = { ...state.position };
@@ -187,9 +292,6 @@ export class RemotePlayer {
       this.interpolationAlpha = 0;
       this.dashInterpolation = false;
     }
-    
-    // Update health bar
-    this.updateHealthBar(state.health, state.maxHealth);
     
     // Handle visibility based on alive state
     this.group.visible = state.isAlive;
@@ -223,9 +325,6 @@ export class RemotePlayer {
    */
   interpolate(deltaTime) {
     // Velocidad de interpolación diferente para dash vs movimiento normal
-    // Dash: más rápido (completar en ~150ms)
-    // Normal: suave (completar en ~100ms)
-    // Salto: usar interpolación continua para suavidad
     const interpolationSpeed = this.dashInterpolation ? 15 : 12;
     this.interpolationAlpha = Math.min(1, this.interpolationAlpha + deltaTime * interpolationSpeed);
     
@@ -234,14 +333,13 @@ export class RemotePlayer {
     
     // Lerp position
     const targetX = this.serverState.position.x;
-    const targetY = this.serverState.position.y - CONFIG.jugador.alturaOjos + 1;
+    const targetY = this.serverState.position.y - CONFIG.jugador.alturaOjos + CHARACTER_CONFIG.heightOffset;
     const targetZ = this.serverState.position.z;
     
     const prevX = this.previousState.position.x;
-    const prevY = this.previousState.position.y - CONFIG.jugador.alturaOjos + 1;
+    const prevY = this.previousState.position.y - CONFIG.jugador.alturaOjos + CHARACTER_CONFIG.heightOffset;
     const prevZ = this.previousState.position.z;
     
-    // Usar easing para X y Z, pero interpolación más suave para Y (salto)
     this.group.position.x = lerp(prevX, targetX, easedAlpha);
     this.group.position.y = lerp(prevY, targetY, easedAlpha);
     this.group.position.z = lerp(prevZ, targetZ, easedAlpha);
@@ -251,20 +349,8 @@ export class RemotePlayer {
     const prevRotY = this.previousState.rotation.y;
     const currentRotY = lerpAngle(prevRotY, targetRotY, easedAlpha);
     
-    // Aplicar rotación al grupo principal (el cubo rota)
+    // Aplicar rotación al grupo principal
     this.group.rotation.y = currentRotY;
-    
-    // Make health bar face camera (billboard effect)
-    this.updateHealthBarOrientation();
-  }
-
-  /**
-   * Make health bar always face the camera
-   */
-  updateHealthBarOrientation() {
-    // Health bar should always face the camera
-    // We'll rotate it opposite to the player's rotation
-    this.healthBarGroup.rotation.y = -this.group.rotation.y;
   }
 
   /**
@@ -294,20 +380,32 @@ export class RemotePlayer {
     // Remove from scene
     this.scene.remove(this.group);
     
-    // Dispose geometries and materials
+    // Dispose hitbox
+    if (this.hitbox) {
+      this.hitbox.geometry.dispose();
+      this.hitbox.material.dispose();
+    }
+    
+    // Dispose fallback mesh if exists
     if (this.mesh) {
       this.mesh.geometry.dispose();
       this.mesh.material.dispose();
     }
     
-    if (this.healthBar) {
-      this.healthBar.geometry.dispose();
-      this.healthBar.material.dispose();
-    }
-    
-    if (this.healthBarBg) {
-      this.healthBarBg.geometry.dispose();
-      this.healthBarBg.material.dispose();
+    // Dispose character model
+    if (this.characterModel) {
+      this.characterModel.traverse((child) => {
+        if (child.isMesh) {
+          child.geometry.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(m => m.dispose());
+            } else {
+              child.material.dispose();
+            }
+          }
+        }
+      });
     }
     
     // Dispose weapon model
@@ -326,9 +424,17 @@ export class RemotePlayer {
       });
     }
     
-    // Limpiar contenedor del arma
     this.weaponContainer = null;
   }
+}
+
+/**
+ * Get character hitbox dimensions for collision detection
+ * Returns the SERVER hitbox used for damage calculation
+ * @returns {Object} Hitbox dimensions {width, height, depth, centerYOffset}
+ */
+export function getCharacterHitbox() {
+  return { ...SERVER_HITBOX };
 }
 
 /**

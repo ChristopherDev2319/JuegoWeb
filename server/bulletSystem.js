@@ -9,6 +9,13 @@ import { WEAPON_CONFIG, BULLET_CONFIG } from './config.js';
 
 let bulletIdCounter = 0;
 
+// Hitbox del personaje cartoon (rectangular)
+const CHARACTER_HITBOX = {
+  width: 0.8,   // Ancho (X)
+  height: 2.0,  // Altura (Y)
+  depth: 0.6    // Profundidad (Z)
+};
+
 /**
  * Bullet class representing a projectile
  */
@@ -162,81 +169,90 @@ export class BulletSystem {
   /**
    * Check ray collision between previous and current bullet position
    * Prevents bullets from passing through players at high speeds
+   * Uses rectangular hitbox for cartoon character
    * @param {Object} from - Previous position
    * @param {Object} to - Current position
    * @param {PlayerState} player - Player to check against
    * @returns {boolean} - True if ray intersects player
    */
   checkRayCollision(from, to, player) {
-    const playerRadius = 0.6;
-    const playerHeight = 2.0;
+    const halfWidth = CHARACTER_HITBOX.width / 2;
+    const halfDepth = CHARACTER_HITBOX.depth / 2;
+    const playerHeight = CHARACTER_HITBOX.height;
     const playerCenterY = player.position.y - 0.7;
     
-    // Calcular el punto más cercano en el segmento de línea al centro del jugador
+    // Usar AABB (Axis-Aligned Bounding Box) para el raycast
+    const minX = player.position.x - halfWidth;
+    const maxX = player.position.x + halfWidth;
+    const minY = playerCenterY - playerHeight / 2;
+    const maxY = playerCenterY + playerHeight / 2;
+    const minZ = player.position.z - halfDepth;
+    const maxZ = player.position.z + halfDepth;
+    
+    // Dirección del rayo
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const dz = to.z - from.z;
     
-    const fx = from.x - player.position.x;
-    const fy = from.y - playerCenterY;
-    const fz = from.z - player.position.z;
+    // Calcular t para cada plano
+    let tMin = 0;
+    let tMax = 1;
     
-    // Proyección paramétrica
-    const a = dx * dx + dz * dz; // Solo horizontal para cilindro
-    const b = 2 * (fx * dx + fz * dz);
-    const c = fx * fx + fz * fz - playerRadius * playerRadius;
-    
-    let discriminant = b * b - 4 * a * c;
-    
-    if (discriminant < 0 || a === 0) {
+    // X axis
+    if (Math.abs(dx) > 0.0001) {
+      const t1 = (minX - from.x) / dx;
+      const t2 = (maxX - from.x) / dx;
+      tMin = Math.max(tMin, Math.min(t1, t2));
+      tMax = Math.min(tMax, Math.max(t1, t2));
+    } else if (from.x < minX || from.x > maxX) {
       return false;
     }
     
-    discriminant = Math.sqrt(discriminant);
-    
-    const t1 = (-b - discriminant) / (2 * a);
-    const t2 = (-b + discriminant) / (2 * a);
-    
-    // Verificar si algún punto de intersección está en el segmento [0, 1]
-    for (const t of [t1, t2]) {
-      if (t >= 0 && t <= 1) {
-        // Verificar altura en ese punto
-        const intersectY = from.y + dy * t;
-        const verticalDist = Math.abs(intersectY - playerCenterY);
-        if (verticalDist < playerHeight / 2) {
-          return true;
-        }
-      }
+    // Y axis
+    if (Math.abs(dy) > 0.0001) {
+      const t1 = (minY - from.y) / dy;
+      const t2 = (maxY - from.y) / dy;
+      tMin = Math.max(tMin, Math.min(t1, t2));
+      tMax = Math.min(tMax, Math.max(t1, t2));
+    } else if (from.y < minY || from.y > maxY) {
+      return false;
     }
     
-    return false;
+    // Z axis
+    if (Math.abs(dz) > 0.0001) {
+      const t1 = (minZ - from.z) / dz;
+      const t2 = (maxZ - from.z) / dz;
+      tMin = Math.max(tMin, Math.min(t1, t2));
+      tMax = Math.min(tMax, Math.max(t1, t2));
+    } else if (from.z < minZ || from.z > maxZ) {
+      return false;
+    }
+    
+    return tMin <= tMax;
   }
 
   /**
    * Check collision between bullet and player
-   * Uses ray-based collision detection for better accuracy
+   * Uses rectangular AABB hitbox for cartoon character
    * @param {Bullet} bullet - The bullet to check
    * @param {PlayerState} player - The player to check against
    * @returns {boolean} - True if collision detected
    */
   checkCollision(bullet, player) {
-    const playerRadius = 0.6; // Radio del hitbox (un poco más grande que el cubo de 1x1)
-    const playerHeight = 2.0; // Altura del hitbox (igual al cubo)
+    const halfWidth = CHARACTER_HITBOX.width / 2;
+    const halfDepth = CHARACTER_HITBOX.depth / 2;
+    const playerHeight = CHARACTER_HITBOX.height;
     
-    // Centro del jugador (el cubo tiene centro en position.y - altura/2 + 1)
-    const playerCenterY = player.position.y - 0.7; // Ajustar al centro del cubo
+    // Centro del jugador
+    const playerCenterY = player.position.y - 0.7;
     
     // Calcular distancia desde la bala al centro del jugador
-    const dx = bullet.position.x - player.position.x;
-    const dy = bullet.position.y - playerCenterY;
-    const dz = bullet.position.z - player.position.z;
+    const dx = Math.abs(bullet.position.x - player.position.x);
+    const dy = Math.abs(bullet.position.y - playerCenterY);
+    const dz = Math.abs(bullet.position.z - player.position.z);
     
-    // Colisión de cilindro (distancia horizontal + verificación de altura)
-    const horizontalDist = Math.sqrt(dx * dx + dz * dz);
-    const verticalDist = Math.abs(dy);
-    
-    // La bala colisiona si está dentro del cilindro
-    return horizontalDist < playerRadius && verticalDist < playerHeight / 2;
+    // Colisión AABB (Axis-Aligned Bounding Box)
+    return dx < halfWidth && dy < playerHeight / 2 && dz < halfDepth;
   }
 
   /**

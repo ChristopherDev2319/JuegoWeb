@@ -204,44 +204,29 @@ function configurarCallbacksRed() {
   
   // Hit notification
   connection.onHit((data) => {
-    // Solo mostrar efecto visual de daño, sin el indicador de texto
     mostrarEfectoDaño();
     actualizarBarraVida(data.health, 200);
-    console.log(`Hit! Damage: ${data.damage}, Health: ${data.health}`);
   });
   
   // Death notification (Requirement 3.5, 5.4)
   connection.onDeath((data) => {
-    console.log('Player died:', data);
-    
-    // Check if local player died
     if (data.playerId === localPlayerId) {
-      // Show death screen with killer info
       mostrarPantallaMuerte(data.killerId, 5000);
       actualizarBarraVida(0, 200);
     }
-    
-    // Add to kill feed (Requirement 5.3, 5.4)
     agregarEntradaKillFeed(data.killerId, data.playerId, localPlayerId);
   });
   
   // Respawn notification (Requirement 5.5)
   connection.onRespawn((data) => {
-    console.log('Player respawned:', data);
-    
-    // Check if local player respawned
     if (data.playerId === localPlayerId) {
-      // Hide death screen
       ocultarPantallaMuerte();
-      // Reset health bar to full
       actualizarBarraVida(200, 200);
     }
   });
   
   // Damage dealt notification (when local player hits someone)
-  // Requirement 5.3
   connection.onDamageDealt((data) => {
-    console.log('Damage dealt:', data);
     mostrarDañoCausado(data.damage);
   });
   
@@ -317,11 +302,11 @@ function cargarModeloArma() {
     armaCaregada.position.set(0.3, -0.3, -0.5);
     armaCaregada.rotation.set(0, Math.PI, 0);
 
-    // Configurar sombras
+    // Sin sombras
     armaCaregada.traverse((child) => {
       if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
+        child.castShadow = false;
+        child.receiveShadow = false;
       }
     });
 
@@ -339,17 +324,13 @@ function cargarModeloArma() {
  */
 function manejarRecarga() {
   if (isMultiplayerConnected) {
-    // Send reload input to server
     inputSender.sendReload();
   } else {
-    // Fallback to local processing
     recargar(() => {
       actualizarDisplayMunicion();
-      console.log('Recarga completa!');
     });
   }
   actualizarDisplayMunicion();
-  console.log('Recargando...');
 }
 
 /**

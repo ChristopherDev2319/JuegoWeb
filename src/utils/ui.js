@@ -224,33 +224,76 @@ export function agregarEntradaKillFeed(killerId, victimId, localPlayerId = null)
   }
 }
 
+// Estado de la barra de vida para interpolación suave
+let targetHealth = 200;
+let currentDisplayHealth = 200;
+let healthAnimationFrame = null;
+let cachedHealthBar = null;
+let cachedHealthText = null;
+let cachedMaxHealth = 200;
+
 /**
- * Update health bar display
+ * Update health bar display with smooth interpolation
  * @param {number} currentHealth - Current health value
  * @param {number} maxHealth - Maximum health value (default 200)
  */
 export function actualizarBarraVida(currentHealth, maxHealth = 200) {
-  const healthBar = document.getElementById('health-bar');
-  const healthText = document.getElementById('health-text');
+  cachedHealthBar = document.getElementById('health-bar');
+  cachedHealthText = document.getElementById('health-text');
+  cachedMaxHealth = maxHealth;
   
-  if (!healthBar) return;
+  if (!cachedHealthBar) return;
   
-  const healthPercent = Math.max(0, Math.min(100, (currentHealth / maxHealth) * 100));
+  // Actualizar el objetivo
+  targetHealth = currentHealth;
   
-  // Update bar width
-  healthBar.style.width = `${healthPercent}%`;
-  
-  // Update bar color based on health level
-  healthBar.classList.remove('low', 'medium');
-  if (healthPercent <= 25) {
-    healthBar.classList.add('low');
-  } else if (healthPercent <= 50) {
-    healthBar.classList.add('medium');
+  // Iniciar animación si no está corriendo
+  if (!healthAnimationFrame) {
+    healthAnimationFrame = requestAnimationFrame(animarBarraVida);
+  }
+}
+
+/**
+ * Animate health bar smoothly towards target
+ */
+function animarBarraVida() {
+  if (!cachedHealthBar) {
+    healthAnimationFrame = null;
+    return;
   }
   
-  // Update text
-  if (healthText) {
-    healthText.textContent = `${Math.round(currentHealth)} / ${maxHealth}`;
+  // Interpolar hacia el objetivo
+  const diff = targetHealth - currentDisplayHealth;
+  
+  // Interpolar suavemente
+  if (Math.abs(diff) > 0.5) {
+    currentDisplayHealth += diff * 0.2;
+  } else {
+    currentDisplayHealth = targetHealth;
+  }
+  
+  // Actualizar visual
+  const healthPercent = Math.max(0, Math.min(100, (currentDisplayHealth / cachedMaxHealth) * 100));
+  cachedHealthBar.style.width = `${healthPercent}%`;
+  
+  // Actualizar color basado en nivel de vida
+  cachedHealthBar.classList.remove('low', 'medium');
+  if (healthPercent <= 25) {
+    cachedHealthBar.classList.add('low');
+  } else if (healthPercent <= 50) {
+    cachedHealthBar.classList.add('medium');
+  }
+  
+  // Actualizar texto
+  if (cachedHealthText) {
+    cachedHealthText.textContent = `${Math.round(targetHealth)} / ${cachedMaxHealth}`;
+  }
+  
+  // Continuar animación si no hemos llegado al objetivo
+  if (Math.abs(targetHealth - currentDisplayHealth) > 0.5) {
+    healthAnimationFrame = requestAnimationFrame(animarBarraVida);
+  } else {
+    healthAnimationFrame = null;
   }
 }
 

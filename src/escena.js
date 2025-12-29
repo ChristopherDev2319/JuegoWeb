@@ -34,7 +34,7 @@ export function inicializarEscena() {
   // Crear renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = false; // Sombras desactivadas
   document.body.appendChild(renderer.domElement);
 
   // Configurar iluminación
@@ -64,10 +64,10 @@ function configurarIluminacion() {
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambientLight);
 
-  // Luz direccional
+  // Luz direccional (sin sombras)
   const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
   directionalLight.position.set(10, 20, 10);
-  directionalLight.castShadow = true;
+  directionalLight.castShadow = false;
   scene.add(directionalLight);
 }
 
@@ -84,7 +84,7 @@ function crearSuelo() {
   });
   const ground = new THREE.Mesh(groundGeometry, groundMaterial);
   ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
+  ground.receiveShadow = false;
   scene.add(ground);
 }
 
