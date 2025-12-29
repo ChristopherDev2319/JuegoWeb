@@ -5,7 +5,7 @@
  * Requirements: 5.2, 5.3
  */
 
-import { WEAPON_CONFIG, BULLET_CONFIG } from './config.js';
+import { BULLET_CONFIG, getWeaponConfig } from './config.js';
 
 let bulletIdCounter = 0;
 
@@ -20,13 +20,17 @@ const CHARACTER_HITBOX = {
  * Bullet class representing a projectile
  */
 export class Bullet {
-  constructor(ownerId, position, direction) {
+  constructor(ownerId, position, direction, weaponType = 'M4A1') {
     this.id = `bullet_${++bulletIdCounter}`;
     this.ownerId = ownerId;
     this.position = { ...position };
     this.direction = normalizeDirection(direction);
-    this.speed = WEAPON_CONFIG.bulletSpeed;
-    this.damage = WEAPON_CONFIG.damage;
+    this.weaponType = weaponType;
+    
+    const weaponConfig = getWeaponConfig(weaponType);
+    this.speed = weaponConfig.bulletSpeed;
+    this.damage = weaponConfig.damage;
+    this.headshotMultiplier = weaponConfig.headshotMultiplier || 2.0;
     this.createdAt = Date.now();
     this.active = true;
   }
@@ -95,10 +99,11 @@ export class BulletSystem {
    * @param {string} ownerId - ID of the player who fired
    * @param {Object} position - Starting position {x, y, z}
    * @param {Object} direction - Direction vector {x, y, z}
+   * @param {string} weaponType - Type of weapon used
    * @returns {Bullet} - The created bullet
    */
-  createBullet(ownerId, position, direction) {
-    const bullet = new Bullet(ownerId, position, direction);
+  createBullet(ownerId, position, direction, weaponType = 'M4A1') {
+    const bullet = new Bullet(ownerId, position, direction, weaponType);
     this.bullets.push(bullet);
     return bullet;
   }

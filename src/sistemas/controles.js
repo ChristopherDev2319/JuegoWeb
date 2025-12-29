@@ -126,14 +126,13 @@ function manejarTeclaSoltada(evento) {
 }
 
 /**
- * Maneja el clic en el body para pointer lock o disparo
+ * Maneja el clic en el body para activar pointer lock
  */
 function manejarClickBody() {
   if (!pointerLockActivo) {
     document.body.requestPointerLock();
-  } else if (callbacks.onDisparar) {
-    callbacks.onDisparar();
   }
+  // El disparo se maneja en manejarMouseDown, no aquí
 }
 
 /**

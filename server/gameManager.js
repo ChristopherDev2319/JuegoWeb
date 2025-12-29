@@ -7,7 +7,7 @@
 
 import { PlayerState, createPlayer } from './playerState.js';
 import { BulletSystem } from './bulletSystem.js';
-import { PLAYER_CONFIG, SERVER_CONFIG } from './config.js';
+import { PLAYER_CONFIG, SERVER_CONFIG, getWeaponConfig } from './config.js';
 
 let playerIdCounter = 0;
 
@@ -146,7 +146,7 @@ export class GameManager {
    * Process shoot input (Requirement 5.2)
    * @param {PlayerState} player - Player state
    * @param {Object} data - Shoot data with position and direction
-   * @returns {Object} - Result with bullet if created
+   * @returns {Object} - Result with bullet(s) if created
    */
   processShootInput(player, data) {
     if (!player.canFire()) {
@@ -162,15 +162,45 @@ export class GameManager {
     // Consume ammo
     player.consumeAmmo();
 
-    // Create bullet
-    const bullet = this.bulletSystem.createBullet(
-      player.id,
-      data.position,
-      data.direction
-    );
+    const weaponType = player.currentWeapon || 'M4A1';
+    const weaponConfig = getWeaponConfig(weaponType);
+    
+    // Obtener número de proyectiles y dispersión
+    const numProjectiles = weaponConfig.projectiles || 1;
+    const spread = weaponConfig.spread || 0;
+    
+    const bullets = [];
+    
+    // Crear múltiples balas para escopetas
+    for (let i = 0; i < numProjectiles; i++) {
+      // Calcular dirección con dispersión
+      let direction = { ...data.direction };
+      
+      if (spread > 0 && numProjectiles > 1) {
+        direction.x += (Math.random() - 0.5) * spread;
+        direction.y += (Math.random() - 0.5) * spread;
+        direction.z += (Math.random() - 0.5) * spread * 0.5;
+        
+        // Normalizar dirección
+        const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y + direction.z * direction.z);
+        if (length > 0) {
+          direction.x /= length;
+          direction.y /= length;
+          direction.z /= length;
+        }
+      }
+      
+      const bullet = this.bulletSystem.createBullet(
+        player.id,
+        data.position,
+        direction,
+        weaponType
+      );
+      bullets.push(bullet);
+    }
 
-    console.log(`[SHOOT] Player ${player.id} fired bullet ${bullet.id}, ammo left: ${player.ammo}`);
-    return { success: true, bullet };
+    console.log(`[SHOOT] Player ${player.id} fired ${weaponType} (${numProjectiles} projectiles, dmg: ${weaponConfig.damage} each), ammo left: ${player.ammo}`);
+    return { success: true, bullets, bullet: bullets[0] }; // bullet para compatibilidad
   }
 
   /**

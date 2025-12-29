@@ -5,7 +5,7 @@
  * Requirements: 1.2, 5.3, 5.4, 5.5, 6.2, 6.4, 7.2, 7.3
  */
 
-import { PLAYER_CONFIG, WEAPON_CONFIG, DASH_CONFIG } from './config.js';
+import { PLAYER_CONFIG, WEAPON_CONFIG, DASH_CONFIG, getWeaponConfig } from './config.js';
 
 /**
  * PlayerState class representing a player's complete state
@@ -27,9 +27,11 @@ export class PlayerState {
     this.deathTime = null;
     
     // Weapon state (Requirement 6.2, 6.4)
-    this.ammo = WEAPON_CONFIG.magazineSize;
-    this.maxAmmo = WEAPON_CONFIG.magazineSize;
-    this.totalAmmo = WEAPON_CONFIG.totalAmmo;
+    this.currentWeapon = 'M4A1'; // Arma por defecto
+    const weaponConfig = getWeaponConfig(this.currentWeapon);
+    this.ammo = weaponConfig.magazineSize;
+    this.maxAmmo = weaponConfig.magazineSize;
+    this.totalAmmo = weaponConfig.totalAmmo;
     this.isReloading = false;
     this.reloadStartTime = null;
     this.lastFireTime = 0;
@@ -38,6 +40,31 @@ export class PlayerState {
     this.dashCharges = DASH_CONFIG.maxCharges;
     this.maxDashCharges = DASH_CONFIG.maxCharges;
     this.lastDashRechargeTime = Date.now();
+  }
+
+  /**
+   * Obtiene la configuración del arma actual
+   */
+  getWeaponConfig() {
+    return getWeaponConfig(this.currentWeapon);
+  }
+
+  /**
+   * Cambia el arma actual
+   * @param {string} weaponType - Tipo de arma
+   */
+  changeWeapon(weaponType) {
+    if (!WEAPON_CONFIG[weaponType]) return false;
+    
+    this.currentWeapon = weaponType;
+    const config = this.getWeaponConfig();
+    this.ammo = config.magazineSize;
+    this.maxAmmo = config.magazineSize;
+    this.totalAmmo = config.totalAmmo;
+    this.isReloading = false;
+    this.reloadStartTime = null;
+    this.lastFireTime = 0;
+    return true;
   }
 
   /**
@@ -95,7 +122,8 @@ export class PlayerState {
     this.deathTime = null;
     this.isReloading = false;
     this.reloadStartTime = null;
-    this.ammo = WEAPON_CONFIG.magazineSize;
+    const config = this.getWeaponConfig();
+    this.ammo = config.magazineSize;
   }
 
   /**
@@ -140,7 +168,8 @@ export class PlayerState {
    */
   isReloadComplete() {
     if (!this.isReloading || this.reloadStartTime === null) return false;
-    return Date.now() - this.reloadStartTime >= WEAPON_CONFIG.reloadTime;
+    const config = this.getWeaponConfig();
+    return Date.now() - this.reloadStartTime >= config.reloadTime;
   }
 
   /**
@@ -150,7 +179,8 @@ export class PlayerState {
     if (!this.isAlive) return false;
     if (this.isReloading) return false;
     if (this.ammo <= 0) return false;
-    if (Date.now() - this.lastFireTime < WEAPON_CONFIG.fireRate) return false;
+    const config = this.getWeaponConfig();
+    if (Date.now() - this.lastFireTime < config.fireRate) return false;
     return true;
   }
 
@@ -270,6 +300,7 @@ export class PlayerState {
       health: this.health,
       maxHealth: this.maxHealth,
       isAlive: this.isAlive,
+      currentWeapon: this.currentWeapon,
       ammo: this.ammo,
       maxAmmo: this.maxAmmo,
       totalAmmo: this.totalAmmo,
