@@ -20,8 +20,9 @@ export class InputSender {
    * @param {Object} keys - Key states { w, a, s, d, space }
    * @param {Object} rotation - Player rotation { x, y }
    * @param {Object} position - Player position { x, y, z }
+   * @param {boolean} isAiming - Whether player is aiming
    */
-  sendMovement(keys, rotation, position = null) {
+  sendMovement(keys, rotation, position = null, isAiming = false) {
     if (!this.connection.isConnected()) {
       return;
     }
@@ -37,7 +38,8 @@ export class InputSender {
       rotation: {
         x: rotation.x || 0,
         y: rotation.y || 0
-      }
+      },
+      isAiming: isAiming
     };
     
     // Incluir posición si se proporciona

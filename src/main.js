@@ -356,6 +356,16 @@ function configurarCallbacksRed() {
     }
   });
   
+  // Bullet created by another player - trigger shoot animation
+  connection.onBulletCreated((bullet) => {
+    if (bullet && bullet.ownerId && bullet.ownerId !== localPlayerId) {
+      const remotePlayer = remotePlayerManager.getPlayer(bullet.ownerId);
+      if (remotePlayer && remotePlayer.dispararAnimacion) {
+        remotePlayer.dispararAnimacion(0.25);
+      }
+    }
+  });
+  
   // Damage dealt notification (when local player hits someone)
   connection.onDamageDealt((data) => {
     mostrarDañoCausado(data.damage);
@@ -763,7 +773,11 @@ function enviarInputMovimiento() {
     z: jugador.posicion.z
   };
   
-  inputSender.sendMovement(keys, rotation, position);
+  // Obtener estado de apuntado
+  const estadoArma = obtenerEstado();
+  const apuntando = estadoArma.estaApuntando || false;
+  
+  inputSender.sendMovement(keys, rotation, position, apuntando);
 }
 
 /**

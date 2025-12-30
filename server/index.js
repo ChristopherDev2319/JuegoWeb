@@ -100,7 +100,8 @@ function handleMessage(ws, data) {
     // Convertir formato de input a formato de movimiento
     inputData = {
       rotation: inputData.rotation,
-      position: inputData.position
+      position: inputData.position,
+      isAiming: inputData.isAiming
     };
   }
   

@@ -54,10 +54,12 @@ export class RemotePlayer {
     
     this.characterModel = null;
     this.animador = null;
-    this.animacionActual = 'idle';
     this.estaMoviendose = false;
+    this.estaApuntando = false;
+    this.estaDisparando = false;
+    this.tiempoDisparo = 0; // Tiempo restante de animación de disparo
     
-    // ✅ NUEVO: Variables para detectar movimiento REAL
+    // Variables para detectar movimiento REAL
     this.lastWorldPosition = new THREE.Vector3();
     this.worldVelocity = 0;
     this.moveCooldown = 0;
@@ -168,6 +170,15 @@ export class RemotePlayer {
     console.log(`Remote player ${this.id} changed weapon to ${weaponType}`);
   }
 
+  /**
+   * Activa la animación de disparo
+   * @param {number} duracion - Duración de la animación en segundos
+   */
+  dispararAnimacion(duracion = 0.3) {
+    this.estaDisparando = true;
+    this.tiempoDisparo = duracion;
+  }
+
   async inicializarAnimaciones() {
     if (!this.characterModel) return;
     
@@ -176,9 +187,10 @@ export class RemotePlayer {
     
     try {
       // Intentar cargar animaciones externas
-      const [clipIdle, clipWalk] = await Promise.all([
+      const [clipIdle, clipWalk, clipAim] = await Promise.all([
         cargarAnimacion('idle'),
-        cargarAnimacion('walk')
+        cargarAnimacion('walk'),
+        cargarAnimacion('aim')
       ]);
       
       // Usar animación del modelo como fallback si no se cargó la externa
@@ -194,11 +206,13 @@ export class RemotePlayer {
       if (clipWalk) {
         this.animador.agregarAnimacion('walk', clipWalk);
       }
+      if (clipAim) {
+        this.animador.agregarAnimacion('aim', clipAim);
+      }
       
       // Iniciar con animación idle inmediatamente
       if (idleClip) {
         this.animador.reproducir('idle', { transicion: 0, loop: true });
-        this.animacionActual = 'idle';
         // Forzar actualización inmediata del mixer para aplicar la pose
         this.animador.actualizar(0.016);
       }
@@ -208,7 +222,6 @@ export class RemotePlayer {
       if (this.animacionesDelModelo && this.animacionesDelModelo.length > 0) {
         this.animador.agregarAnimacion('idle', this.animacionesDelModelo[0]);
         this.animador.reproducir('idle', { transicion: 0, loop: true });
-        this.animacionActual = 'idle';
         this.animador.actualizar(0.016);
       }
     }
@@ -266,6 +279,11 @@ export class RemotePlayer {
     
     if (state.currentWeapon && state.currentWeapon !== this.currentWeapon) {
       this.changeWeapon(state.currentWeapon);
+    }
+    
+    // Detectar si está apuntando (el servidor envía isAiming)
+    if (typeof state.isAiming === 'boolean' && state.isAiming !== this.estaApuntando) {
+      this.estaApuntando = state.isAiming;
     }
     
     this.previousState = {
@@ -338,7 +356,7 @@ export class RemotePlayer {
     const currentRotY = lerpAngle(prevRotY, targetRotY, easedAlpha);
     this.group.rotation.y = currentRotY;
     
-    // ✅ NUEVO: Medir velocidad REAL en el mundo (no estado de red)
+    // Medir velocidad REAL en el mundo (no estado de red)
     const currentPos = this.group.position;
     const deltaX = currentPos.x - this.lastWorldPosition.x;
     const deltaZ = currentPos.z - this.lastWorldPosition.z;
@@ -349,35 +367,44 @@ export class RemotePlayer {
     // Guardar posición actual para el siguiente frame
     this.lastWorldPosition.copy(currentPos);
     
-    // ✅ Umbral de velocidad + histeresis (anti-parpadeo)
-    const SPEED_THRESHOLD = 0.08; // Ajustado para movimiento normal
+    // Umbral de velocidad + histeresis (anti-parpadeo)
+    const SPEED_THRESHOLD = 0.08;
     
     if (this.worldVelocity > SPEED_THRESHOLD) {
-      this.moveCooldown = 0.15; // 150ms de "inercia"
+      this.moveCooldown = 0.15;
     } else {
       this.moveCooldown -= deltaTime;
     }
     
     const nuevoEstadoMovimiento = this.moveCooldown > 0;
     
-    // ✅ Cambiar animación SOLO cuando cambia el estado
-    if (nuevoEstadoMovimiento !== this.estaMoviendose) {
-      this.estaMoviendose = nuevoEstadoMovimiento;
-      this.cambiarAnimacion(this.estaMoviendose ? 'walk' : 'idle');
+    // Actualizar tiempo de disparo
+    if (this.tiempoDisparo > 0) {
+      this.tiempoDisparo -= deltaTime;
+      if (this.tiempoDisparo <= 0) {
+        this.estaDisparando = false;
+      }
     }
     
-    // Actualizar mixer de animaciones
+    // Determinar animación según prioridad: disparando/apuntando > walk > idle
+    let animacionObjetivo = 'idle';
+    let usarLoop = true;
+    
+    if (this.estaApuntando || this.estaDisparando) {
+      animacionObjetivo = 'aim';
+      usarLoop = false; // Aim es una pose, no loop
+    } else if (nuevoEstadoMovimiento) {
+      animacionObjetivo = 'walk';
+    }
+    
+    // Cambiar animación solo si es diferente a la actual del animador
     if (this.animador) {
+      const animActual = this.animador.obtenerAnimacionActual();
+      if (animacionObjetivo !== animActual) {
+        this.animador.reproducir(animacionObjetivo, { transicion: 0.1, loop: usarLoop });
+      }
       this.animador.actualizar(deltaTime);
     }
-  }
-
-  cambiarAnimacion(nombre) {
-    if (this.animacionActual === nombre) return;
-    if (!this.animador) return;
-    
-    this.animador.reproducir(nombre, { transicion: 0.2, loop: true });
-    this.animacionActual = nombre;
   }
 
   getPosition() {
@@ -386,9 +413,7 @@ export class RemotePlayer {
       y: this.group.position.y,
       z: this.group.position.z
     };
-  }
-
-  isAlive() {
+  }  isAlive() {
     return this.serverState.isAlive;
   }
 

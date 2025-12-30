@@ -8,7 +8,8 @@
 // Rutas de las animaciones
 const ANIMACIONES = {
   idle: 'modelos/animaciones/idle_tps.glb',
-  walk: 'modelos/animaciones/walk_tps.glb'
+  walk: 'modelos/animaciones/walk_tps.glb',
+  aim: 'modelos/animaciones/aim_position.glb'
 };
 
 // Cache de clips de animación cargados

@@ -139,6 +139,11 @@ export class GameManager {
       player.velocity.z = data.velocity.z ?? player.velocity.z;
     }
 
+    // Update aiming state if provided
+    if (typeof data.isAiming === 'boolean') {
+      player.isAiming = data.isAiming;
+    }
+
     return { success: true };
   }
 
