@@ -579,21 +579,32 @@ function manejarDisparo() {
     // Obtener dispersión por retroceso acumulado
     const dispersionRetroceso = obtenerDispersionRetroceso();
     
-    // Enviar input de disparo al servidor con el tipo de arma
+    // Enviar input de disparo al servidor con el tipo de arma y estado de apuntado
     inputSender.sendShoot(
       { x: posicionBala.x, y: posicionBala.y, z: posicionBala.z },
       { x: direccion.x, y: direccion.y, z: direccion.z },
-      estadoArma.tipoActual
+      estadoArma.tipoActual,
+      estadoArma.estaApuntando
     );
     
     // Para escopetas, crear múltiples balas visuales
     const numProyectiles = configArma.proyectiles || 1;
-    const dispersionArma = configArma.dispersion || 0;
+    let dispersionArma = configArma.dispersion || 0;
+    
+    // Aplicar dispersión sin mira para francotiradores (sniper)
+    // Si no está apuntando y tiene dispersionSinMira, usarla
+    if (!estadoArma.estaApuntando && configArma.dispersionSinMira) {
+      dispersionArma = configArma.dispersionSinMira;
+    }
+    // Si está apuntando y tiene reduccionDispersion, aplicarla
+    else if (estadoArma.estaApuntando && configArma.apuntado && configArma.apuntado.reduccionDispersion) {
+      dispersionArma *= configArma.apuntado.reduccionDispersion;
+    }
     
     for (let i = 0; i < numProyectiles; i++) {
       const direccionBala = direccion.clone();
       
-      // Aplicar dispersión del arma (escopeta) + dispersión por retroceso
+      // Aplicar dispersión del arma + dispersión por retroceso
       const dispersionTotal = dispersionArma + dispersionRetroceso;
       if (dispersionTotal > 0) {
         direccionBala.x += (Math.random() - 0.5) * dispersionTotal;

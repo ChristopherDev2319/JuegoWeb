@@ -167,7 +167,15 @@ export class GameManager {
     
     // Obtener número de proyectiles y dispersión
     const numProjectiles = weaponConfig.projectiles || 1;
-    const spread = weaponConfig.spread || 0;
+    let spread = weaponConfig.spread || 0;
+    
+    // Aplicar dispersión sin mira para francotiradores (sniper)
+    const isAiming = data.isAiming || false;
+    if (!isAiming && weaponConfig.hipfireSpread) {
+      spread = weaponConfig.hipfireSpread;
+    } else if (isAiming && weaponConfig.aimSpreadReduction) {
+      spread *= weaponConfig.aimSpreadReduction;
+    }
     
     const bullets = [];
     
@@ -176,10 +184,13 @@ export class GameManager {
       // Calcular dirección con dispersión
       let direction = { ...data.direction };
       
-      if (spread > 0 && numProjectiles > 1) {
+      // Aplicar dispersión si hay (escopetas con múltiples proyectiles o sniper sin mira)
+      if (spread > 0) {
         direction.x += (Math.random() - 0.5) * spread;
         direction.y += (Math.random() - 0.5) * spread;
-        direction.z += (Math.random() - 0.5) * spread * 0.5;
+        if (numProjectiles > 1) {
+          direction.z += (Math.random() - 0.5) * spread * 0.5;
+        }
         
         // Normalizar dirección
         const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y + direction.z * direction.z);

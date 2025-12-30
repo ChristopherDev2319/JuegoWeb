@@ -1,22 +1,38 @@
 /**
  * Módulo de utilidades de interfaz de usuario
  * Contiene funciones para actualizar elementos de la UI del juego
+ * 
+ * NOTA: Los valores de munición y estado de arma se reciben del servidor.
+ * El cliente NO calcula estos valores localmente - solo los muestra.
+ * Requisitos: 2.4
  */
 
 /**
- * Actualiza el display de munición
- * @param {Object} arma - Estado del arma con currentAmmo, totalAmmo, isReloading
+ * Actualiza el display de munición con valores del servidor
+ * NOTA: Los valores de munición son autoritativos del servidor
+ * 
+ * @param {Object} estadoMunicion - Estado de munición recibido del servidor
+ * @param {number} estadoMunicion.currentAmmo - Munición actual en cargador (del servidor)
+ * @param {number} estadoMunicion.totalAmmo - Munición total de reserva (del servidor)
+ * @param {boolean} estadoMunicion.isReloading - Si está recargando (del servidor)
+ * @param {number} [estadoMunicion.municionActual] - Alias en español para currentAmmo
+ * @param {number} [estadoMunicion.municionTotal] - Alias en español para totalAmmo
+ * @param {boolean} [estadoMunicion.estaRecargando] - Alias en español para isReloading
  */
-export function actualizarMunicion(arma) {
+export function actualizarMunicion(estadoMunicion) {
   const ammoDiv = document.getElementById('ammo');
   if (!ammoDiv) return;
 
-  if (arma.isReloading || arma.estaRecargando) {
+  // Soportar tanto nombres en inglés (del servidor) como español (del cliente)
+  const estaRecargando = estadoMunicion.isReloading || estadoMunicion.estaRecargando;
+  
+  if (estaRecargando) {
     ammoDiv.textContent = 'RECARGANDO...';
     ammoDiv.style.color = '#ffaa00';
   } else {
-    const municionActual = arma.currentAmmo || arma.municionActual;
-    const municionTotal = arma.totalAmmo || arma.municionTotal;
+    // Valores del servidor tienen prioridad
+    const municionActual = estadoMunicion.currentAmmo ?? estadoMunicion.municionActual ?? 0;
+    const municionTotal = estadoMunicion.totalAmmo ?? estadoMunicion.municionTotal ?? 0;
     ammoDiv.textContent = `${municionActual} / ${municionTotal}`;
     ammoDiv.style.color = municionActual <= 5 ? '#ff0000' : 'white';
   }
@@ -24,10 +40,12 @@ export function actualizarMunicion(arma) {
 
 /**
  * Actualiza el display del arma actual
- * @param {Object} estadoArma - Estado completo del arma
+ * NOTA: Los valores de munición vienen del servidor
+ * 
+ * @param {Object} estadoArma - Estado completo del arma (combinación de visual local + munición del servidor)
  */
 export function actualizarInfoArma(estadoArma) {
-  // Actualizar nombre del arma
+  // Actualizar nombre del arma (valor visual local)
   const weaponNameDiv = document.getElementById('weapon-name');
   if (weaponNameDiv && estadoArma.nombre) {
     let nombreTexto = estadoArma.nombre;
@@ -40,7 +58,7 @@ export function actualizarInfoArma(estadoArma) {
     weaponNameDiv.style.color = estadoArma.estaApuntando ? '#00ff00' : '#ffaa00';
   }
 
-  // Actualizar munición
+  // Actualizar munición (valores del servidor)
   actualizarMunicion(estadoArma);
 
   // Actualizar lista de armas disponibles

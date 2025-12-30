@@ -57,8 +57,9 @@ export class InputSender {
    * @param {Object} position - Bullet start position { x, y, z }
    * @param {Object} direction - Bullet direction { x, y, z }
    * @param {string} weaponType - Type of weapon being fired
+   * @param {boolean} isAiming - Whether player is aiming down sights
    */
-  sendShoot(position, direction, weaponType = 'M4A1') {
+  sendShoot(position, direction, weaponType = 'M4A1', isAiming = false) {
     if (!this.connection.isConnected()) {
       return;
     }
@@ -74,7 +75,8 @@ export class InputSender {
         y: direction.y || 0,
         z: direction.z || 0
       },
-      weaponType: weaponType
+      weaponType: weaponType,
+      isAiming: isAiming
     });
   }
 
