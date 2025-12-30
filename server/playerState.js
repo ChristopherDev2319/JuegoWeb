@@ -40,6 +40,9 @@ export class PlayerState {
     this.dashCharges = DASH_CONFIG.maxCharges;
     this.maxDashCharges = DASH_CONFIG.maxCharges;
     this.lastDashRechargeTime = Date.now();
+    
+    // Aiming state
+    this.isAiming = false;
   }
 
   /**
@@ -306,7 +309,8 @@ export class PlayerState {
       totalAmmo: this.totalAmmo,
       isReloading: this.isReloading,
       dashCharges: this.dashCharges,
-      maxDashCharges: this.maxDashCharges
+      maxDashCharges: this.maxDashCharges,
+      isAiming: this.isAiming
     };
   }
 }
