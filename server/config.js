@@ -140,32 +140,6 @@ export const WEAPON_CONFIG = {
     reloadTime: 2000,        // Tiempo de recarga: 2 segundos
     bulletSpeed: 28,         // Velocidad de bala - moderada
     headshotMultiplier: 2.0  // Daño x2 en headshot (48 daño)
-  },
-
-  // SCAR: Rifle de batalla - punto medio entre M4 y AK
-  // Balas para matar: 6 (200 vida / 38 daño = 5.26 → 6 balas)
-  // Tiempo para matar: ~552ms (6 balas × 92ms)
-  SCAR: {
-    damage: 38,              // Daño por bala - alto
-    fireRate: 92,            // Cadencia: 650 RPM (60000/92)
-    magazineSize: 20,        // Balas por cargador - menos que M4
-    totalAmmo: 80,           // Munición de reserva
-    reloadTime: 2300,        // Tiempo de recarga: 2.3 segundos
-    bulletSpeed: 38,         // Velocidad de bala - rápida
-    headshotMultiplier: 2.0  // Daño x2 en headshot (76 daño)
-  },
-
-  // SCP: Arma especial de alto daño
-  // Balas para matar: 4 (200 vida / 52 daño = 3.85 → 4 balas)
-  // Tiempo para matar: ~532ms (4 balas × 133ms)
-  SCP: {
-    damage: 52,              // Daño por bala - muy alto
-    fireRate: 133,           // Cadencia: 450 RPM (60000/133) - moderado
-    magazineSize: 25,        // Balas por cargador
-    totalAmmo: 75,           // Munición de reserva
-    reloadTime: 2800,        // Tiempo de recarga: 2.8 segundos
-    bulletSpeed: 40,         // Velocidad de bala - rápida
-    headshotMultiplier: 2.0  // Daño x2 en headshot (104 daño)
   }
 };
 
