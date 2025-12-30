@@ -68,6 +68,9 @@ import { mostrarIndicadorDaño, mostrarMensajeConexion, ocultarMensajeConexion, 
 
 // Network imports
 import { getConnection } from './network/connection.js';
+
+// Animaciones
+import { precargarAnimaciones } from './sistemas/animaciones.js';
 import { getInputSender } from './network/inputSender.js';
 import { initializeRemotePlayerManager } from './network/remotePlayers.js';
 
@@ -113,12 +116,46 @@ let localPlayerId = null;
 const INPUT_SEND_RATE = 1000 / 20; // 50ms
 let lastInputSendTime = 0;
 
+// Referencias a elementos de pantalla de carga
+let loadingScreen = null;
+let loadingBar = null;
+let loadingText = null;
+
+/**
+ * Actualiza la pantalla de carga
+ */
+function actualizarCarga(progreso, texto) {
+  if (loadingBar) loadingBar.style.width = `${progreso}%`;
+  if (loadingText) loadingText.textContent = texto;
+}
+
+/**
+ * Oculta la pantalla de carga
+ */
+function ocultarPantallaCarga() {
+  if (loadingScreen) {
+    loadingScreen.classList.add('hidden');
+    setTimeout(() => {
+      loadingScreen.style.display = 'none';
+    }, 500);
+  }
+}
+
 /**
  * Inicializa el juego
  */
 async function inicializar() {
+  // Obtener referencias a elementos de carga
+  loadingScreen = document.getElementById('loading-screen');
+  loadingBar = document.getElementById('loading-bar');
+  loadingText = document.getElementById('loading-text');
+
+  actualizarCarga(10, 'Iniciando...');
+
   // Leer configuración guardada
   leerConfiguracionGuardada();
+
+  actualizarCarga(20, 'Creando escena...');
 
   // Inicializar escena de Three.js
   inicializarEscena();
@@ -126,8 +163,19 @@ async function inicializar() {
   // Inicializar jugador
   inicializarJugador();
 
+  actualizarCarga(40, 'Cargando animaciones...');
+
+  // Precargar animaciones para jugadores remotos (no bloquea)
+  const animacionesPromise = precargarAnimaciones().catch(err => {
+    console.warn('Error precargando animaciones:', err);
+  });
+
+  actualizarCarga(50, 'Cargando armas...');
+
   // Inicializar sistema de armas (incluye carga de modelos)
   await inicializarSistemaArmas();
+
+  actualizarCarga(70, 'Configurando controles...');
 
   // Inicializar controles
   inicializarControles({
@@ -149,8 +197,24 @@ async function inicializar() {
   actualizarDisplayMunicion();
   actualizarDisplayDash();
 
+  actualizarCarga(85, 'Conectando al servidor...');
+
   // Initialize network connection (Requirement 2.1)
   await inicializarRed();
+
+  // Esperar a que las animaciones terminen de cargar (máximo 2 segundos)
+  await Promise.race([
+    animacionesPromise,
+    new Promise(resolve => setTimeout(resolve, 2000))
+  ]);
+
+  actualizarCarga(100, '¡Listo!');
+
+  // Pequeña pausa para mostrar el 100%
+  await new Promise(resolve => setTimeout(resolve, 300));
+
+  // Ocultar pantalla de carga
+  ocultarPantallaCarga();
 
   // Iniciar bucle del juego
   bucleJuego();
@@ -307,6 +371,12 @@ function configurarCallbacksRed() {
   connection.onDisconnect(() => {
     isMultiplayerConnected = false;
     localPlayerId = null;
+    
+    // Liberar pointer lock para que el click funcione en el overlay
+    if (document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+    
     mostrarMensajeConexion('Desconectado del servidor. Click para reconectar.', true);
     
     // Clear remote players
@@ -548,6 +618,12 @@ function calcularDireccionDash() {
  * Requirement 5.1: Send shoot input to server
  */
 function manejarDisparo() {
+  // No disparar si hay overlay de conexión visible
+  const connectionOverlay = document.getElementById('connection-overlay');
+  if (connectionOverlay && connectionOverlay.style.display !== 'none') {
+    return;
+  }
+
   if (isMultiplayerConnected) {
     // Verificar si podemos disparar localmente (para responsividad)
     if (arma.estaRecargando || arma.municionActual <= 0) {

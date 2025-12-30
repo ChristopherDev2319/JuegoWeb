@@ -108,6 +108,9 @@ export class RemotePlayer {
       this.characterModel.position.y = 0;
       this.characterModel.rotation.y = CHARACTER_CONFIG.rotationOffset;
       
+      // Guardar animaciones del modelo si las tiene
+      this.animacionesDelModelo = gltf.animations || [];
+      
       this.characterModel.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = false;
@@ -172,25 +175,42 @@ export class RemotePlayer {
     this.animador.inicializar();
     
     try {
+      // Intentar cargar animaciones externas
       const [clipIdle, clipWalk] = await Promise.all([
         cargarAnimacion('idle'),
         cargarAnimacion('walk')
       ]);
       
-      if (clipIdle) {
-        this.animador.agregarAnimacion('idle', clipIdle);
+      // Usar animación del modelo como fallback si no se cargó la externa
+      let idleClip = clipIdle;
+      if (!idleClip && this.animacionesDelModelo && this.animacionesDelModelo.length > 0) {
+        idleClip = this.animacionesDelModelo[0];
+        console.log(`Usando animación del modelo como idle para jugador ${this.id}`);
+      }
+      
+      if (idleClip) {
+        this.animador.agregarAnimacion('idle', idleClip);
       }
       if (clipWalk) {
         this.animador.agregarAnimacion('walk', clipWalk);
       }
       
       // Iniciar con animación idle inmediatamente
-      if (clipIdle) {
+      if (idleClip) {
         this.animador.reproducir('idle', { transicion: 0, loop: true });
         this.animacionActual = 'idle';
+        // Forzar actualización inmediata del mixer para aplicar la pose
+        this.animador.actualizar(0.016);
       }
     } catch (error) {
       console.warn(`Error cargando animaciones para jugador ${this.id}:`, error);
+      // Intentar usar animación del modelo como último recurso
+      if (this.animacionesDelModelo && this.animacionesDelModelo.length > 0) {
+        this.animador.agregarAnimacion('idle', this.animacionesDelModelo[0]);
+        this.animador.reproducir('idle', { transicion: 0, loop: true });
+        this.animacionActual = 'idle';
+        this.animador.actualizar(0.016);
+      }
     }
   }
 

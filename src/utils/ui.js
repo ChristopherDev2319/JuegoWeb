@@ -217,8 +217,9 @@ export function mostrarMensajeConexion(mensaje, esError = false) {
       display: flex;
       justify-content: center;
       align-items: center;
-      z-index: 1000;
+      z-index: 10000;
       font-family: Arial, sans-serif;
+      cursor: pointer;
     `;
     
     const messageBox = document.createElement('div');
@@ -232,6 +233,14 @@ export function mostrarMensajeConexion(mensaje, esError = false) {
     
     overlay.appendChild(messageBox);
     document.body.appendChild(overlay);
+    
+    // Click para reconectar
+    overlay.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Recargar la página para reconectar
+      window.location.reload();
+    });
   }
   
   const messageBox = document.getElementById('connection-message');
