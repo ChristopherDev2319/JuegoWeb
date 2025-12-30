@@ -15,6 +15,9 @@ export let renderer = null;
 // Contenedor del arma
 export let weaponContainer = null;
 
+// Referencia al mapa cargado
+let mapaModelo = null;
+
 /**
  * Inicializa la escena de Three.js con todos sus componentes
  */
@@ -40,12 +43,8 @@ export function inicializarEscena() {
   // Configurar iluminación
   configurarIluminacion();
 
-  // Crear suelo
-  crearSuelo();
-
-  // Crear helper de ejes
-  const axesHelper = new THREE.AxesHelper(50);
-  scene.add(axesHelper);
+  // Cargar mapa
+  cargarMapa();
 
   // Crear contenedor del arma y añadirlo a la cámara
   weaponContainer = new THREE.Group();
@@ -60,21 +59,61 @@ export function inicializarEscena() {
  * Configura las luces de la escena
  */
 function configurarIluminacion() {
-  // Luz ambiental
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  // Luz ambiental más fuerte para el mapa
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
   scene.add(ambientLight);
 
-  // Luz direccional (sin sombras)
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  directionalLight.position.set(10, 20, 10);
+  // Luz direccional principal
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+  directionalLight.position.set(50, 100, 50);
   directionalLight.castShadow = false;
   scene.add(directionalLight);
+
+  // Luz de relleno desde el otro lado
+  const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+  fillLight.position.set(-50, 50, -50);
+  scene.add(fillLight);
 }
 
 /**
- * Crea el suelo de la escena
+ * Carga el mapa del juego
  */
-function crearSuelo() {
+function cargarMapa() {
+  const gltfLoader = new THREE.GLTFLoader();
+  
+  gltfLoader.load('modelos/lowpoly__fps__tdm__game__map_by_resoforge.glb', (gltf) => {
+    mapaModelo = gltf.scene;
+    
+    // Escalar el mapa (ajustar según necesidad)
+    mapaModelo.scale.setScalar(5);
+    
+    // Posicionar el mapa
+    mapaModelo.position.set(0, 0, 0);
+    
+    // Configurar materiales del mapa
+    mapaModelo.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = false;
+        child.receiveShadow = false;
+      }
+    });
+    
+    scene.add(mapaModelo);
+    console.log('✅ Mapa cargado correctamente');
+  }, (progress) => {
+    const percent = Math.round((progress.loaded / progress.total) * 100);
+    console.log(`📦 Cargando mapa: ${percent}%`);
+  }, (error) => {
+    console.error('❌ Error cargando mapa:', error);
+    // Fallback: crear suelo simple si el mapa no carga
+    crearSueloFallback();
+  });
+}
+
+/**
+ * Crea un suelo simple como fallback si el mapa no carga
+ */
+function crearSueloFallback() {
   const groundGeometry = new THREE.PlaneGeometry(
     CONFIG.escena.tamañoSuelo,
     CONFIG.escena.tamañoSuelo
