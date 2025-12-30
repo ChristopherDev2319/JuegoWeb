@@ -178,58 +178,6 @@ export const CONFIG = {
         tiempoTransicion: 0.18,
         posicionArma: { x: 0, y: -0.14, z: -0.15 }
       }
-    },
-    // SCAR: Punto medio M4/AK - 5 balas para matar (200/42=4.7)
-    "SCAR": {
-      nombre: "SCAR-H",
-      tipo: "rifle",
-      cadenciaDisparo: 650, // 650 RPM
-      daño: 42,
-      tamañoCargador: 20,
-      municionTotal: 80,
-      tiempoRecarga: 2.3,
-      velocidadBala: 38.0,
-      modelo: "modelos/FBX/Weapons/SCAR.fbx",
-      posicion: { x: 0.3, y: -0.3, z: -0.5 },
-      rotacion: { x: 0, y: Math.PI, z: 0 },
-      retroceso: {
-        cantidad: 0.07,
-        arriba: 0.04,
-        duracion: 70
-      },
-      multiplicadorHeadshot: 2.0,
-      apuntado: {
-        zoom: 1.6,
-        reduccionRetroceso: 0.5,
-        tiempoTransicion: 0.28,
-        posicionArma: { x: 0, y: -0.13, z: -0.28 }
-      }
-    },
-    // SCP: Arma especial/futurista - 4 balas para matar (200/60=3.3)
-    "SCP": {
-      nombre: "SCP Experimental",
-      tipo: "rifle",
-      cadenciaDisparo: 450, // 450 RPM
-      daño: 60,
-      tamañoCargador: 25,
-      municionTotal: 75,
-      tiempoRecarga: 2.8,
-      velocidadBala: 40.0,
-      modelo: "modelos/FBX/Weapons/SCAR.fbx", // Usa modelo SCAR temporalmente
-      posicion: { x: 0.3, y: -0.3, z: -0.5 },
-      rotacion: { x: 0, y: Math.PI, z: 0 },
-      retroceso: {
-        cantidad: 0.08,
-        arriba: 0.05,
-        duracion: 85
-      },
-      multiplicadorHeadshot: 2.0,
-      apuntado: {
-        zoom: 1.8,
-        reduccionRetroceso: 0.45,
-        tiempoTransicion: 0.3,
-        posicionArma: { x: 0, y: -0.12, z: -0.25 }
-      }
     }
   },
 

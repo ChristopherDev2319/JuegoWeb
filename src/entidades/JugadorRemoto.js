@@ -11,7 +11,7 @@ import { AnimadorPersonaje, cargarAnimacion } from '../sistemas/animaciones.js';
 
 // Configuración del modelo del personaje
 const CHARACTER_CONFIG = {
-  modelPath: 'modelos/cubed_bear.glb',
+  modelPath: 'modelos/animaciones/idle_tps.glb', // Modelo con armas integradas
   scale: 7.0,
   rotationOffset: Math.PI,
   heightOffset: 0,
@@ -20,6 +20,16 @@ const CHARACTER_CONFIG = {
     y: 1.5,
     z: -0.3
   }
+};
+
+// Mapeo de tipos de arma a nombres en el modelo de animación
+const WEAPON_MODEL_NAMES = {
+  'M4A1': 'weapon_m4a6',
+  'AK47': 'weapon_ak',
+  'PISTOLA': 'weapon_1911',
+  'SNIPER': 'weapon_awp',
+  'ESCOPETA': 'weapon_pump',
+  'MP5': 'weapon_mp5'
 };
 
 // Hitbox del servidor
@@ -53,11 +63,9 @@ export class RemotePlayer {
     this.moveCooldown = 0;
     
     this.currentWeapon = state.currentWeapon || 'M4A1';
-    this.weaponModel = null;
-    this.weaponModelsCache = {};
+    this.weaponMeshes = {}; // Referencias a los meshes de armas en el modelo
     
     this.loadCharacterModel();
-    this.loadWeaponModel(this.currentWeapon);
     
     this.group.position.set(
       state.position.x,
@@ -105,16 +113,56 @@ export class RemotePlayer {
           child.castShadow = false;
           child.receiveShadow = false;
         }
+        
+        // Buscar y guardar referencias a las armas del modelo
+        const weaponNames = Object.values(WEAPON_MODEL_NAMES);
+        if (weaponNames.includes(child.name)) {
+          this.weaponMeshes[child.name] = child;
+          child.visible = false; // Ocultar todas inicialmente
+        }
       });
       
       this.group.add(this.characterModel);
       await this.inicializarAnimaciones();
+      
+      // Mostrar el arma actual
+      this.actualizarArmaVisible(this.currentWeapon);
       
       console.log(`Character model loaded for player ${this.id}`);
     }, undefined, (error) => {
       console.error(`Error loading character model for player ${this.id}:`, error);
       this.createFallbackMesh();
     });
+  }
+
+  /**
+   * Actualiza qué arma es visible en el modelo
+   * @param {string} weaponType - Tipo de arma (M4A1, AK47, etc.)
+   */
+  actualizarArmaVisible(weaponType) {
+    const nombreArma = WEAPON_MODEL_NAMES[weaponType];
+    
+    // Ocultar todas las armas
+    Object.values(this.weaponMeshes).forEach(mesh => {
+      mesh.visible = false;
+    });
+    
+    // Mostrar solo el arma seleccionada
+    if (nombreArma && this.weaponMeshes[nombreArma]) {
+      this.weaponMeshes[nombreArma].visible = true;
+    }
+  }
+
+  /**
+   * Cambia el arma del jugador remoto
+   * @param {string} weaponType - Nuevo tipo de arma
+   */
+  changeWeapon(weaponType) {
+    if (this.currentWeapon === weaponType) return;
+    
+    this.currentWeapon = weaponType;
+    this.actualizarArmaVisible(weaponType);
+    console.log(`Remote player ${this.id} changed weapon to ${weaponType}`);
   }
 
   async inicializarAnimaciones() {
@@ -134,6 +182,12 @@ export class RemotePlayer {
       }
       if (clipWalk) {
         this.animador.agregarAnimacion('walk', clipWalk);
+      }
+      
+      // Iniciar con animación idle inmediatamente
+      if (clipIdle) {
+        this.animador.reproducir('idle', { transicion: 0, loop: true });
+        this.animacionActual = 'idle';
       }
     } catch (error) {
       console.warn(`Error cargando animaciones para jugador ${this.id}:`, error);
@@ -179,76 +233,6 @@ export class RemotePlayer {
     this.healthBarGroup.add(this.healthBar);
     
     this.group.add(this.healthBarGroup);
-  }
-
-  loadWeaponModel(weaponType = 'M4A1') {
-    const fbxLoader = new THREE.FBXLoader();
-    
-    if (!this.weaponContainer) {
-      this.weaponContainer = new THREE.Group();
-      this.weaponContainer.position.set(
-        CHARACTER_CONFIG.weaponPosition.x,
-        CHARACTER_CONFIG.weaponPosition.y,
-        CHARACTER_CONFIG.weaponPosition.z
-      );
-      this.group.add(this.weaponContainer);
-    }
-    
-    const configArma = CONFIG.armas[weaponType];
-    if (!configArma || !configArma.modelo) {
-      console.warn(`No config found for weapon: ${weaponType}`);
-      return;
-    }
-    
-    if (this.weaponModelsCache[weaponType]) {
-      this.setWeaponModel(this.weaponModelsCache[weaponType].clone(), configArma);
-      return;
-    }
-    
-    fbxLoader.load(configArma.modelo, (weapon) => {
-      const box = new THREE.Box3().setFromObject(weapon);
-      const size = new THREE.Vector3();
-      box.getSize(size);
-      
-      const longitudDeseada = 0.8;
-      const escala = longitudDeseada / Math.max(size.x, size.y, size.z);
-      weapon.scale.setScalar(escala);
-      
-      weapon.traverse((child) => {
-        if (child.isMesh) {
-          child.castShadow = false;
-          child.receiveShadow = false;
-        }
-      });
-      
-      this.weaponModelsCache[weaponType] = weapon.clone();
-      this.setWeaponModel(weapon, configArma);
-      
-    }, undefined, (error) => {
-      console.error(`Error loading weapon ${weaponType}:`, error);
-    });
-  }
-
-  setWeaponModel(weapon, configArma) {
-    if (this.weaponModel) {
-      this.weaponContainer.remove(this.weaponModel);
-    }
-    
-    this.weaponModel = weapon;
-    weapon.position.set(0.2, 0, 0);
-    
-    const rotConfig = configArma.rotacion || { x: 0, y: Math.PI, z: 0 };
-    weapon.rotation.set(rotConfig.x, rotConfig.y, rotConfig.z);
-    
-    this.weaponContainer.add(weapon);
-  }
-
-  changeWeapon(weaponType) {
-    if (this.currentWeapon === weaponType) return;
-    
-    this.currentWeapon = weaponType;
-    this.loadWeaponModel(weaponType);
-    console.log(`Remote player ${this.id} changed weapon to ${weaponType}`);
   }
 
   updateFromState(state) {
@@ -421,22 +405,7 @@ export class RemotePlayer {
       });
     }
     
-    if (this.weaponModel) {
-      this.weaponModel.traverse((child) => {
-        if (child.isMesh) {
-          child.geometry.dispose();
-          if (child.material) {
-            if (Array.isArray(child.material)) {
-              child.material.forEach(m => m.dispose());
-            } else {
-              child.material.dispose();
-            }
-          }
-        }
-      });
-    }
-    
-    this.weaponContainer = null;
+    this.weaponMeshes = {};
   }
 }
 
