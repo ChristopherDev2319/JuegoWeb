@@ -492,7 +492,8 @@ export function animarRetroceso() {
 
   const configArma = obtenerConfigArmaActual();
   let retroceso = configArma.retroceso.cantidad || 0.08;
-  let subirArma = configArma.retroceso.arriba || 0.02;
+  let subirArma = (configArma.retroceso.arriba || 0.02) * 0.3; // Reducido al 30%
+  const retrocesoCamara = configArma.retroceso.camara || 0.015; // Retroceso de cámara
   
   // Incrementar disparos consecutivos para afectar precisión
   arma.disparosConsecutivos = Math.min(arma.disparosConsecutivos + 1, 15);
@@ -508,9 +509,17 @@ export function animarRetroceso() {
   const posicionActualZ = modeloArma.position.z;
   const posicionActualY = modeloArma.position.y;
 
-  // Aplicar retroceso (hacia atrás es positivo en Z local)
-  modeloArma.position.z += retroceso;
+  // Aplicar retroceso con límite para evitar que atraviese la cámara
+  const limiteMaxZ = -0.1;
+  const nuevaPosZ = posicionActualZ + retroceso;
+  modeloArma.position.z = Math.min(nuevaPosZ, limiteMaxZ);
   modeloArma.position.y += subirArma;
+
+  // Aplicar retroceso a la cámara (subir la vista)
+  if (camera) {
+    const retrocesoCamaraFinal = arma.estaApuntando ? retrocesoCamara * 0.5 : retrocesoCamara;
+    camera.rotation.x += retrocesoCamaraFinal;
+  }
 
   // Restaurar posición después de la duración
   const duracion = configArma.retroceso.duracion || 80;
