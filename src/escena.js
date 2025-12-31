@@ -18,10 +18,15 @@ export let weaponContainer = null;
 // Referencia al mapa cargado
 let mapaModelo = null;
 
+// Promesa de carga del mapa
+let mapaPromise = null;
+
 /**
  * Inicializa la escena de Three.js con todos sus componentes
+ * @param {Function} onProgresoMapa - Callback para progreso de carga del mapa
+ * @returns {Promise} - Promesa que resuelve cuando el mapa está cargado
  */
-export function inicializarEscena() {
+export function inicializarEscena(onProgresoMapa = null) {
   // Crear escena
   scene = new THREE.Scene();
   scene.background = new THREE.Color(CONFIG.escena.colorFondo);
@@ -43,8 +48,8 @@ export function inicializarEscena() {
   // Configurar iluminación
   configurarIluminacion();
 
-  // Cargar mapa
-  cargarMapa();
+  // Cargar mapa (ahora retorna promesa)
+  mapaPromise = cargarMapa(onProgresoMapa);
 
   // Crear contenedor del arma y añadirlo a la cámara
   weaponContainer = new THREE.Group();
@@ -53,6 +58,16 @@ export function inicializarEscena() {
 
   // Manejar redimensionamiento de ventana
   window.addEventListener('resize', manejarRedimensionamiento);
+  
+  return mapaPromise;
+}
+
+/**
+ * Obtiene la promesa de carga del mapa
+ * @returns {Promise}
+ */
+export function obtenerPromesaMapa() {
+  return mapaPromise;
 }
 
 /**
@@ -77,36 +92,45 @@ function configurarIluminacion() {
 
 /**
  * Carga el mapa del juego
+ * @param {Function} onProgreso - Callback para progreso de carga
+ * @returns {Promise} - Promesa que resuelve cuando el mapa está cargado
  */
-function cargarMapa() {
-  const gltfLoader = new THREE.GLTFLoader();
-  
-  gltfLoader.load('modelos/lowpoly__fps__tdm__game__map_by_resoforge.glb', (gltf) => {
-    mapaModelo = gltf.scene;
+function cargarMapa(onProgreso = null) {
+  return new Promise((resolve, reject) => {
+    const gltfLoader = new THREE.GLTFLoader();
     
-    // Escalar el mapa (ajustar según necesidad)
-    mapaModelo.scale.setScalar(5);
-    
-    // Posicionar el mapa
-    mapaModelo.position.set(0, 0, 0);
-    
-    // Configurar materiales del mapa
-    mapaModelo.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = false;
-        child.receiveShadow = false;
+    gltfLoader.load('modelos/lowpoly__fps__tdm__game__map_by_resoforge.glb', (gltf) => {
+      mapaModelo = gltf.scene;
+      
+      // Escalar el mapa (ajustar según necesidad)
+      mapaModelo.scale.setScalar(5);
+      
+      // Posicionar el mapa
+      mapaModelo.position.set(0, 0, 0);
+      
+      // Configurar materiales del mapa
+      mapaModelo.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = false;
+          child.receiveShadow = false;
+        }
+      });
+      
+      scene.add(mapaModelo);
+      console.log('✅ Mapa cargado correctamente');
+      resolve(mapaModelo);
+    }, (progress) => {
+      if (progress.total > 0) {
+        const percent = Math.round((progress.loaded / progress.total) * 100);
+        console.log(`📦 Cargando mapa: ${percent}%`);
+        if (onProgreso) onProgreso(percent);
       }
+    }, (error) => {
+      console.error('❌ Error cargando mapa:', error);
+      // Fallback: crear suelo simple si el mapa no carga
+      crearSueloFallback();
+      resolve(null); // Resolver de todas formas para no bloquear
     });
-    
-    scene.add(mapaModelo);
-    console.log('✅ Mapa cargado correctamente');
-  }, (progress) => {
-    const percent = Math.round((progress.loaded / progress.total) * 100);
-    console.log(`📦 Cargando mapa: ${percent}%`);
-  }, (error) => {
-    console.error('❌ Error cargando mapa:', error);
-    // Fallback: crear suelo simple si el mapa no carga
-    crearSueloFallback();
   });
 }
 

@@ -13,7 +13,8 @@ import {
   scene, 
   camera, 
   weaponContainer, 
-  renderizar 
+  renderizar,
+  obtenerPromesaMapa
 } from './escena.js';
 
 import { 
@@ -150,32 +151,43 @@ async function inicializar() {
   loadingBar = document.getElementById('loading-bar');
   loadingText = document.getElementById('loading-text');
 
-  actualizarCarga(10, 'Iniciando...');
+  actualizarCarga(5, 'Iniciando...');
 
   // Leer configuración guardada
   leerConfiguracionGuardada();
 
-  actualizarCarga(20, 'Creando escena...');
+  actualizarCarga(10, 'Creando escena...');
 
-  // Inicializar escena de Three.js
-  inicializarEscena();
+  // Inicializar escena de Three.js (inicia carga del mapa)
+  const mapaPromise = inicializarEscena((progresoMapa) => {
+    // El mapa representa del 10% al 50% de la carga
+    const progresoTotal = 10 + (progresoMapa * 0.4);
+    actualizarCarga(progresoTotal, `Cargando mapa: ${progresoMapa}%`);
+  });
 
   // Inicializar jugador
   inicializarJugador();
 
-  actualizarCarga(40, 'Cargando animaciones...');
+  actualizarCarga(15, 'Cargando mapa...');
 
-  // Precargar animaciones para jugadores remotos (no bloquea)
-  const animacionesPromise = precargarAnimaciones().catch(err => {
+  // Esperar a que el mapa cargue (ESENCIAL)
+  await mapaPromise;
+  
+  actualizarCarga(50, 'Cargando arma principal...');
+
+  // Cargar SOLO el arma inicial (M4A1) - las demás se cargan en background
+  await inicializarArmaInicial();
+
+  actualizarCarga(65, 'Cargando animaciones...');
+
+  // Precargar animaciones para jugadores remotos (ESENCIAL para ver otros jugadores)
+  try {
+    await precargarAnimaciones();
+  } catch (err) {
     console.warn('Error precargando animaciones:', err);
-  });
+  }
 
-  actualizarCarga(50, 'Cargando armas...');
-
-  // Inicializar sistema de armas (incluye carga de modelos)
-  await inicializarSistemaArmas();
-
-  actualizarCarga(70, 'Configurando controles...');
+  actualizarCarga(80, 'Configurando controles...');
 
   // Inicializar controles
   inicializarControles({
@@ -197,16 +209,10 @@ async function inicializar() {
   actualizarDisplayMunicion();
   actualizarDisplayDash();
 
-  actualizarCarga(85, 'Conectando al servidor...');
+  actualizarCarga(90, 'Conectando al servidor...');
 
   // Initialize network connection (Requirement 2.1)
   await inicializarRed();
-
-  // Esperar a que las animaciones terminen de cargar (máximo 2 segundos)
-  await Promise.race([
-    animacionesPromise,
-    new Promise(resolve => setTimeout(resolve, 2000))
-  ]);
 
   actualizarCarga(100, '¡Listo!');
 
@@ -218,6 +224,9 @@ async function inicializar() {
 
   // Iniciar bucle del juego
   bucleJuego();
+  
+  // Cargar el resto de armas en background (LAZY LOADING)
+  cargarArmasEnBackground();
 }
 
 /**
@@ -428,7 +437,59 @@ function procesarEstadoJuego(gameState) {
 }
 
 /**
+ * Inicializa SOLO el arma inicial (M4A1)
+ */
+async function inicializarArmaInicial() {
+  console.log('🔫 Cargando arma inicial...');
+  
+  // Agregar todas las armas al inventario (pero NO cargar sus modelos aún)
+  agregarArma('PISTOLA');
+  agregarArma('AK47');
+  agregarArma('SNIPER');
+  agregarArma('ESCOPETA');
+  agregarArma('MP5');
+  agregarArma('SCAR');
+  
+  // Cargar SOLO el modelo inicial (M4A1)
+  try {
+    await cambiarModeloArma('M4A1', weaponContainer);
+    console.log('✅ Arma inicial cargada');
+  } catch (error) {
+    console.error('❌ Error cargando arma inicial:', error);
+  }
+  
+  // Actualizar UI inicial
+  const estadoInicial = obtenerEstado();
+  actualizarInfoArma(estadoInicial);
+}
+
+/**
+ * Carga las demás armas en background (lazy loading)
+ */
+async function cargarArmasEnBackground() {
+  console.log('🔄 Cargando armas adicionales en background...');
+  
+  const armasACargar = ['PISTOLA', 'AK47', 'SNIPER', 'ESCOPETA', 'MP5', 'SCAR'];
+  
+  for (const tipoArma of armasACargar) {
+    try {
+      // Cargar modelo sin mostrarlo (solo cachear)
+      await cargarModeloArma(tipoArma, weaponContainer);
+      console.log(`✅ ${tipoArma} cargada en background`);
+    } catch (error) {
+      console.warn(`⚠️ Error cargando ${tipoArma}:`, error);
+    }
+    
+    // Pequeña pausa entre cargas para no saturar
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  
+  console.log('✅ Todas las armas cargadas');
+}
+
+/**
  * Inicializa el sistema de armas con armas adicionales
+ * @deprecated Usar inicializarArmaInicial + cargarArmasEnBackground
  */
 async function inicializarSistemaArmas() {
   console.log('🔫 Inicializando sistema de armas...');
@@ -550,8 +611,16 @@ function manejarRecarga() {
  */
 function manejarDash() {
   if (isMultiplayerConnected) {
+    // Verificar si hay cargas disponibles localmente antes de enviar al servidor
+    if (sistemaDash.cargasActuales <= 0) {
+      return;
+    }
+    
     // Calculate dash direction
     const direccion = calcularDireccionDash();
+    
+    // Consumir carga localmente para feedback inmediato
+    sistemaDash.cargasActuales--;
     
     // Marcar inicio de dash para evitar reconciliación brusca
     marcarInicioDash();
