@@ -2,11 +2,12 @@
  * Módulo Jugador
  * Gestiona el estado y movimiento del jugador
  * 
- * Requirements: 3.2, 4.2
+ * Requirements: 2.3, 3.2, 3.3, 4.2
  * @requires THREE - Three.js debe estar disponible globalmente
  */
 
 import { CONFIG } from '../config.js';
+import { resolverColision, verificarSuelo, estaActivo as colisionesActivas } from '../sistemas/colisiones.js';
 
 /**
  * Estado del jugador
@@ -93,6 +94,8 @@ export function calcularDireccionMovimiento(teclas) {
 
 /**
  * Actualiza el movimiento horizontal del jugador
+ * Usa el sistema de colisiones para detectar y resolver colisiones con paredes
+ * Requirements: 2.3, 3.2, 3.3
  * @param {Object} teclas - Estado de las teclas presionadas
  */
 export function actualizarMovimiento(teclas) {
@@ -103,33 +106,54 @@ export function actualizarMovimiento(teclas) {
 
   if (direccion.length() > 0) {
     direccion.normalize();
-    jugador.posicion.x += direccion.x * CONFIG.jugador.velocidad;
-    jugador.posicion.z += direccion.z * CONFIG.jugador.velocidad;
+    
+    // Calcular posición deseada
+    const posicionDeseada = jugador.posicion.clone();
+    posicionDeseada.x += direccion.x * CONFIG.jugador.velocidad;
+    posicionDeseada.z += direccion.z * CONFIG.jugador.velocidad;
+    
+    // Usar sistema de colisiones si está activo
+    if (colisionesActivas()) {
+      const radio = CONFIG.colisiones.radioJugador;
+      const posicionFinal = resolverColision(jugador.posicion, posicionDeseada, radio);
+      jugador.posicion.x = posicionFinal.x;
+      jugador.posicion.z = posicionFinal.z;
+    } else {
+      // Fallback: movimiento libre sin colisiones
+      jugador.posicion.x = posicionDeseada.x;
+      jugador.posicion.z = posicionDeseada.z;
+    }
   }
-
-  // Aplicar límites del mapa
-  jugador.posicion.x = Math.max(
-    CONFIG.jugador.limites.min,
-    Math.min(CONFIG.jugador.limites.max, jugador.posicion.x)
-  );
-  jugador.posicion.z = Math.max(
-    CONFIG.jugador.limites.min,
-    Math.min(CONFIG.jugador.limites.max, jugador.posicion.z)
-  );
 }
 
 /**
  * Aplica la gravedad al jugador
+ * Usa verificarSuelo() para detección de altura del suelo
+ * Requirements: 5.3
  */
 export function aplicarGravedad() {
   jugador.velocidad.y -= CONFIG.jugador.gravedad;
   jugador.posicion.y += jugador.velocidad.y;
 
-  // Verificar si está en el suelo
-  if (jugador.posicion.y <= CONFIG.jugador.alturaOjos) {
-    jugador.posicion.y = CONFIG.jugador.alturaOjos;
-    jugador.velocidad.y = 0;
-    jugador.enSuelo = true;
+  // Usar sistema de colisiones para verificar suelo si está activo
+  if (colisionesActivas()) {
+    const estadoSuelo = verificarSuelo(jugador.posicion);
+    const alturaObjetivo = estadoSuelo.altura + CONFIG.jugador.alturaOjos;
+    
+    if (jugador.posicion.y <= alturaObjetivo) {
+      jugador.posicion.y = alturaObjetivo;
+      jugador.velocidad.y = 0;
+      jugador.enSuelo = true;
+    } else {
+      jugador.enSuelo = estadoSuelo.enSuelo;
+    }
+  } else {
+    // Fallback: usar altura fija del suelo (0)
+    if (jugador.posicion.y <= CONFIG.jugador.alturaOjos) {
+      jugador.posicion.y = CONFIG.jugador.alturaOjos;
+      jugador.velocidad.y = 0;
+      jugador.enSuelo = true;
+    }
   }
 }
 
