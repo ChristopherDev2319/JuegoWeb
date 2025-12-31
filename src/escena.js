@@ -91,7 +91,7 @@ function configurarIluminacion() {
 }
 
 /**
- * Carga el mapa del juego
+ * Carga el mapa visual del juego
  * @param {Function} onProgreso - Callback para progreso de carga
  * @returns {Promise} - Promesa que resuelve cuando el mapa está cargado
  */
@@ -99,10 +99,11 @@ function cargarMapa(onProgreso = null) {
   return new Promise((resolve, reject) => {
     const gltfLoader = new THREE.GLTFLoader();
     
-    gltfLoader.load('modelos/lowpoly__fps__tdm__game__map_by_resoforge.glb', (gltf) => {
+    // Cargar el nuevo mapa visual (map_visual.glb)
+    gltfLoader.load('modelos/map_visual.glb', (gltf) => {
       mapaModelo = gltf.scene;
       
-      // Escalar el mapa (ajustar según necesidad)
+      // Escalar el mapa a 5x
       mapaModelo.scale.setScalar(5);
       
       // Posicionar el mapa
@@ -117,16 +118,16 @@ function cargarMapa(onProgreso = null) {
       });
       
       scene.add(mapaModelo);
-      console.log('✅ Mapa cargado correctamente');
+      console.log('✅ Mapa visual cargado correctamente (map_visual.glb)');
       resolve(mapaModelo);
     }, (progress) => {
       if (progress.total > 0) {
         const percent = Math.round((progress.loaded / progress.total) * 100);
-        console.log(`📦 Cargando mapa: ${percent}%`);
+        console.log(`📦 Cargando mapa visual: ${percent}%`);
         if (onProgreso) onProgreso(percent);
       }
     }, (error) => {
-      console.error('❌ Error cargando mapa:', error);
+      console.error('❌ Error cargando mapa visual:', error);
       // Fallback: crear suelo simple si el mapa no carga
       crearSueloFallback();
       resolve(null); // Resolver de todas formas para no bloquear
@@ -136,12 +137,12 @@ function cargarMapa(onProgreso = null) {
 
 /**
  * Crea un suelo simple como fallback si el mapa no carga
+ * Tamaño: 50x50 unidades para coincidir con el nuevo mapa
  */
 function crearSueloFallback() {
-  const groundGeometry = new THREE.PlaneGeometry(
-    CONFIG.escena.tamañoSuelo,
-    CONFIG.escena.tamañoSuelo
-  );
+  // Usar tamaño de 250x250 para coincidir con el mapa escalado a 5x
+  const tamañoSuelo = 250;
+  const groundGeometry = new THREE.PlaneGeometry(tamañoSuelo, tamañoSuelo);
   const groundMaterial = new THREE.MeshStandardMaterial({
     color: 0x228b22
   });
@@ -149,6 +150,7 @@ function crearSueloFallback() {
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = false;
   scene.add(ground);
+  console.log('⚠️ Usando suelo fallback (250x250)');
 }
 
 /**

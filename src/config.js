@@ -8,11 +8,16 @@ export const CONFIG = {
     velocidad: 0.15,
     poderSalto: 0.25,
     alturaOjos: 1.7,
-    limites: {
-      min: -24,
-      max: 24
-    },
     gravedad: 0.015
+  },
+
+  // Configuración del sistema de colisiones
+  colisiones: {
+    radioJugador: 0.5,      // Radio del jugador para colisiones horizontales
+    alturaJugador: 1.7,     // Altura del jugador
+    margenPared: 0.1,       // Margen de separación de paredes
+    rayosHorizontales: 8,   // Número de rayos para detección horizontal
+    distanciaRayo: 0.6      // Distancia máxima de detección
   },
 
   armas: {
