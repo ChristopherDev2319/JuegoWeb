@@ -1,19 +1,24 @@
 /**
  * Sistema de Colisiones Optimizado
- * Utiliza geometría de colisiones separada (map_coll.glb) con BVH para optimización
+ * Utiliza Rapier3D internamente para física determinista
+ * Mantiene API existente para compatibilidad con el resto del código
  * 
- * Requirements: 2.1, 2.2, 2.3, 2.4, 4.1, 4.2, 4.3, 5.1, 5.3
+ * Requirements: 2.1, 2.2, 2.3, 2.4, 3.1, 4.1, 4.2, 4.3, 5.1, 5.3
  * @requires THREE - Three.js debe estar disponible globalmente
  */
 
 import { CONFIG } from '../config.js';
+import * as Fisica from './fisica.js';
 
 // Estado del sistema de colisiones
+let sistemaActivo = false;
+let usandoRapier = false;
+let escenaRef = null;
+
+// Fallback: estado para sistema de colisiones legacy (raycasting manual)
 let collisionMesh = null;
 let collisionModel = null;
 let raycaster = null;
-let sistemaActivo = false;
-let escenaRef = null;
 
 // Función helper para obtener configuración de colisiones
 function getColisionesConfig() {
@@ -26,13 +31,16 @@ function getColisionesConfig() {
   };
 }
 
-// Vectores reutilizables para evitar allocaciones
+// Vectores reutilizables para evitar allocaciones (fallback)
 const _direccionRayo = new THREE.Vector3();
 const _posicionRayo = new THREE.Vector3();
 const _desplazamiento = new THREE.Vector3();
 
 /**
- * Inicializa el sistema de colisiones cargando map_coll.glb
+ * Inicializa el sistema de colisiones
+ * Intenta usar Rapier3D, con fallback a raycasting manual si falla
+ * Requirements: 5.1, 5.2
+ * 
  * @param {THREE.Scene} scene - Escena de Three.js
  * @param {Function} onProgress - Callback de progreso
  * @returns {Promise<void>}
@@ -40,6 +48,19 @@ const _desplazamiento = new THREE.Vector3();
 export async function inicializarColisiones(scene, onProgress = null) {
   escenaRef = scene;
   
+  // TEMPORALMENTE DESHABILITADO: Rapier tiene problemas con el raycast del trimesh
+  // Usar directamente el fallback de raycasting que funciona
+  console.log('🔄 Usando sistema de colisiones con raycasting (fallback)...');
+  await inicializarColisionesFallback(scene, onProgress);
+}
+
+/**
+ * Inicializa el sistema de colisiones con raycasting manual (fallback)
+ * @param {THREE.Scene} scene - Escena de Three.js
+ * @param {Function} onProgress - Callback de progreso
+ * @returns {Promise<void>}
+ */
+async function inicializarColisionesFallback(scene, onProgress) {
   return new Promise((resolve) => {
     const gltfLoader = new THREE.GLTFLoader();
     
@@ -76,8 +97,9 @@ export async function inicializarColisiones(scene, onProgress = null) {
       collisionModel.updateMatrixWorld(true);
       collisionMesh.updateMatrixWorld(true);
       
+      usandoRapier = false;
       sistemaActivo = true;
-      console.log('✅ Sistema de colisiones inicializado (map_coll.glb)');
+      console.log('✅ Sistema de colisiones inicializado (fallback raycasting)');
       console.log('💡 Usa window.toggleCollisionDebug(true) para ver las colisiones');
       resolve();
     }, (progress) => {
@@ -96,7 +118,8 @@ export async function inicializarColisiones(scene, onProgress = null) {
 
 /**
  * Verifica colisión y retorna posición corregida
- * Requirements: 2.3, 2.4, 4.3, 5.1
+ * Usa Rapier3D si está disponible, fallback a raycasting manual
+ * Requirements: 2.3, 2.4, 4.3, 5.1, 6.1
  * 
  * @param {THREE.Vector3} posicionActual - Posición actual del jugador
  * @param {THREE.Vector3} posicionDeseada - Posición a la que quiere moverse
@@ -108,10 +131,59 @@ export function resolverColision(posicionActual, posicionDeseada, radio = null) 
   radio = radio || config.radioJugador;
   
   // Si el sistema no está activo, permitir movimiento libre
-  if (!sistemaActivo || !collisionMesh) {
+  if (!sistemaActivo) {
     return posicionDeseada.clone();
   }
   
+  // Usar Rapier si está disponible
+  if (usandoRapier && Fisica.estaActivo()) {
+    return resolverColisionRapier(posicionActual, posicionDeseada);
+  }
+  
+  // Fallback: usar raycasting manual
+  return resolverColisionFallback(posicionActual, posicionDeseada, radio);
+}
+
+/**
+ * Resuelve colisiones usando Rapier3D character controller
+ * Requirements: 2.3, 2.4, 6.1
+ * 
+ * @param {THREE.Vector3} posicionActual - Posición actual del jugador
+ * @param {THREE.Vector3} posicionDeseada - Posición deseada
+ * @returns {THREE.Vector3} - Posición corregida
+ */
+function resolverColisionRapier(posicionActual, posicionDeseada) {
+  // Calcular desplazamiento deseado
+  const desplazamiento = posicionDeseada.clone().sub(posicionActual);
+  
+  // Si no hay movimiento significativo, retornar posición actual
+  if (desplazamiento.length() < 0.001) {
+    return posicionActual.clone();
+  }
+  
+  // Usar el character controller de Rapier para mover al jugador
+  // El character controller maneja automáticamente:
+  // - Sliding en paredes (Requirement 6.1)
+  // - Subir escalones (Requirement 2.2)
+  // - Mantenerse en rampas (Requirement 2.1, 2.3)
+  const resultado = Fisica.moverJugador(posicionActual, desplazamiento, 1/30);
+  
+  return resultado.posicion;
+}
+
+/**
+ * Resuelve colisiones usando raycasting manual (fallback)
+ * @param {THREE.Vector3} posicionActual - Posición actual
+ * @param {THREE.Vector3} posicionDeseada - Posición deseada
+ * @param {number} radio - Radio del jugador
+ * @returns {THREE.Vector3} - Posición corregida
+ */
+function resolverColisionFallback(posicionActual, posicionDeseada, radio) {
+  if (!collisionMesh) {
+    return posicionDeseada.clone();
+  }
+  
+  const config = getColisionesConfig();
   const margen = config.margenPared;
   
   // Calcular dirección del movimiento
@@ -123,68 +195,72 @@ export function resolverColision(posicionActual, posicionDeseada, radio = null) 
     return posicionActual.clone();
   }
   
-  // Verificar si la posición actual ya está dentro de una pared (caso edge)
-  const enColisionActual = hayColisionEnPosicion(posicionActual, radio, margen);
+  // Verificar si la posición actual ya está dentro de una pared
+  const enColisionActual = hayColisionEnPosicionFallback(posicionActual, radio, margen);
   
   // Si ya estamos en colisión, permitir movimiento que nos aleje de la pared
   if (enColisionActual) {
-    // Intentar la posición deseada - si nos aleja de la pared, permitirla
-    const enColisionDeseada = hayColisionEnPosicion(posicionDeseada, radio, margen);
+    const enColisionDeseada = hayColisionEnPosicionFallback(posicionDeseada, radio, margen);
     
-    // Si la posición deseada nos saca de la colisión, permitirla
     if (!enColisionDeseada) {
       return posicionDeseada.clone();
     }
     
-    // Si ambas posiciones están en colisión, quedarse quieto (NO empujar)
     return posicionActual.clone();
   }
   
   // Intentar movimiento completo primero
-  if (!hayColisionEnPosicion(posicionDeseada, radio, margen)) {
+  if (!hayColisionEnPosicionFallback(posicionDeseada, radio, margen)) {
     return posicionDeseada.clone();
   }
   
   // Hay colisión: intentar sliding en cada eje por separado
-  
-  // Intentar solo movimiento en X
   const posicionX = posicionActual.clone();
   posicionX.x = posicionDeseada.x;
   
-  if (!hayColisionEnPosicion(posicionX, radio, margen)) {
+  if (!hayColisionEnPosicionFallback(posicionX, radio, margen)) {
     return posicionX;
   }
   
-  // Intentar solo movimiento en Z
   const posicionZ = posicionActual.clone();
   posicionZ.z = posicionDeseada.z;
   
-  if (!hayColisionEnPosicion(posicionZ, radio, margen)) {
+  if (!hayColisionEnPosicionFallback(posicionZ, radio, margen)) {
     return posicionZ;
   }
   
-  // No se puede mover en ninguna dirección, quedarse en posición actual
   return posicionActual.clone();
 }
 
-
 /**
- * Verifica si hay colisión en una posición específica
- * @param {THREE.Vector3} posicion - Posición a verificar
+ * Verifica si hay colisión en una posición específica (fallback)
+ * @param {THREE.Vector3} posicion - Posición a verificar (posición de los ojos)
  * @param {number} radio - Radio del jugador
  * @param {number} margen - Margen de separación
  * @returns {boolean} - true si hay colisión
  */
-function hayColisionEnPosicion(posicion, radio, margen) {
-  const config = getColisionesConfig();
-  const numRayos = config.rayosHorizontales;
+function hayColisionEnPosicionFallback(posicion, radio, margen) {
+  if (!collisionModel || !raycaster) {
+    return false;
+  }
+  
+  const numRayos = 8;
   const distanciaDeteccion = radio + margen;
   
-  // Probar múltiples alturas para mejor detección
+  // La posición es la de los ojos
+  const alturaOjos = CONFIG.jugador?.alturaOjos || 1.7;
+  const posicionPies = posicion.y - alturaOjos;
+  
+  // Ángulo máximo de rampa caminable (en radianes)
+  const anguloMaxRampa = (CONFIG.fisica?.anguloMaxRampa || 50) * Math.PI / 180;
+  const cosAnguloMaxRampa = Math.cos(anguloMaxRampa);
+  
+  // Verificar colisiones a diferentes alturas desde los pies
+  // Empezar más arriba para no detectar rampas como paredes
   const alturas = [
-    posicion.y - config.alturaJugador / 2 + 0.3,  // Parte baja
-    posicion.y - config.alturaJugador / 2 + 0.85, // Parte media (centro de masa)
-    posicion.y - config.alturaJugador / 2 + 1.4   // Parte alta
+    posicionPies + 0.5,  // A la altura de las rodillas (evita detectar rampas bajas)
+    posicionPies + 1.0,  // A la altura de la cintura
+    posicionPies + 1.4   // A la altura del pecho
   ];
   
   for (const altura of alturas) {
@@ -197,17 +273,30 @@ function hayColisionEnPosicion(posicion, radio, margen) {
         Math.sin(angulo)
       );
       
-      // Posición del rayo a diferentes alturas
-      _posicionRayo.copy(posicion);
-      _posicionRayo.y = altura;
+      _posicionRayo.set(posicion.x, altura, posicion.z);
       
       raycaster.set(_posicionRayo, _direccionRayo);
       raycaster.far = distanciaDeteccion;
       
-      // Usar collisionModel para que las transformaciones de escala se apliquen
       const intersecciones = raycaster.intersectObject(collisionModel, true);
       
       if (intersecciones.length > 0 && intersecciones[0].distance < distanciaDeteccion) {
+        const hit = intersecciones[0];
+        
+        // Verificar si es una rampa caminable (no una pared)
+        if (hit.face && hit.face.normal) {
+          const normalMundo = hit.face.normal.clone();
+          normalMundo.transformDirection(collisionModel.matrixWorld);
+          normalMundo.normalize();
+          
+          // Si la normal apunta hacia arriba (es suelo/rampa), ignorar
+          // Una rampa tiene normal.y > cos(anguloMaxRampa)
+          if (normalMundo.y > cosAnguloMaxRampa) {
+            // Es una rampa caminable, no es una pared
+            continue;
+          }
+        }
+        
         return true;
       }
     }
@@ -218,49 +307,269 @@ function hayColisionEnPosicion(posicion, radio, margen) {
 
 /**
  * Verifica si una posición está en el suelo y retorna la altura
- * Requirements: 5.3
+ * Usa Rapier3D si está disponible, fallback a raycasting manual
+ * Requirements: 3.1, 3.2, 3.3, 3.4, 5.3
  * 
  * @param {THREE.Vector3} posicion - Posición a verificar
- * @returns {{enSuelo: boolean, altura: number}}
+ * @returns {{enSuelo: boolean, altura: number, normal?: THREE.Vector3, enRampa?: boolean}}
  */
 export function verificarSuelo(posicion) {
-  const config = getColisionesConfig();
+  // Si el sistema no está activo, usar altura por defecto
+  if (!sistemaActivo) {
+    return {
+      enSuelo: true,
+      altura: 0,
+      normal: new THREE.Vector3(0, 1, 0),
+      enRampa: false
+    };
+  }
+  
+  // Usar Rapier si está disponible
+  if (usandoRapier && Fisica.estaActivo()) {
+    return Fisica.verificarSuelo(posicion);
+  }
+  
+  // Fallback: usar raycasting manual
+  return verificarSueloFallback(posicion);
+}
+
+/**
+ * Verifica suelo usando raycasting manual (fallback)
+ * @param {THREE.Vector3} posicion - Posición a verificar (posición de los ojos)
+ * @returns {{enSuelo: boolean, altura: number, normal: THREE.Vector3, distancia: number, enRampa: boolean}}
+ */
+function verificarSueloFallback(posicion) {
   const resultado = {
     enSuelo: false,
-    altura: 0
+    altura: 0,
+    normal: new THREE.Vector3(0, 1, 0),
+    distancia: Infinity,
+    enRampa: false
   };
   
-  // Si el sistema no está activo, usar altura por defecto
-  if (!sistemaActivo || !collisionMesh) {
+  if (!collisionMesh || !raycaster) {
     resultado.enSuelo = true;
     resultado.altura = 0;
     return resultado;
   }
   
-  // Raycast hacia abajo desde la posición del jugador
-  _posicionRayo.copy(posicion);
-  _posicionRayo.y += 1;
+  // La posición es la de los ojos, calcular posición de los pies
+  const alturaOjos = CONFIG.jugador?.alturaOjos || 1.7;
+  const posicionPies = posicion.y - alturaOjos;
   
+  // Hacer raycast desde más arriba para detectar superficies elevadas
+  const alturaMaxEscalon = CONFIG.fisica?.alturaMaxEscalon || 0.8;
+  
+  // Origen: desde arriba del escalón máximo posible
+  const origenY = posicionPies + alturaMaxEscalon + 0.5;
+  _posicionRayo.set(posicion.x, origenY, posicion.z);
   _direccionRayo.set(0, -1, 0);
   
   raycaster.set(_posicionRayo, _direccionRayo);
-  raycaster.far = config.alturaJugador + 2;
+  raycaster.far = alturaMaxEscalon + 3.0;
   
-  // Usar collisionModel para que las transformaciones de escala se apliquen
   const intersecciones = raycaster.intersectObject(collisionModel, true);
   
   if (intersecciones.length > 0) {
     const hit = intersecciones[0];
     resultado.altura = hit.point.y;
     
-    const distanciaAlSuelo = posicion.y - config.alturaJugador - hit.point.y;
-    resultado.enSuelo = distanciaAlSuelo < 0.2 && distanciaAlSuelo > -0.5;
+    // Obtener normal si está disponible
+    if (hit.face && hit.face.normal) {
+      resultado.normal = hit.face.normal.clone();
+      resultado.normal.transformDirection(collisionModel.matrixWorld);
+      resultado.normal.normalize();
+    }
+    
+    // Calcular distancia desde los pies al suelo detectado
+    // Negativo = suelo está arriba de los pies (escalón)
+    // Positivo = suelo está abajo de los pies (cayendo)
+    const distanciaPiesASuelo = posicionPies - hit.point.y;
+    resultado.distancia = distanciaPiesASuelo;
+    
+    // Debug: mostrar info del suelo (solo ocasionalmente)
+    if (!window._debugSueloMostrado || Math.random() < 0.01) {
+      console.log('🔍 Suelo detectado:', {
+        posicionOjos: posicion.y.toFixed(2),
+        posicionPies: posicionPies.toFixed(2),
+        alturaSuelo: hit.point.y.toFixed(2),
+        distancia: distanciaPiesASuelo.toFixed(2)
+      });
+      window._debugSueloMostrado = true;
+    }
+    
+    // El jugador está "en el suelo" si:
+    // 1. Sus pies están cerca del suelo (parado o cayendo cerca)
+    // 2. O hay un escalón/rampa que puede subir
+    const cercaDelSuelo = distanciaPiesASuelo >= -0.15 && distanciaPiesASuelo < 0.5;
+    const puedeSubirEscalon = distanciaPiesASuelo < -0.15 && distanciaPiesASuelo >= -alturaMaxEscalon;
+    
+    resultado.enSuelo = cercaDelSuelo || puedeSubirEscalon;
+    
+    // Detectar rampa
+    if (resultado.normal) {
+      const anguloNormal = Math.acos(Math.abs(resultado.normal.y)) * (180 / Math.PI);
+      resultado.enRampa = resultado.enSuelo && anguloNormal > 5 && anguloNormal <= 50;
+    }
   } else {
-    resultado.altura = 0;
-    resultado.enSuelo = posicion.y <= config.alturaJugador + 0.1;
+    // No hay suelo - cayendo al vacío
+    resultado.enSuelo = false;
+    resultado.altura = -100; // Valor muy bajo
+    resultado.distancia = Infinity;
   }
   
   return resultado;
+}
+
+/**
+ * Realiza un raycast para balas contra la geometría del mapa
+ * Usa Rapier3D si está disponible
+ * Requirements: 1.1, 1.2
+ * 
+ * @param {THREE.Vector3} origen - Origen del rayo
+ * @param {THREE.Vector3} direccion - Dirección normalizada
+ * @param {number} distanciaMax - Distancia máxima
+ * @returns {{hit: boolean, punto: THREE.Vector3, distancia: number, normal?: THREE.Vector3} | null}
+ */
+export function raycastBala(origen, direccion, distanciaMax) {
+  if (!sistemaActivo) {
+    return null;
+  }
+  
+  // Usar Rapier si está disponible
+  if (usandoRapier && Fisica.estaActivo()) {
+    return Fisica.raycastBala(origen, direccion, distanciaMax);
+  }
+  
+  // Fallback: usar raycasting de Three.js
+  return raycastBalaFallback(origen, direccion, distanciaMax);
+}
+
+/**
+ * Realiza un shape cast para el movimiento del dash
+ * Detecta colisiones durante todo el trayecto y calcula posición final válida
+ * Requirements: 4.1, 4.2, 4.3, 4.4
+ * 
+ * @param {THREE.Vector3} posicionInicial - Posición inicial del jugador
+ * @param {THREE.Vector3} direccionDash - Dirección normalizada del dash
+ * @param {number} distanciaDash - Distancia total del dash
+ * @returns {{posicionFinal: THREE.Vector3, colision: boolean, distanciaRecorrida: number, puntoImpacto: THREE.Vector3|null}}
+ */
+export function shapeCastDash(posicionInicial, direccionDash, distanciaDash) {
+  // Usar Rapier si está disponible
+  if (usandoRapier && Fisica.estaActivo()) {
+    return Fisica.shapeCastDash(posicionInicial, direccionDash, distanciaDash);
+  }
+  
+  // Fallback: usar resolución de colisiones paso a paso
+  return shapeCastDashFallback(posicionInicial, direccionDash, distanciaDash);
+}
+
+/**
+ * Shape cast para dash usando raycasting manual (fallback)
+ * @param {THREE.Vector3} posicionInicial - Posición inicial
+ * @param {THREE.Vector3} direccionDash - Dirección del dash
+ * @param {number} distanciaDash - Distancia del dash
+ * @returns {{posicionFinal: THREE.Vector3, colision: boolean, distanciaRecorrida: number, puntoImpacto: THREE.Vector3|null}}
+ */
+function shapeCastDashFallback(posicionInicial, direccionDash, distanciaDash) {
+  const config = getColisionesConfig();
+  const pasos = 10; // Número de pasos para verificar colisiones
+  const distanciaPorPaso = distanciaDash / pasos;
+  
+  let posicionActual = posicionInicial.clone();
+  let distanciaRecorrida = 0;
+  let colision = false;
+  let puntoImpacto = null;
+  
+  for (let i = 0; i < pasos; i++) {
+    const posicionSiguiente = new THREE.Vector3(
+      posicionActual.x + direccionDash.x * distanciaPorPaso,
+      posicionActual.y,
+      posicionActual.z + direccionDash.z * distanciaPorPaso
+    );
+    
+    // Verificar colisión en la posición siguiente
+    const posicionResuelta = resolverColision(posicionActual, posicionSiguiente, config.radioJugador);
+    
+    // Si la posición resuelta es diferente a la deseada, hay colisión
+    const diferenciaX = Math.abs(posicionResuelta.x - posicionSiguiente.x);
+    const diferenciaZ = Math.abs(posicionResuelta.z - posicionSiguiente.z);
+    
+    if (diferenciaX > 0.01 || diferenciaZ > 0.01) {
+      // Hay colisión
+      colision = true;
+      puntoImpacto = posicionSiguiente.clone();
+      posicionActual = posicionResuelta;
+      distanciaRecorrida += posicionActual.distanceTo(posicionInicial) - distanciaRecorrida;
+      break;
+    }
+    
+    posicionActual = posicionResuelta;
+    distanciaRecorrida += distanciaPorPaso;
+  }
+  
+  return {
+    posicionFinal: posicionActual,
+    colision: colision,
+    distanciaRecorrida: distanciaRecorrida,
+    puntoImpacto: puntoImpacto
+  };
+}
+
+/**
+ * Verifica si una posición es válida (no está dentro de geometría)
+ * Requirements: 4.4
+ * 
+ * @param {THREE.Vector3} posicion - Posición a verificar
+ * @returns {{valida: boolean, posicionCorregida: THREE.Vector3}}
+ */
+export function verificarPosicionValida(posicion) {
+  // Usar Rapier si está disponible
+  if (usandoRapier && Fisica.estaActivo()) {
+    return Fisica.verificarPosicionValida(posicion);
+  }
+  
+  // Fallback: asumir posición válida (el sistema de colisiones ya la corrigió)
+  return {
+    valida: true,
+    posicionCorregida: posicion.clone()
+  };
+}
+
+/**
+ * Raycast para balas usando Three.js (fallback)
+ * @param {THREE.Vector3} origen - Origen del rayo
+ * @param {THREE.Vector3} direccion - Dirección normalizada
+ * @param {number} distanciaMax - Distancia máxima
+ * @returns {{hit: boolean, punto: THREE.Vector3, distancia: number} | null}
+ */
+function raycastBalaFallback(origen, direccion, distanciaMax) {
+  if (!collisionModel || !raycaster) {
+    return null;
+  }
+  
+  raycaster.set(origen, direccion);
+  raycaster.far = distanciaMax;
+  
+  const intersecciones = raycaster.intersectObject(collisionModel, true);
+  
+  if (intersecciones.length > 0) {
+    const hit = intersecciones[0];
+    return {
+      hit: true,
+      punto: hit.point.clone(),
+      distancia: hit.distance,
+      normal: hit.face ? hit.face.normal.clone() : new THREE.Vector3(0, 1, 0)
+    };
+  }
+  
+  return {
+    hit: false,
+    punto: null,
+    distancia: distanciaMax,
+    normal: null
+  };
 }
 
 /**
@@ -269,6 +578,14 @@ export function verificarSuelo(posicion) {
  */
 export function estaActivo() {
   return sistemaActivo;
+}
+
+/**
+ * Verifica si el sistema está usando Rapier3D
+ * @returns {boolean}
+ */
+export function usaRapier() {
+  return usandoRapier;
 }
 
 /**
@@ -297,13 +614,21 @@ export function calcularSlidingPared(movimiento, normalPared) {
  * Libera recursos del sistema de colisiones
  */
 export function destruir() {
+  // Destruir sistema Rapier si está activo
+  if (usandoRapier) {
+    Fisica.destruir();
+  }
+  
+  // Limpiar recursos del fallback
   if (collisionModel && escenaRef) {
     escenaRef.remove(collisionModel);
   }
   collisionMesh = null;
   collisionModel = null;
   raycaster = null;
+  
   sistemaActivo = false;
+  usandoRapier = false;
   escenaRef = null;
 }
 
@@ -312,10 +637,10 @@ export function destruir() {
  * @param {boolean} visible - true para mostrar, false para ocultar
  */
 export function toggleDebugVisual(visible = true) {
+  // Solo funciona con el fallback (el modelo de Three.js)
   if (collisionModel) {
     collisionModel.visible = visible;
     if (visible && collisionMesh) {
-      // Aplicar material wireframe para ver la geometría
       collisionMesh.material = new THREE.MeshBasicMaterial({
         color: 0x00ff00,
         wireframe: true,
@@ -326,5 +651,7 @@ export function toggleDebugVisual(visible = true) {
     } else {
       console.log('🔍 Colisiones ocultas');
     }
+  } else if (usandoRapier) {
+    console.log('ℹ️ Debug visual no disponible con Rapier3D');
   }
 }

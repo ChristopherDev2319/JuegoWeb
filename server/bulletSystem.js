@@ -2,10 +2,11 @@
  * Bullet System Module
  * Manages bullet creation, movement, and collision detection
  * 
- * Requirements: 5.2, 5.3
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 5.2, 5.3
  */
 
 import { BULLET_CONFIG, getWeaponConfig } from './config.js';
+import { raycastContraMapa, estaActivo as mapCollisionsActivo } from './mapCollisions.js';
 
 let bulletIdCounter = 0;
 
@@ -110,6 +111,7 @@ export class BulletSystem {
 
   /**
    * Update all bullets and check for collisions (Requirement 5.3)
+   * Checks map collisions BEFORE player collisions (Requirement 1.4)
    * @param {number} deltaTime - Time since last update in seconds
    * @param {Map<string, PlayerState>} players - Map of all players
    * @returns {Array} - Array of collision results
@@ -128,6 +130,13 @@ export class BulletSystem {
       
       // Check for expiration
       if (bullet.isExpired() || bullet.isTooFar()) {
+        bullet.deactivate();
+        continue;
+      }
+      
+      // Requirement 1.4: Check map collision BEFORE checking player hitboxes
+      // This ensures bullets stop at walls and cannot hit players through obstacles
+      if (this.checkMapCollision(prevPosition, bullet.position)) {
         bullet.deactivate();
         continue;
       }
@@ -169,6 +178,27 @@ export class BulletSystem {
     this.cleanup();
     
     return collisions;
+  }
+
+  /**
+   * Check if bullet trajectory collides with map geometry
+   * Requirements: 1.1, 1.2, 1.3
+   * @param {Object} from - Previous bullet position {x, y, z}
+   * @param {Object} to - Current bullet position {x, y, z}
+   * @returns {boolean} - True if bullet hit map geometry
+   */
+  checkMapCollision(from, to) {
+    // Skip if map collisions system is not active
+    if (!mapCollisionsActivo()) {
+      return false;
+    }
+    
+    // Requirement 1.1: Perform raycast from bullet origin to current position
+    // Requirement 1.2: Calculate exact impact point
+    const hit = raycastContraMapa(from, to);
+    
+    // Requirement 1.3: Deactivate bullet if it collides with map
+    return hit !== null && hit.hit;
   }
 
   /**

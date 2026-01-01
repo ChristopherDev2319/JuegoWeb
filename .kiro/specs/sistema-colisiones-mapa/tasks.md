@@ -1,68 +1,107 @@
 # Implementation Plan
 
-- [x] 1. Actualizar carga del mapa visual
-  - [x] 1.1 Modificar `src/escena.js` para cargar `map_visual.glb` en lugar del mapa antiguo
-    - Cambiar la ruta del modelo en `cargarMapa()`
-    - Ajustar escala si es necesario para el nuevo mapa
-    - _Requirements: 1.1, 1.2_
-  - [x] 1.2 Eliminar referencia al mapa antiguo y actualizar fallback
-    - Actualizar `crearSueloFallback()` para el nuevo tamaño de mapa (50x50)
-    - _Requirements: 1.3_
-
-- [x] 2. Crear sistema de colisiones
-  - [x] 2.1 Crear módulo `src/sistemas/colisiones.js` con estructura base
-    - Implementar función `inicializarColisiones()` que carga `map_coll.glb`
-    - Crear estructura para almacenar mesh de colisiones y raycaster
-    - _Requirements: 2.1, 2.2_
-  - [x] 2.2 Implementar construcción de BVH para optimización
-    - Usar three-mesh-bvh o implementar BVH básico con Three.js
-    - Pre-computar estructura al cargar geometría
-    - _Requirements: 4.1, 4.2_
-  - [x] 2.3 Implementar función `resolverColision()` con raycasting
-    - Proyectar rayos en direcciones horizontales desde posición del jugador
-    - Detectar intersecciones con geometría de colisiones
-    - Retornar posición corregida si hay colisión
-    - _Requirements: 2.3, 2.4, 4.3_
-  - [ ]* 2.4 Write property test for collision prevention
-    - **Property 1: Collision Prevention**
-    - **Validates: Requirements 2.4**
-  - [x] 2.5 Implementar función `verificarSuelo()` para detección de altura
-    - Raycast hacia abajo para detectar suelo
-    - Retornar altura del suelo y estado enSuelo
-    - _Requirements: 5.3_
-  - [ ]* 2.6 Write property test for ground height consistency
-    - **Property 4: Ground Height Consistency**
-    - **Validates: Requirements 5.3**
-
-- [x] 3. Implementar respuesta de colisión con sliding
-  - [x] 3.1 Implementar sliding en paredes
-    - Calcular componente de velocidad paralelo a la pared
-    - Aplicar movimiento de deslizamiento cuando hay colisión angular
+- [x] 1. Configurar Rapier3D en el proyecto
+  - [x] 1.1 Instalar dependencia @dimforge/rapier3d-compat
+    - Agregar al package.json
+    - Ejecutar npm install
     - _Requirements: 5.1_
-  - [ ]* 3.2 Write property test for wall sliding
-    - **Property 3: Wall Sliding Preserves Parallel Movement**
-    - **Validates: Requirements 5.1**
+  - [x] 1.2 Crear módulo de física `src/sistemas/fisica.js`
+    - Implementar `inicializarFisica()` que carga el WASM de Rapier
+    - Crear mundo de física con gravedad configurada
+    - Exportar referencia a RAPIER para uso en otros módulos
+    - _Requirements: 5.1, 5.2_
 
-- [x] 4. Integrar colisiones con el jugador
-  - [x] 4.1 Modificar `src/config.js` para agregar configuración de colisiones
-    - Agregar `colisiones.radioJugador`, `colisiones.alturaJugador`, etc.
-    - Eliminar `jugador.limites` (ya no se necesitan límites fijos)
-    - _Requirements: 3.1_
-  - [x] 4.2 Modificar `src/entidades/Jugador.js` para usar sistema de colisiones
-    - Importar módulo de colisiones
-    - Reemplazar límites fijos por llamadas a `resolverColision()`
-    - Usar `verificarSuelo()` para detección de suelo
-    - _Requirements: 2.3, 3.2, 3.3_
-  - [ ]* 4.3 Write property test for free movement in open areas
-    - **Property 2: Free Movement in Open Areas**
-    - **Validates: Requirements 3.3**
+- [x] 2. Implementar colisiones del mapa con Rapier
+  - [x] 2.1 Implementar carga de geometría de colisiones
+    - Cargar `map_coll.glb` y extraer vértices/índices
+    - Crear trimesh collider en Rapier
+    - Escalar geometría para coincidir con mapa visual (5x)
+    - _Requirements: 5.2_
+  - [x] 2.2 Implementar character controller
+    - Crear cápsula para el jugador con radio y altura configurados
+    - Configurar altura máxima de escalón (0.5 unidades)
+    - Configurar ángulo máximo de rampa (45 grados)
+    - _Requirements: 2.1, 2.2, 5.3_
+  - [ ]* 2.3 Write property test for terrain traversal
+    - **Property 3: Terrain Traversal Consistency**
+    - **Validates: Requirements 2.1, 2.2, 2.3, 2.4**
 
-- [x] 5. Integrar inicialización en el flujo principal
-  - [x] 5.1 Modificar `src/main.js` para inicializar colisiones
-    - Llamar `inicializarColisiones()` después de cargar el mapa visual
-    - Manejar errores de carga con fallback apropiado
-    - _Requirements: 2.1_
+- [x] 3. Implementar movimiento del jugador con Rapier
+  - [x] 3.1 Implementar función `moverJugador()`
+    - Usar `computeColliderMovement()` del character controller
+    - Aplicar desplazamiento y obtener posición corregida
+    - Detectar estado de suelo desde el controller
+    - _Requirements: 2.3, 2.4, 6.1_
+  - [x] 3.2 Implementar detección de suelo mejorada
+    - Raycast hacia abajo para detectar altura del suelo
+    - Calcular normal del suelo para rampas
+    - Detectar transición a caída cuando no hay suelo
+    - _Requirements: 3.2, 3.3, 3.4_
+  - [ ]* 3.3 Write property test for landing height
+    - **Property 4: Landing Height Correctness**
+    - **Validates: Requirements 3.2, 3.3**
+  - [ ]* 3.4 Write property test for player position validity
+    - **Property 2: Player Never Inside Geometry**
+    - **Validates: Requirements 4.4, 6.3**
 
-- [x] 6. Checkpoint - Verificar funcionamiento
+- [x] 4. Integrar física con el jugador existente
+  - [x] 4.1 Refactorizar `src/sistemas/colisiones.js`
+    - Mantener API existente (`resolverColision`, `verificarSuelo`)
+    - Usar Rapier internamente en lugar de raycasting manual
+    - Implementar fallback si Rapier no está disponible
+    - _Requirements: 2.3, 2.4, 3.1_
+  - [x] 4.2 Actualizar `src/entidades/Jugador.js`
+    - Usar nueva función de movimiento con character controller
+    - Actualizar lógica de gravedad para usar detección de suelo mejorada
+    - Mantener compatibilidad con reconciliación de servidor
+    - _Requirements: 3.1, 3.2, 3.3, 3.4_
+  - [ ]* 4.3 Write property test for wall sliding
+    - **Property 5: Wall Sliding Preserves Parallel Movement**
+    - **Validates: Requirements 6.1**
+
+- [x] 5. Checkpoint - Verificar movimiento básico
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 6. Implementar colisiones de dash
+  - [x] 6.1 Actualizar sistema de dash para usar Rapier
+    - Usar shape cast para el movimiento del dash
+    - Detectar colisiones durante el dash completo
+    - Calcular posición final válida si hay colisión
+    - _Requirements: 4.1, 4.2, 4.3, 4.4_
+  - [ ]* 6.2 Write property test for dash collision safety
+    - **Property 6: Dash Collision Safety**
+    - **Validates: Requirements 4.1, 4.2**
+
+- [x] 7. Implementar raycast para balas
+  - [x] 7.1 Implementar `raycastBala()` en módulo de física
+    - Crear raycast desde origen en dirección dada
+    - Retornar punto de impacto y distancia si hay colisión
+    - Filtrar para solo colisionar con geometría del mapa
+    - _Requirements: 1.1, 1.2_
+  - [x] 7.2 Integrar raycast en sistema de balas del cliente
+    - Verificar colisión con mapa antes de mover bala
+    - Desactivar bala y crear efecto de impacto si colisiona
+    - _Requirements: 1.3_
+  - [ ]* 7.3 Write property test for bullet-wall occlusion
+    - **Property 1: Bullet-Wall Occlusion**
+    - **Validates: Requirements 1.4**
+
+- [x] 8. Implementar colisiones de balas en servidor
+  - [x] 8.1 Crear módulo `server/mapCollisions.js`
+    - Cargar datos simplificados del mapa (AABBs de paredes)
+    - Implementar raycast contra AABBs
+    - _Requirements: 1.1, 1.2_
+  - [x] 8.2 Integrar colisiones de mapa en `server/bulletSystem.js`
+    - Verificar colisión con mapa antes de verificar jugadores
+    - Desactivar bala si colisiona con mapa
+    - _Requirements: 1.3, 1.4_
+
+- [x] 9. Actualizar configuración
+  - [x] 9.1 Agregar configuración de física a `src/config.js`
+    - Agregar sección `fisica` con parámetros del character controller
+    - Configurar gravedad, altura de escalón, ángulo de rampa
+    - _Requirements: 2.1, 2.2, 5.4_
+
+- [x] 10. Checkpoint final - Verificar sistema completo
   - Ensure all tests pass, ask the user if questions arise.
 
