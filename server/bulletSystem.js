@@ -10,11 +10,11 @@ import { raycastContraMapa, estaActivo as mapCollisionsActivo } from './mapColli
 
 let bulletIdCounter = 0;
 
-// Hitbox del personaje cartoon (rectangular)
+// Hitbox del personaje cartoon (rectangular) - más grande para mejor detección
 const CHARACTER_HITBOX = {
-  width: 0.8,   // Ancho (X)
+  width: 1.2,   // Ancho (X) - aumentado
   height: 2.0,  // Altura (Y)
-  depth: 0.6    // Profundidad (Z)
+  depth: 1.0    // Profundidad (Z) - aumentado
 };
 
 /**
@@ -145,6 +145,12 @@ export class BulletSystem {
       for (const [playerId, player] of players) {
         // Skip bullet owner and dead players
         if (playerId === bullet.ownerId || !player.isAlive) continue;
+        
+        // Debug: mostrar posiciones cada cierto tiempo
+        if (Math.random() < 0.01) {
+          console.log(`[DEBUG] Bullet pos: (${bullet.position.x.toFixed(1)}, ${bullet.position.y.toFixed(1)}, ${bullet.position.z.toFixed(1)})`);
+          console.log(`[DEBUG] Player ${playerId} pos: (${player.position.x.toFixed(1)}, ${player.position.y.toFixed(1)}, ${player.position.z.toFixed(1)})`);
+        }
         
         // Verificar colisión con posición actual
         if (this.checkCollision(bullet, player)) {

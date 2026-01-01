@@ -217,15 +217,6 @@ export function aplicarGravedad() {
   
   // Fallback: sistema de gravedad manual para cuando no hay Rapier
   
-  // Aplicar gravedad a la velocidad vertical
-  jugador.velocidad.y -= CONFIG.jugador.gravedad;
-  
-  // Limitar velocidad de caída
-  const velocidadMaxCaida = -1.0;
-  if (jugador.velocidad.y < velocidadMaxCaida) {
-    jugador.velocidad.y = velocidadMaxCaida;
-  }
-  
   // Usar sistema de colisiones para verificar suelo si está activo
   if (colisionesActivas()) {
     // Obtener estado del suelo con información detallada
@@ -240,63 +231,57 @@ export function aplicarGravedad() {
     }
     jugador.enRampa = estadoSuelo.enRampa || false;
     
-    // Aplicar velocidad vertical
-    const nuevaY = jugador.posicion.y + jugador.velocidad.y;
-    
     // Calcular la diferencia de altura entre posición actual y suelo detectado
     const diferenciaAltura = alturaObjetivo - jugador.posicion.y;
-    
-    // Si el suelo está más alto que nosotros pero dentro del rango de "escalón"
-    // (máximo 0.8 unidades), subir automáticamente
     const alturaMaxEscalon = CONFIG.fisica?.alturaMaxEscalon || 0.8;
     
-    if (estadoSuelo.enSuelo && diferenciaAltura > 0.05 && diferenciaAltura <= alturaMaxEscalon) {
-      // Subir al escalón/rampa suavemente
+    // SNAP TO GROUND: Si estamos en el suelo o muy cerca, pegarnos al suelo
+    // Esto evita los saltitos al bajar rampas
+    if (estadoSuelo.enSuelo && jugador.velocidad.y <= 0) {
+      // Si el suelo está cerca (arriba o abajo), hacer snap
+      if (Math.abs(diferenciaAltura) <= alturaMaxEscalon) {
+        jugador.posicion.y = alturaObjetivo;
+        jugador.velocidad.y = 0;
+        jugador.enSuelo = true;
+        jugador.tiempoEnAire = 0;
+        return;
+      }
+    }
+    
+    // Si estamos saltando, aplicar gravedad normal
+    if (jugador.velocidad.y > 0) {
+      jugador.velocidad.y -= CONFIG.jugador.gravedad;
+      jugador.posicion.y += jugador.velocidad.y;
+      jugador.enSuelo = false;
+      jugador.tiempoEnAire += 1/60;
+      return;
+    }
+    
+    // Cayendo - aplicar gravedad
+    jugador.velocidad.y -= CONFIG.jugador.gravedad;
+    
+    // Limitar velocidad de caída
+    const velocidadMaxCaida = -1.0;
+    if (jugador.velocidad.y < velocidadMaxCaida) {
+      jugador.velocidad.y = velocidadMaxCaida;
+    }
+    
+    const nuevaY = jugador.posicion.y + jugador.velocidad.y;
+    
+    // Si vamos a caer por debajo del suelo, aterrizar
+    if (nuevaY <= alturaObjetivo) {
       jugador.posicion.y = alturaObjetivo;
       jugador.velocidad.y = 0;
       jugador.enSuelo = true;
       jugador.tiempoEnAire = 0;
-    } else if (estadoSuelo.enSuelo) {
-      // Estamos en el suelo o cerca de él
-      if (jugador.velocidad.y <= 0) {
-        // Cayendo o en reposo - aterrizar en el suelo
-        if (nuevaY <= alturaObjetivo) {
-          jugador.posicion.y = alturaObjetivo;
-          jugador.velocidad.y = 0;
-          jugador.enSuelo = true;
-          jugador.tiempoEnAire = 0;
-        } else {
-          // Aún cayendo hacia el suelo
-          jugador.posicion.y = nuevaY;
-          jugador.enSuelo = false;
-          jugador.tiempoEnAire += 1/60;
-        }
-      } else {
-        // Saltando hacia arriba - permitir movimiento
-        jugador.posicion.y = nuevaY;
-        jugador.enSuelo = false;
-        jugador.tiempoEnAire += 1/60;
-      }
     } else {
-      // No hay suelo debajo - en el aire
       jugador.posicion.y = nuevaY;
       jugador.enSuelo = false;
       jugador.tiempoEnAire += 1/60;
-      
-      // Snap to ground si estamos muy cerca y cayendo
-      if (jugador.velocidad.y < 0 && estadoSuelo.distancia !== undefined) {
-        const distanciaAlSuelo = estadoSuelo.distancia;
-        if (distanciaAlSuelo < 0.5 && distanciaAlSuelo > -0.1) {
-          // Muy cerca del suelo, hacer snap
-          jugador.posicion.y = alturaObjetivo;
-          jugador.velocidad.y = 0;
-          jugador.enSuelo = true;
-          jugador.tiempoEnAire = 0;
-        }
-      }
     }
   } else {
     // Fallback: usar altura fija del suelo (0)
+    jugador.velocidad.y -= CONFIG.jugador.gravedad;
     jugador.posicion.y += jugador.velocidad.y;
     
     if (jugador.posicion.y <= CONFIG.jugador.alturaOjos) {
