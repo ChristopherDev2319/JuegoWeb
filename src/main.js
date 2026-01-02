@@ -901,9 +901,6 @@ function manejarDisparo() {
     // Animar retroceso del arma
     animarRetroceso();
     
-    // Registrar disparo para estadísticas
-    registrarDisparo();
-    
     // *** DEBUG Y SONIDO - MODO MULTIJUGADOR ***
     console.log('🔫 DISPARO MULTIJUGADOR');
     console.log('Arma actual:', estadoArma.tipoActual);
