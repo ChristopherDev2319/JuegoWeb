@@ -306,6 +306,55 @@ function hayColisionEnPosicionFallback(posicion, radio, margen) {
 }
 
 /**
+ * Verifica si hay colisión con el techo al saltar
+ * @param {THREE.Vector3} posicion - Posición actual (ojos)
+ * @param {number} velocidadY - Velocidad vertical actual
+ * @returns {{hayTecho: boolean, alturaTecho: number}}
+ */
+export function verificarTecho(posicion, velocidadY = 0) {
+  const resultado = {
+    hayTecho: false,
+    alturaTecho: Infinity
+  };
+  
+  if (!collisionModel || !raycaster || velocidadY <= 0) {
+    return resultado;
+  }
+  
+  // La posición es la de los ojos
+  const alturaOjos = CONFIG.jugador?.alturaOjos || 1.7;
+  
+  // Raycast hacia arriba desde la cabeza
+  const margenCabeza = 0.3; // Espacio sobre la cabeza
+  _posicionRayo.set(posicion.x, posicion.y + margenCabeza, posicion.z);
+  _direccionRayo.set(0, 1, 0);
+  
+  raycaster.set(_posicionRayo, _direccionRayo);
+  raycaster.far = 3.0; // Distancia máxima de detección de techo
+  
+  const intersecciones = raycaster.intersectObject(collisionModel, true);
+  
+  if (intersecciones.length > 0) {
+    const hit = intersecciones[0];
+    
+    // Verificar que es un techo (normal apuntando hacia abajo)
+    if (hit.face && hit.face.normal) {
+      const normalMundo = hit.face.normal.clone();
+      normalMundo.transformDirection(collisionModel.matrixWorld);
+      normalMundo.normalize();
+      
+      // Si la normal apunta hacia abajo (Y negativo), es un techo
+      if (normalMundo.y < -0.5) {
+        resultado.hayTecho = true;
+        resultado.alturaTecho = hit.point.y;
+      }
+    }
+  }
+  
+  return resultado;
+}
+
+/**
  * Verifica si una posición está en el suelo y retorna la altura
  * Usa Rapier3D si está disponible, fallback a raycasting manual
  * Requirements: 3.1, 3.2, 3.3, 3.4, 5.3
@@ -335,6 +384,7 @@ export function verificarSuelo(posicion) {
 
 /**
  * Verifica suelo usando raycasting manual (fallback)
+ * Mejorado para manejar bordes de objetos correctamente
  * @param {THREE.Vector3} posicion - Posición a verificar (posición de los ojos)
  * @returns {{enSuelo: boolean, altura: number, normal: THREE.Vector3, distancia: number, enRampa: boolean}}
  */
@@ -362,49 +412,76 @@ function verificarSueloFallback(posicion) {
   
   // Origen: desde arriba del escalón máximo posible
   const origenY = posicionPies + alturaMaxEscalon + 0.5;
-  _posicionRayo.set(posicion.x, origenY, posicion.z);
-  _direccionRayo.set(0, -1, 0);
   
-  raycaster.set(_posicionRayo, _direccionRayo);
-  raycaster.far = alturaMaxEscalon + 3.0;
+  // Hacer múltiples raycasts para detectar mejor los bordes
+  // Un raycast central y 4 en las esquinas del radio del jugador
+  const radioJugador = CONFIG.colisiones?.radioJugador || 0.4;
+  const puntosRaycast = [
+    { x: 0, z: 0 },  // Centro
+    { x: radioJugador * 0.7, z: 0 },  // Adelante
+    { x: -radioJugador * 0.7, z: 0 }, // Atrás
+    { x: 0, z: radioJugador * 0.7 },  // Derecha
+    { x: 0, z: -radioJugador * 0.7 }  // Izquierda
+  ];
   
-  const intersecciones = raycaster.intersectObject(collisionModel, true);
+  let mejorAltura = -Infinity;
+  let mejorNormal = new THREE.Vector3(0, 1, 0);
+  let hayHit = false;
+  let hitsCercanos = 0;
   
-  if (intersecciones.length > 0) {
-    const hit = intersecciones[0];
-    resultado.altura = hit.point.y;
+  for (const punto of puntosRaycast) {
+    _posicionRayo.set(posicion.x + punto.x, origenY, posicion.z + punto.z);
+    _direccionRayo.set(0, -1, 0);
     
-    // Obtener normal si está disponible
-    if (hit.face && hit.face.normal) {
-      resultado.normal = hit.face.normal.clone();
-      resultado.normal.transformDirection(collisionModel.matrixWorld);
-      resultado.normal.normalize();
+    raycaster.set(_posicionRayo, _direccionRayo);
+    raycaster.far = alturaMaxEscalon + 3.0;
+    
+    const intersecciones = raycaster.intersectObject(collisionModel, true);
+    
+    if (intersecciones.length > 0) {
+      const hit = intersecciones[0];
+      hayHit = true;
+      
+      // Usar la altura más alta encontrada (para no caer en bordes)
+      if (hit.point.y > mejorAltura) {
+        mejorAltura = hit.point.y;
+        
+        // Obtener normal si está disponible
+        if (hit.face && hit.face.normal) {
+          mejorNormal = hit.face.normal.clone();
+          mejorNormal.transformDirection(collisionModel.matrixWorld);
+          mejorNormal.normalize();
+        }
+      }
+      
+      // Contar hits cercanos al nivel de los pies
+      const distanciaAlPie = Math.abs(hit.point.y - posicionPies);
+      if (distanciaAlPie < 0.5) {
+        hitsCercanos++;
+      }
     }
+  }
+  
+  if (hayHit) {
+    resultado.altura = mejorAltura;
+    resultado.normal = mejorNormal;
     
     // Calcular distancia desde los pies al suelo detectado
-    // Negativo = suelo está arriba de los pies (escalón)
-    // Positivo = suelo está abajo de los pies (cayendo)
-    const distanciaPiesASuelo = posicionPies - hit.point.y;
+    const distanciaPiesASuelo = posicionPies - mejorAltura;
     resultado.distancia = distanciaPiesASuelo;
-    
-    // Debug: mostrar info del suelo (solo ocasionalmente)
-    if (!window._debugSueloMostrado || Math.random() < 0.01) {
-      console.log('🔍 Suelo detectado:', {
-        posicionOjos: posicion.y.toFixed(2),
-        posicionPies: posicionPies.toFixed(2),
-        alturaSuelo: hit.point.y.toFixed(2),
-        distancia: distanciaPiesASuelo.toFixed(2)
-      });
-      window._debugSueloMostrado = true;
-    }
     
     // El jugador está "en el suelo" si:
     // 1. Sus pies están cerca del suelo (parado o cayendo cerca)
     // 2. O hay un escalón/rampa que puede subir
+    // 3. Y hay suficientes hits cercanos (no está en un borde muy fino)
     const cercaDelSuelo = distanciaPiesASuelo >= -0.15 && distanciaPiesASuelo < 0.5;
     const puedeSubirEscalon = distanciaPiesASuelo < -0.15 && distanciaPiesASuelo >= -alturaMaxEscalon;
     
-    resultado.enSuelo = cercaDelSuelo || puedeSubirEscalon;
+    // Requerir al menos 2 hits cercanos para considerar que está en suelo sólido
+    // Esto evita quedarse atrapado en bordes muy finos
+    const sueloSolido = hitsCercanos >= 2 || (hitsCercanos >= 1 && cercaDelSuelo);
+    
+    resultado.enSuelo = (cercaDelSuelo || puedeSubirEscalon) && sueloSolido;
     
     // Detectar rampa
     if (resultado.normal) {
@@ -456,63 +533,174 @@ export function raycastBala(origen, direccion, distanciaMax) {
  * @returns {{posicionFinal: THREE.Vector3, colision: boolean, distanciaRecorrida: number, puntoImpacto: THREE.Vector3|null}}
  */
 export function shapeCastDash(posicionInicial, direccionDash, distanciaDash) {
+  // Log para verificar qué sistema se usa
+  if (!window._dashSystemLogged) {
+    console.log('🎯 Sistema de Dash:', {
+      usandoRapier: usandoRapier,
+      fisicaActiva: Fisica.estaActivo(),
+      sistemaColisionesActivo: sistemaActivo,
+      collisionModelCargado: !!collisionModel
+    });
+    window._dashSystemLogged = true;
+  }
+  
   // Usar Rapier si está disponible
   if (usandoRapier && Fisica.estaActivo()) {
+    console.log('🚀 Dash usando Rapier3D');
     return Fisica.shapeCastDash(posicionInicial, direccionDash, distanciaDash);
   }
   
   // Fallback: usar resolución de colisiones paso a paso
+  console.log('🚀 Dash usando Fallback (raycasting)');
   return shapeCastDashFallback(posicionInicial, direccionDash, distanciaDash);
 }
 
 /**
  * Shape cast para dash usando raycasting manual (fallback)
+ * Mejorado para detectar colisiones con raycast directo
  * @param {THREE.Vector3} posicionInicial - Posición inicial
  * @param {THREE.Vector3} direccionDash - Dirección del dash
  * @param {number} distanciaDash - Distancia del dash
  * @returns {{posicionFinal: THREE.Vector3, colision: boolean, distanciaRecorrida: number, puntoImpacto: THREE.Vector3|null}}
  */
 function shapeCastDashFallback(posicionInicial, direccionDash, distanciaDash) {
-  const config = getColisionesConfig();
-  const pasos = 10; // Número de pasos para verificar colisiones
-  const distanciaPorPaso = distanciaDash / pasos;
-  
-  let posicionActual = posicionInicial.clone();
-  let distanciaRecorrida = 0;
-  let colision = false;
-  let puntoImpacto = null;
-  
-  for (let i = 0; i < pasos; i++) {
-    const posicionSiguiente = new THREE.Vector3(
-      posicionActual.x + direccionDash.x * distanciaPorPaso,
-      posicionActual.y,
-      posicionActual.z + direccionDash.z * distanciaPorPaso
-    );
-    
-    // Verificar colisión en la posición siguiente
-    const posicionResuelta = resolverColision(posicionActual, posicionSiguiente, config.radioJugador);
-    
-    // Si la posición resuelta es diferente a la deseada, hay colisión
-    const diferenciaX = Math.abs(posicionResuelta.x - posicionSiguiente.x);
-    const diferenciaZ = Math.abs(posicionResuelta.z - posicionSiguiente.z);
-    
-    if (diferenciaX > 0.01 || diferenciaZ > 0.01) {
-      // Hay colisión
-      colision = true;
-      puntoImpacto = posicionSiguiente.clone();
-      posicionActual = posicionResuelta;
-      distanciaRecorrida += posicionActual.distanceTo(posicionInicial) - distanciaRecorrida;
-      break;
-    }
-    
-    posicionActual = posicionResuelta;
-    distanciaRecorrida += distanciaPorPaso;
+  if (!collisionModel || !raycaster) {
+    // Sin sistema de colisiones, dash completo
+    return {
+      posicionFinal: new THREE.Vector3(
+        posicionInicial.x + direccionDash.x * distanciaDash,
+        posicionInicial.y,
+        posicionInicial.z + direccionDash.z * distanciaDash
+      ),
+      colision: false,
+      distanciaRecorrida: distanciaDash,
+      puntoImpacto: null
+    };
   }
-  
+
+  const config = getColisionesConfig();
+  const radio = config.radioJugador || 0.4;
+  const margen = config.margenPared || 0.1;
+  const alturaOjos = CONFIG.jugador?.alturaOjos || 1.7;
+  const posicionPies = posicionInicial.y - alturaOjos;
+
+  // Hacer múltiples raycasts en la dirección del dash a diferentes alturas
+  // para detectar colisiones con paredes
+  const alturas = [
+    posicionPies + 0.3, // Cerca de los pies
+    posicionPies + 0.8, // Rodillas
+    posicionPies + 1.2, // Cintura
+    posicionPies + 1.5  // Pecho
+  ];
+
+  let distanciaMinima = distanciaDash;
+  let hayColision = false;
+  let puntoImpacto = null;
+
+  // Raycast central en la dirección del dash
+  for (const altura of alturas) {
+    _posicionRayo.set(posicionInicial.x, altura, posicionInicial.z);
+    _direccionRayo.set(direccionDash.x, 0, direccionDash.z).normalize();
+
+    raycaster.set(_posicionRayo, _direccionRayo);
+    raycaster.far = distanciaDash + radio + margen;
+
+    const intersecciones = raycaster.intersectObject(collisionModel, true);
+
+    if (intersecciones.length > 0) {
+      const hit = intersecciones[0];
+      
+      // Verificar que no es una rampa (solo paredes)
+      if (hit.face && hit.face.normal) {
+        const normalMundo = hit.face.normal.clone();
+        normalMundo.transformDirection(collisionModel.matrixWorld);
+        normalMundo.normalize();
+
+        // Si la normal es mayormente horizontal, es una pared
+        if (Math.abs(normalMundo.y) < 0.5) {
+          // Calcular distancia segura (antes de la pared)
+          const distanciaSegura = Math.max(0, hit.distance - radio - margen);
+          
+          if (distanciaSegura < distanciaMinima) {
+            distanciaMinima = distanciaSegura;
+            hayColision = true;
+            puntoImpacto = hit.point.clone();
+          }
+        }
+      }
+    }
+  }
+
+  // También hacer raycasts laterales para detectar colisiones con el cuerpo del jugador
+  const direccionLateral = new THREE.Vector3(-direccionDash.z, 0, direccionDash.x).normalize();
+  const offsetsLaterales = [-radio * 0.8, radio * 0.8];
+
+  for (const offset of offsetsLaterales) {
+    for (const altura of alturas) {
+      const origenLateral = new THREE.Vector3(
+        posicionInicial.x + direccionLateral.x * offset,
+        altura,
+        posicionInicial.z + direccionLateral.z * offset
+      );
+
+      raycaster.set(origenLateral, _direccionRayo);
+      raycaster.far = distanciaDash + margen;
+
+      const intersecciones = raycaster.intersectObject(collisionModel, true);
+
+      if (intersecciones.length > 0) {
+        const hit = intersecciones[0];
+        
+        if (hit.face && hit.face.normal) {
+          const normalMundo = hit.face.normal.clone();
+          normalMundo.transformDirection(collisionModel.matrixWorld);
+          normalMundo.normalize();
+
+          if (Math.abs(normalMundo.y) < 0.5) {
+            const distanciaSegura = Math.max(0, hit.distance - margen);
+            
+            if (distanciaSegura < distanciaMinima) {
+              distanciaMinima = distanciaSegura;
+              hayColision = true;
+              puntoImpacto = hit.point.clone();
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Calcular posición final
+  const posicionFinal = new THREE.Vector3(
+    posicionInicial.x + direccionDash.x * distanciaMinima,
+    posicionInicial.y,
+    posicionInicial.z + direccionDash.z * distanciaMinima
+  );
+
+  // Verificar que la posición final no está en colisión
+  if (hayColisionEnPosicionFallback(posicionFinal, radio, margen)) {
+    // Retroceder un poco más
+    const distanciaRetroceso = Math.max(0, distanciaMinima - 0.2);
+    posicionFinal.set(
+      posicionInicial.x + direccionDash.x * distanciaRetroceso,
+      posicionInicial.y,
+      posicionInicial.z + direccionDash.z * distanciaRetroceso
+    );
+  }
+
+  // Log del resultado del dash
+  console.log('🎯 Resultado Dash Fallback:', {
+    colision: hayColision,
+    distanciaOriginal: distanciaDash,
+    distanciaRecorrida: distanciaMinima,
+    posicionInicial: `(${posicionInicial.x.toFixed(2)}, ${posicionInicial.z.toFixed(2)})`,
+    posicionFinal: `(${posicionFinal.x.toFixed(2)}, ${posicionFinal.z.toFixed(2)})`
+  });
+
   return {
-    posicionFinal: posicionActual,
-    colision: colision,
-    distanciaRecorrida: distanciaRecorrida,
+    posicionFinal: posicionFinal,
+    colision: hayColision,
+    distanciaRecorrida: distanciaMinima,
     puntoImpacto: puntoImpacto
   };
 }
@@ -530,10 +718,173 @@ export function verificarPosicionValida(posicion) {
     return Fisica.verificarPosicionValida(posicion);
   }
   
-  // Fallback: asumir posición válida (el sistema de colisiones ya la corrigió)
+  // Fallback: verificar con raycasting
+  return verificarPosicionValidaFallback(posicion);
+}
+
+/**
+ * Verifica si una posición es válida usando raycasting (fallback)
+ * @param {THREE.Vector3} posicion - Posición a verificar (ojos)
+ * @returns {{valida: boolean, posicionCorregida: THREE.Vector3}}
+ */
+function verificarPosicionValidaFallback(posicion) {
+  const config = getColisionesConfig();
+  const radio = config.radioJugador || 0.4;
+  const margen = config.margenPared || 0.1;
+  
+  // Verificar si está en colisión
+  const enColision = hayColisionEnPosicionFallback(posicion, radio, margen);
+  
+  if (!enColision) {
+    return {
+      valida: true,
+      posicionCorregida: posicion.clone()
+    };
+  }
+  
+  // Está en colisión - intentar encontrar posición válida
+  const posicionCorregida = desatorarJugador(posicion);
+  
   return {
-    valida: true,
-    posicionCorregida: posicion.clone()
+    valida: false,
+    posicionCorregida: posicionCorregida
+  };
+}
+
+/**
+ * Intenta desatorar al jugador si está dentro de una colisión
+ * Busca la dirección más cercana para salir de la geometría
+ * @param {THREE.Vector3} posicion - Posición actual (ojos)
+ * @returns {THREE.Vector3} - Posición corregida fuera de la colisión
+ */
+export function desatorarJugador(posicion) {
+  if (!collisionModel || !raycaster) {
+    return posicion.clone();
+  }
+  
+  const config = getColisionesConfig();
+  const radio = config.radioJugador || 0.4;
+  const margen = config.margenPared || 0.1;
+  const alturaOjos = CONFIG.jugador?.alturaOjos || 1.7;
+  const posicionPies = posicion.y - alturaOjos;
+  
+  // Direcciones para buscar salida (8 direcciones horizontales + arriba)
+  const direcciones = [
+    { x: 1, y: 0, z: 0 },
+    { x: -1, y: 0, z: 0 },
+    { x: 0, y: 0, z: 1 },
+    { x: 0, y: 0, z: -1 },
+    { x: 0.707, y: 0, z: 0.707 },
+    { x: -0.707, y: 0, z: 0.707 },
+    { x: 0.707, y: 0, z: -0.707 },
+    { x: -0.707, y: 0, z: -0.707 },
+    { x: 0, y: 1, z: 0 }  // Arriba (para salir de techos)
+  ];
+  
+  let mejorPosicion = posicion.clone();
+  let menorDistancia = Infinity;
+  let encontradaSalida = false;
+  
+  // Para cada dirección, hacer raycast inverso para encontrar la superficie más cercana
+  for (const dir of direcciones) {
+    // Altura de prueba (cintura del jugador)
+    const alturaTest = posicionPies + 1.0;
+    
+    // Raycast desde la posición actual hacia afuera
+    _posicionRayo.set(posicion.x, alturaTest, posicion.z);
+    _direccionRayo.set(dir.x, dir.y, dir.z);
+    
+    raycaster.set(_posicionRayo, _direccionRayo);
+    raycaster.far = 5.0; // Distancia máxima de búsqueda
+    
+    const intersecciones = raycaster.intersectObject(collisionModel, true);
+    
+    if (intersecciones.length > 0) {
+      const hit = intersecciones[0];
+      
+      // Calcular posición justo fuera de la superficie
+      const distanciaSalida = hit.distance + radio + margen + 0.1;
+      const nuevaPosicion = new THREE.Vector3(
+        posicion.x + dir.x * distanciaSalida,
+        dir.y !== 0 ? posicion.y + dir.y * distanciaSalida : posicion.y,
+        posicion.z + dir.z * distanciaSalida
+      );
+      
+      // Verificar que la nueva posición es válida
+      if (!hayColisionEnPosicionFallback(nuevaPosicion, radio, margen)) {
+        if (distanciaSalida < menorDistancia) {
+          menorDistancia = distanciaSalida;
+          mejorPosicion = nuevaPosicion;
+          encontradaSalida = true;
+        }
+      }
+    } else {
+      // No hay intersección en esta dirección - podemos movernos libremente
+      // Mover un poco en esa dirección
+      const distanciaMovimiento = radio + margen + 0.2;
+      const nuevaPosicion = new THREE.Vector3(
+        posicion.x + dir.x * distanciaMovimiento,
+        dir.y !== 0 ? posicion.y + dir.y * distanciaMovimiento : posicion.y,
+        posicion.z + dir.z * distanciaMovimiento
+      );
+      
+      // Verificar que la nueva posición es válida
+      if (!hayColisionEnPosicionFallback(nuevaPosicion, radio, margen)) {
+        if (distanciaMovimiento < menorDistancia) {
+          menorDistancia = distanciaMovimiento;
+          mejorPosicion = nuevaPosicion;
+          encontradaSalida = true;
+        }
+      }
+    }
+  }
+  
+  // Si no encontramos salida horizontal, intentar mover hacia arriba
+  if (!encontradaSalida) {
+    // Buscar suelo debajo y mover arriba de él
+    const estadoSuelo = verificarSueloFallback(posicion);
+    if (estadoSuelo.altura > -100) {
+      mejorPosicion = new THREE.Vector3(
+        posicion.x,
+        estadoSuelo.altura + alturaOjos + 0.1,
+        posicion.z
+      );
+      console.log('🔧 Jugador desatorado hacia arriba');
+    }
+  } else {
+    console.log('🔧 Jugador desatorado en dirección horizontal');
+  }
+  
+  return mejorPosicion;
+}
+
+/**
+ * Verifica y corrige la posición del jugador si está atrapado
+ * Debe llamarse periódicamente (cada frame o cada pocos frames)
+ * @param {THREE.Vector3} posicion - Posición actual del jugador (ojos)
+ * @returns {{necesitaCorreccion: boolean, posicionCorregida: THREE.Vector3}}
+ */
+export function verificarYDesatorar(posicion) {
+  const config = getColisionesConfig();
+  const radio = config.radioJugador || 0.4;
+  const margen = config.margenPared || 0.1;
+  
+  // Verificar si está en colisión
+  const enColision = hayColisionEnPosicionFallback(posicion, radio, margen);
+  
+  if (!enColision) {
+    return {
+      necesitaCorreccion: false,
+      posicionCorregida: posicion.clone()
+    };
+  }
+  
+  // Está atrapado - desatorar
+  const posicionCorregida = desatorarJugador(posicion);
+  
+  return {
+    necesitaCorreccion: true,
+    posicionCorregida: posicionCorregida
   };
 }
 

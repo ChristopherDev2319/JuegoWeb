@@ -11,6 +11,8 @@ import { CONFIG } from '../config.js';
 import { 
   resolverColision, 
   verificarSuelo, 
+  verificarTecho,
+  verificarYDesatorar,
   estaActivo as colisionesActivas,
   usaRapier 
 } from '../sistemas/colisiones.js';
@@ -186,6 +188,12 @@ export function actualizarMovimiento(teclas) {
         jugador.posicion.x = posicionFinal.x;
         jugador.posicion.z = posicionFinal.z;
       }
+      
+      // Verificar si el jugador está atrapado y desatorar si es necesario
+      const estadoAtrapado = verificarYDesatorar(jugador.posicion);
+      if (estadoAtrapado.necesitaCorreccion) {
+        jugador.posicion.copy(estadoAtrapado.posicionCorregida);
+      }
     }
   } else {
     // Fallback: movimiento libre sin colisiones
@@ -248,8 +256,25 @@ export function aplicarGravedad() {
       }
     }
     
-    // Si estamos saltando, aplicar gravedad normal
+    // Si estamos saltando, verificar techo y aplicar gravedad
     if (jugador.velocidad.y > 0) {
+      // Verificar si hay techo arriba
+      const techo = verificarTecho(jugador.posicion, jugador.velocidad.y);
+      if (techo && techo.hayTecho) {
+        // Calcular distancia al techo
+        const margenCabeza = 0.3;
+        const distanciaAlTecho = techo.alturaTecho - (jugador.posicion.y + margenCabeza);
+        
+        // Si vamos a golpear el techo, detener el salto
+        if (distanciaAlTecho < jugador.velocidad.y + 0.1) {
+          jugador.posicion.y = techo.alturaTecho - margenCabeza - 0.1;
+          jugador.velocidad.y = -0.01; // Empezar a caer
+          jugador.enSuelo = false;
+          jugador.tiempoEnAire += 1/60;
+          return;
+        }
+      }
+      
       jugador.velocidad.y -= CONFIG.jugador.gravedad;
       jugador.posicion.y += jugador.velocidad.y;
       jugador.enSuelo = false;

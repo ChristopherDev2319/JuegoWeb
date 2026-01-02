@@ -32,12 +32,12 @@ const WEAPON_MODEL_NAMES = {
   'MP5': 'weapon_mp5'
 };
 
-// Hitbox del servidor
+// Hitbox del servidor - DEBE COINCIDIR con server/bulletSystem.js
 const SERVER_HITBOX = {
-  width: 0.8,
-  height: 2.0,
-  depth: 0.6,
-  centerYOffset: -0.7
+  width: 1.4,    // Debe coincidir con CHARACTER_HITBOX.width en el servidor
+  height: 2.0,   // Debe coincidir con CHARACTER_HITBOX.height en el servidor
+  depth: 1.2,    // Debe coincidir con CHARACTER_HITBOX.depth en el servidor
+  centerYOffset: -0.7  // Offset desde los ojos al centro del cuerpo
 };
 
 const DEBUG_HELPERS = false;

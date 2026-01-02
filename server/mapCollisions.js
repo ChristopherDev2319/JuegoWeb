@@ -11,6 +11,9 @@ let mapWalls = [];
 let mapBounds = null;
 let sistemaActivo = false;
 
+// Colisiones del mapa habilitadas (ya corregido el orden de verificación)
+const ENABLE_MAP_COLLISIONS = true;
+
 /**
  * Representa un AABB (Axis-Aligned Bounding Box) para una pared
  * @typedef {Object} WallAABB
@@ -27,6 +30,9 @@ let sistemaActivo = false;
  * Estos AABBs representan las paredes principales del mapa
  * Escalados a 5x para coincidir con el mapa visual
  * 
+ * NOTA: El suelo NO se incluye para evitar que las balas impacten el suelo
+ * antes de llegar a los jugadores. Solo se incluyen paredes verticales.
+ * 
  * Nota: Estos valores son aproximaciones basadas en el mapa típico de FPS
  * En producción, estos datos deberían extraerse del modelo map_coll.glb
  */
@@ -42,7 +48,7 @@ const DEFAULT_MAP_WALLS = [
   { minX: -125, maxX: -120, minY: 0, maxY: 20, minZ: -125, maxZ: 125 },
   
   // Estructuras internas típicas de un mapa FPS
-  // Edificio central
+  // Edificio central - solo paredes, no techo
   { minX: -15, maxX: 15, minY: 0, maxY: 15, minZ: -15, maxZ: -10 },
   { minX: -15, maxX: -10, minY: 0, maxY: 15, minZ: -15, maxZ: 15 },
   { minX: 10, maxX: 15, minY: 0, maxY: 15, minZ: -15, maxZ: 15 },
@@ -58,10 +64,10 @@ const DEFAULT_MAP_WALLS = [
   { minX: -35, maxX: -30, minY: 0, maxY: 4, minZ: -5, maxZ: 5 },
   { minX: 30, maxX: 35, minY: 0, maxY: 4, minZ: -5, maxZ: 5 },
   { minX: -5, maxX: 5, minY: 0, maxY: 4, minZ: -40, maxZ: -35 },
-  { minX: -5, maxX: 5, minY: 0, maxY: 4, minZ: 35, maxZ: 40 },
+  { minX: -5, maxX: 5, minY: 0, maxY: 4, minZ: 35, maxZ: 40 }
   
-  // Suelo (para detectar impactos en el suelo)
-  { minX: -125, maxX: 125, minY: -1, maxY: 0, minZ: -125, maxZ: 125 }
+  // NOTA: NO incluir el suelo aquí - las balas deben poder pasar cerca del suelo
+  // para impactar a jugadores que están agachados o en posiciones bajas
 ];
 
 /**
@@ -109,7 +115,8 @@ export function inicializarMapaServidor(mapData = null) {
  * @returns {boolean}
  */
 export function estaActivo() {
-  return sistemaActivo;
+  // TEMPORAL: Usar flag para desactivar colisiones del mapa
+  return sistemaActivo && ENABLE_MAP_COLLISIONS;
 }
 
 /**
