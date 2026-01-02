@@ -30,7 +30,8 @@ let callbacks = {
   onSiguienteArma: null,
   onArmaAnterior: null,
   onSeleccionarArma: null,
-  onApuntar: null
+  onApuntar: null,
+  onPausar: null
 };
 
 /**
@@ -111,6 +112,11 @@ function manejarTeclaPresionada(evento) {
     if (numeroArma !== undefined) {
       callbacks.onSeleccionarArma(numeroArma);
     }
+  }
+  
+  // ESC - Abrir/cerrar menú de opciones
+  if (evento.code === 'Escape' && callbacks.onPausar) {
+    callbacks.onPausar();
   }
 }
 
