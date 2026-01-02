@@ -155,12 +155,10 @@ export class GameManager {
    */
   processShootInput(player, data) {
     if (!player.canFire()) {
-      console.log(`[SHOOT] Player ${player.id} cannot fire: alive=${player.isAlive}, reloading=${player.isReloading}, ammo=${player.ammo}, timeSinceLastFire=${Date.now() - player.lastFireTime}ms`);
       return { success: false, reason: player.isReloading ? 'reloading' : 'cannot_fire' };
     }
 
     if (!data || !data.position || !data.direction) {
-      console.log(`[SHOOT] Player ${player.id} invalid data`);
       return { success: false, reason: 'invalid_data' };
     }
 
@@ -169,7 +167,6 @@ export class GameManager {
 
     const weaponType = player.currentWeapon || 'M4A1';
     const weaponConfig = getWeaponConfig(weaponType);
-    
     // Obtener número de proyectiles y dispersión
     const numProjectiles = weaponConfig.projectiles || 1;
     let spread = weaponConfig.spread || 0;
@@ -215,7 +212,7 @@ export class GameManager {
       bullets.push(bullet);
     }
 
-    console.log(`[SHOOT] Player ${player.id} fired ${weaponType} (${numProjectiles} projectiles, dmg: ${weaponConfig.damage} each), ammo left: ${player.ammo}`);
+    console.log(`[SHOOT] ${player.id} fired ${weaponType}, ammo: ${player.ammo}`);
     return { success: true, bullets, bullet: bullets[0] }; // bullet para compatibilidad
   }
 

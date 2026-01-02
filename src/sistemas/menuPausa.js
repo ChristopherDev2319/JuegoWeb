@@ -213,6 +213,13 @@ function manejarTeclasMenu(evento) {
     }
     // Si ya estamos en main, no hacer nada
   }
+  
+  // TEMPORAL: Tecla P para ocultar menú sin pointer lock (para pruebas)
+  if (evento.code === 'KeyP') {
+    evento.preventDefault();
+    evento.stopPropagation();
+    ocultarMenuSinPointerLock();
+  }
 }
 
 /**
@@ -293,6 +300,19 @@ function reanudarSinPointerLock() {
   }
   
   console.log('▶️ Juego reanudado (click para activar controles)');
+}
+
+/**
+ * TEMPORAL: Oculta el menú sin activar pointer lock (para pruebas)
+ * Presiona P cuando el menú está abierto
+ */
+function ocultarMenuSinPointerLock() {
+  if (!menuActivo) return;
+  
+  menuActivo = false;
+  elementos.pauseMenu?.classList.add('hidden');
+  
+  console.log('🧪 PRUEBA: Menú ocultado sin pointer lock (tecla P)');
 }
 
 /**

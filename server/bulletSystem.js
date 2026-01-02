@@ -13,9 +13,9 @@ let bulletIdCounter = 0;
 // Hitbox del personaje cartoon (rectangular) - más grande para mejor detección
 // IMPORTANTE: La posición del jugador (player.position.y) es la altura de los OJOS (1.7 desde el suelo)
 const CHARACTER_HITBOX = {
-  width: 1.4,   // Ancho (X) - aumentado para mejor detección
-  height: 2.0,  // Altura (Y) - altura total del personaje
-  depth: 1.2,   // Profundidad (Z) - aumentado para mejor detección
+  width: 2.0,   // Ancho (X) - aumentado significativamente para mejor detección
+  height: 2.2,  // Altura (Y) - altura total del personaje
+  depth: 2.0,   // Profundidad (Z) - aumentado significativamente para mejor detección
   eyeHeight: 1.7 // Altura de los ojos desde los pies
 };
 
@@ -27,6 +27,7 @@ export class Bullet {
     this.id = `bullet_${++bulletIdCounter}`;
     this.ownerId = ownerId;
     this.position = { ...position };
+    this.startPosition = { ...position }; // Guardar posición inicial
     this.direction = normalizeDirection(direction);
     this.weaponType = weaponType;
     
@@ -58,14 +59,13 @@ export class Bullet {
   }
 
   /**
-   * Check if bullet has traveled too far
+   * Check if bullet has traveled too far from its starting position
    */
   isTooFar() {
-    const distance = Math.sqrt(
-      this.position.x * this.position.x +
-      this.position.y * this.position.y +
-      this.position.z * this.position.z
-    );
+    const dx = this.position.x - this.startPosition.x;
+    const dy = this.position.y - this.startPosition.y;
+    const dz = this.position.z - this.startPosition.z;
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
     return distance > BULLET_CONFIG.maxDistance;
   }
 
