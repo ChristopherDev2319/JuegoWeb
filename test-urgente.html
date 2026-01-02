@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TEST URGENTE SONIDOS</title>
+    <style>
+        body { background: #000; color: #fff; font-family: Arial; padding: 20px; text-align: center; }
+        button { background: #f00; color: #fff; border: none; padding: 20px; margin: 10px; font-size: 18px; cursor: pointer; }
+        button:hover { background: #a00; }
+        #result { margin: 20px; padding: 20px; background: #333; }
+    </style>
+</head>
+<body>
+    <h1>🚨 TEST URGENTE SONIDOS 🚨</h1>
+    <div id="result">Haz clic en un botón para probar</div>
+    
+    <button onclick="testPistola()">PISTOLA</button>
+    <button onclick="testAK47()">AK-47</button>
+    <button onclick="testSniper()">SNIPER</button>
+    <button onclick="testEscopeta()">ESCOPETA</button>
+    <button onclick="testM4A1()">M4A1</button>
+    <button onclick="testMP5()">MP5</button>
+
+    <script>
+        const result = document.getElementById('result');
+        
+        function testPistola() {
+            try {
+                const audio = new Audio('sonidos/pistola.mp3');
+                audio.volume = 0.5;
+                audio.play();
+                result.innerHTML = '✅ PISTOLA FUNCIONANDO';
+            } catch(e) {
+                result.innerHTML = '❌ PISTOLA ERROR: ' + e.message;
+            }
+        }
+        
+        function testAK47() {
+            try {
+                const audio = new Audio('sonidos/AK47.mp3');
+                audio.volume = 0.5;
+                audio.play();
+                result.innerHTML = '✅ AK47 FUNCIONANDO';
+            } catch(e) {
+                result.innerHTML = '❌ AK47 ERROR: ' + e.message;
+            }
+        }
+        
+        function testSniper() {
+            try {
+                const audio = new Audio('sonidos/SNIPER.mp3');
+                audio.volume = 0.5;
+                audio.play();
+                result.innerHTML = '✅ SNIPER FUNCIONANDO';
+            } catch(e) {
+                result.innerHTML = '❌ SNIPER ERROR: ' + e.message;
+            }
+        }
+        
+        function testEscopeta() {
+            try {
+                const audio = new Audio('sonidos/ESCOPETA.mp3');
+                audio.volume = 0.5;
+                audio.play();
+                result.innerHTML = '✅ ESCOPETA FUNCIONANDO';
+            } catch(e) {
+                result.innerHTML = '❌ ESCOPETA ERROR: ' + e.message;
+            }
+        }
+        
+        function testM4A1() {
+            try {
+                const audio = new Audio('sonidos/M4A1.mp3');
+                audio.volume = 0.5;
+                audio.play();
+                result.innerHTML = '✅ M4A1 FUNCIONANDO';
+            } catch(e) {
+                result.innerHTML = '❌ M4A1 ERROR: ' + e.message;
+            }
+        }
+        
+        function testMP5() {
+            try {
+                const audio = new Audio('sonidos/MP5.mp3');
+                audio.volume = 0.5;
+                audio.play();
+                result.innerHTML = '✅ MP5 FUNCIONANDO';
+            } catch(e) {
+                result.innerHTML = '❌ MP5 ERROR: ' + e.message;
+            }
+        }
+    </script>
+</body>
+</html>
