@@ -901,69 +901,21 @@ function manejarDisparo() {
     // Animar retroceso del arma
     animarRetroceso();
     
-    // *** DEBUG Y SONIDO - MODO MULTIJUGADOR ***
-    console.log('🔫 DISPARO MULTIJUGADOR');
-    console.log('Arma actual:', estadoArma.tipoActual);
-    console.log('Config arma:', configArma);
-    console.log('Sonido configurado:', configArma.sonidoDisparo);
-    
-    if (configArma.sonidoDisparo) {
-      try {
-        console.log('🔊 CREANDO AUDIO:', configArma.sonidoDisparo);
-        const audio = new Audio(configArma.sonidoDisparo);
-        
-        // Volumen específico por arma
-        switch (estadoArma.tipoActual) {
-          case 'PISTOLA':
-            audio.volume = 0.4;
-            break;
-          case 'SNIPER':
-            audio.volume = 0.6;
-            break;
-          case 'ESCOPETA':
-            audio.volume = 0.5;
-            break;
-          case 'AK47':
-            audio.volume = 0.5;
-            break;
-          case 'M4A1':
-            audio.volume = 0.4;
-            break;
-          case 'MP5':
-            audio.volume = 0.4;
-            break;
-          default:
-            audio.volume = 0.4;
-        }
-        
-        console.log('🔊 REPRODUCIENDO AUDIO...');
-        audio.play().then(() => {
-          console.log('✅ AUDIO REPRODUCIDO EXITOSAMENTE');
-        }).catch(e => {
-          console.error('❌ ERROR REPRODUCIENDO AUDIO:', e);
-        });
-      } catch (e) {
-        console.error('❌ ERROR CREANDO AUDIO:', e);
-      }
-    } else {
-      console.log('❌ NO HAY SONIDO CONFIGURADO PARA:', estadoArma.tipoActual);
-    }
+    // Reproducir sonido de disparo usando el sistema de sonidos
+    reproducirSonidoDisparo(estadoArma.tipoActual, configArma);
     
     // Actualizar UI de munición
     actualizarDisplayMunicion();
   } else {
-    // *** DEBUG Y SONIDO - MODO LOCAL ***
-    console.log('🔫 DISPARO LOCAL');
+    // Modo local
     const estadoArma = obtenerEstado();
     const configArma = CONFIG.armas[estadoArma.tipoActual];
-    console.log('Arma actual LOCAL:', estadoArma.tipoActual);
-    console.log('Config arma LOCAL:', configArma);
-    console.log('Sonido configurado LOCAL:', configArma.sonidoDisparo);
     
     // Fallback a procesamiento local
     const disparo = disparar(camera, [], balas, scene, null);
     
     if (disparo) {
+      reproducirSonidoDisparo(estadoArma.tipoActual, configArma);
       actualizarDisplayMunicion();
     }
   }
