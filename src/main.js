@@ -326,16 +326,6 @@ async function inicializar() {
  * Requirements: 2.1, 2.2
  */
 async function inicializarRed() {
-  // 🚨 ARREGLO PARA GITHUB: Solo conectar en localhost
-  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    console.log('� Modo GitHlub: WebSocket deshabilitado (no hay servidor remoto)');
-    mostrarMensajeConexion('Modo local - Sin servidor multijugador', false);
-    setTimeout(() => {
-      ocultarMensajeConexion();
-    }, 3000);
-    return;
-  }
-
   // Verificar si el multijugador está habilitado
   if (!CONFIG.red.habilitarMultijugador) {
     console.log('🎮 Modo local: Multijugador deshabilitado');
