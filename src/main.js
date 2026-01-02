@@ -76,6 +76,21 @@ import { precargarAnimaciones } from './sistemas/animaciones.js';
 import { getInputSender } from './network/inputSender.js';
 import { initializeRemotePlayerManager } from './network/remotePlayers.js';
 
+// Sistema de autenticación (NUEVO)
+import { inicializarAuthUI } from './sistemas/authUI.js';
+import { obtenerEstadoAuth, cerrarSesion } from './sistemas/auth.js';
+import { 
+  registrarKill as registrarKillProgreso,
+  registrarDeath as registrarDeathProgreso,
+  registrarDisparo as registrarDisparoProgreso,
+  registrarImpacto as registrarImpactoProgreso,
+  actualizarTiempoJugado,
+  actualizarConfiguracion
+} from './sistemas/progreso.js';
+
+// Sistema de menú de usuario - COMENTADO TEMPORALMENTE
+// import { inicializarMenuUsuario, mostrarMenuUsuario } from './sistemas/menuUsuario.js';
+
 // Sistema de crosshair dinámico
 import {
   inicializarCrosshair,
@@ -143,6 +158,13 @@ let modeloArma = null;
 
 // Control de tiempo
 let ultimoTiempo = performance.now();
+
+// Control de tiempo de juego para progreso
+let ultimoTiempoProgreso = performance.now();
+let tiempoJuegoAcumulado = 0;
+
+// Estado del menú (declarado ANTES del bucle de juego)
+let menuActivo = false;
 
 // Estado del lobby y modo de juego
 // Requirements: 1.1, 2.1, 2.2, 2.3
@@ -285,6 +307,22 @@ async function inicializar() {
   // Cargar configuración del lobby
   cargarConfiguracionLobby();
   
+  // Inicializar sistema de autenticación (opcional)
+  try {
+    inicializarAuthUI();
+    console.log('✅ Sistema de autenticación inicializado');
+  } catch (error) {
+    console.warn('⚠️ Error inicializando autenticación:', error);
+  }
+  
+  // Inicializar lobby normal (sin requerir autenticación)
+  inicializarLobbyNormal();
+}
+
+/**
+ * Inicializa el lobby normal
+ */
+function inicializarLobbyNormal() {
   // Inicializar UI del lobby con callbacks
   inicializarLobbyUI({
     onModoLocal: (nombre) => {
@@ -650,6 +688,24 @@ async function inicializarJuegoCompleto() {
     // Continuar sin crosshair dinámico si hay error
   }
 
+  // Inicializar sistema de autenticación
+  try {
+    inicializarAuthUI();
+    console.log('✅ Sistema de autenticación inicializado');
+  } catch (error) {
+    console.warn('⚠️ Error inicializando autenticación:', error);
+    // Continuar sin autenticación si hay error
+  }
+
+  // Inicializar sistema de menú de usuario - COMENTADO TEMPORALMENTE
+  // try {
+  //   inicializarMenuUsuario();
+  //   console.log('✅ Sistema de menú de usuario inicializado');
+  // } catch (error) {
+  //   console.warn('⚠️ Error inicializando menú de usuario:', error);
+  //   // Continuar sin menú de usuario si hay error
+  // }
+
   // Inicializar displays de UI
   actualizarDisplayMunicion();
   actualizarDisplayDash();
@@ -709,11 +765,10 @@ function volverAlLobby() {
     remotePlayerManager.clear();
   }
   
-  // Mostrar lobby
-  mostrarLobby();
+  // Cerrar sesión y volver al login
+  cerrarSesion();
   
   // Recargar la página para reiniciar completamente
-  // (alternativa más simple que resetear todo el estado del juego)
   window.location.reload();
 }
 
@@ -723,6 +778,13 @@ function volverAlLobby() {
  */
 function registrarKill() {
   actualizarEstadisticasLobby(1, 0);
+  
+  // Registrar en sistema de progreso
+  registrarKillProgreso();
+  
+  // Actualizar estadísticas locales para usuarios no autenticados
+  actualizarStatsLocales('kills', 1);
+  
   console.log('📊 Kill registrado');
 }
 
@@ -732,6 +794,13 @@ function registrarKill() {
  */
 function registrarDeath() {
   actualizarEstadisticasLobby(0, 1);
+  
+  // Registrar en sistema de progreso
+  registrarDeathProgreso();
+  
+  // Actualizar estadísticas locales para usuarios no autenticados
+  actualizarStatsLocales('deaths', 1);
+  
   console.log('📊 Muerte registrada');
 }
 
@@ -739,8 +808,37 @@ function registrarDeath() {
  * Registra un impacto recibido (para estadísticas futuras)
  */
 function registrarImpacto() {
+  // Registrar en sistema de progreso
+  registrarImpactoProgreso();
+  
   // Por ahora solo log, se puede expandir para estadísticas de daño
   console.log('📊 Impacto recibido');
+}
+
+/**
+ * Actualizar estadísticas locales para usuarios no autenticados
+ */
+function actualizarStatsLocales(stat, incremento = 1) {
+  try {
+    const authState = obtenerEstadoAuth();
+    if (authState.isAuthenticated) return; // Solo para usuarios no autenticados
+    
+    const statsLocales = JSON.parse(localStorage.getItem('gameStats') || '{}');
+    statsLocales[stat] = (statsLocales[stat] || 0) + incremento;
+    
+    // Calcular experiencia basada en acciones
+    if (stat === 'kills') {
+      statsLocales.experience = (statsLocales.experience || 0) + 100; // 100 XP por kill
+    } else if (stat === 'shotsFired') {
+      statsLocales.experience = (statsLocales.experience || 0) + 1; // 1 XP por disparo
+    } else if (stat === 'shotsHit') {
+      statsLocales.experience = (statsLocales.experience || 0) + 5; // 5 XP por impacto
+    }
+    
+    localStorage.setItem('gameStats', JSON.stringify(statsLocales));
+  } catch (error) {
+    console.warn('Error actualizando estadísticas locales:', error);
+  }
 }
 
 /**
@@ -1317,6 +1415,12 @@ function manejarDisparo() {
       estadoArma.estaApuntando
     );
     
+    // Registrar disparo para progreso
+    registrarDisparoProgreso();
+    
+    // Actualizar estadísticas locales
+    actualizarStatsLocales('shotsFired', 1);
+    
     // Para escopetas, crear múltiples balas visuales
     const numProyectiles = configArma.proyectiles || 1;
     let dispersionArma = configArma.dispersion || 0;
@@ -1367,6 +1471,12 @@ function manejarDisparo() {
     const disparo = disparar(camera, [], balas, scene, null);
     
     if (disparo) {
+      // Registrar disparo para progreso
+      registrarDisparoProgreso();
+      
+      // Actualizar estadísticas locales
+      actualizarStatsLocales('shotsFired', 1);
+      
       reproducirSonidoDisparo(estadoArma.tipoActual, configArma);
       actualizarDisplayMunicion();
     }
@@ -1469,8 +1579,24 @@ function bucleJuego() {
   const deltaTime = (tiempoActual - ultimoTiempo) / 1000;
   ultimoTiempo = tiempoActual;
 
+  // Actualizar tiempo de juego para progreso (solo cuando el juego está activo)
+  if (juegoIniciado && !menuActivo) {
+    tiempoJuegoAcumulado += deltaTime;
+    
+    // Actualizar progreso cada 10 segundos
+    if (tiempoActual - ultimoTiempoProgreso > 10000) {
+      const tiempoSegundos = Math.floor(tiempoJuegoAcumulado);
+      actualizarTiempoJugado(tiempoSegundos);
+      
+      // Actualizar tiempo local para usuarios no autenticados
+      actualizarStatsLocales('playtime', tiempoSegundos);
+      
+      tiempoJuegoAcumulado = 0;
+      ultimoTiempoProgreso = tiempoActual;
+    }
+  }
+
   // No actualizar el juego si el menú de pausa está activo
-  let menuActivo = false;
   try {
     menuActivo = estaMenuActivo();
   } catch (error) {
@@ -1532,3 +1658,56 @@ function bucleJuego() {
 
 // Iniciar el juego cuando el DOM esté listo
 inicializar();
+
+/**
+ * Función global para mostrar el menú de usuario
+ * Puede ser llamada desde cualquier parte del juego
+ */
+window.abrirMenuUsuario = function() {
+  try {
+    const authState = obtenerEstadoAuth();
+    let datosUsuario = {};
+    
+    if (authState.isAuthenticated) {
+      // Usuario autenticado - usar datos del servidor
+      const progreso = obtenerProgreso();
+      datosUsuario = {
+        username: authState.user.username,
+        level: progreso?.progress?.level || 1,
+        stats: progreso?.stats || {}
+      };
+    } else {
+      // Usuario no autenticado - usar datos locales del localStorage
+      const statsLocales = JSON.parse(localStorage.getItem('gameStats') || '{}');
+      const configLocal = JSON.parse(localStorage.getItem('gameConfig') || '{}');
+      
+      // Calcular nivel basado en experiencia local
+      const experiencia = statsLocales.experience || 0;
+      const nivel = Math.floor(experiencia / 1000) + 1; // 1000 XP por nivel
+      
+      datosUsuario = {
+        username: configLocal.playerName || 'Jugador Local',
+        level: nivel,
+        stats: {
+          kills: statsLocales.kills || 0,
+          deaths: statsLocales.deaths || 0,
+          shotsFired: statsLocales.shotsFired || 0,
+          shotsHit: statsLocales.shotsHit || 0,
+          playtime: statsLocales.playtime || 0,
+          experience: experiencia
+        }
+      };
+    }
+    
+    mostrarMenuUsuario(datosUsuario);
+  } catch (error) {
+    console.error('Error abriendo menú de usuario:', error);
+    
+    // Fallback con datos mínimos
+    mostrarMenuUsuario({
+      username: 'Jugador',
+      level: 1,
+      stats: {}
+    });
+  }
+};

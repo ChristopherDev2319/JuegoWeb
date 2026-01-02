@@ -24,6 +24,7 @@ export const CONFIG = {
     // M4A1: Rifle versátil, equilibrado - META para rondas completas
     "M4A1": {
       nombre: "M4A1",
+      descripcion: "Rifle de asalto versátil con buen equilibrio entre daño y precisión",
       tipo: "rifle",
       cadenciaDisparo: 666, // 666 RPM (como CS:GO)
       daño: 33, // 4 balas al cuerpo, 1 headshot
@@ -54,6 +55,7 @@ export const CONFIG = {
     // AK-47: Alto daño, alto retroceso - Riesgo/Recompensa
     "AK47": {
       nombre: "AK-47",
+      descripcion: "Rifle de asalto potente con alto retroceso pero gran daño",
       tipo: "rifle",
       cadenciaDisparo: 600, // 600 RPM (como CS:GO)
       daño: 36, // 3 balas al cuerpo, 1 headshot
@@ -84,6 +86,7 @@ export const CONFIG = {
     // Pistola: Eco rounds, precisión - Arma económica
     "PISTOLA": {
       nombre: "Colt 1911",
+      descripcion: "Pistola semiautomática precisa y confiable para combate cercano",
       tipo: "pistola",
       cadenciaDisparo: 267, // 267 RPM (semi-auto realista)
       daño: 35, // 3 balas al cuerpo, 1 headshot de cerca
@@ -120,6 +123,7 @@ export const CONFIG = {
     // Sniper: One-shot potential, lento - Arma de especialista
     "SNIPER": {
       nombre: "AWP",
+      descripcion: "Rifle de francotirador de alta precisión con potencial letal",
       tipo: "francotirador",
       cadenciaDisparo: 41, // 41 RPM (muy lento como CS:GO)
       daño: 115, // 1 shot kill al cuerpo, siempre letal headshot
@@ -154,6 +158,7 @@ export const CONFIG = {
     // Escopeta: Devastadora de cerca, inútil de lejos
     "ESCOPETA": {
       nombre: "Pump Shotgun",
+      descripcion: "Escopeta devastadora en combate cercano con múltiples perdigones",
       tipo: "escopeta",
       cadenciaDisparo: 68, // 68 RPM (lenta como debe ser)
       daño: 26, // Por perdigón (8 perdigones = 208 máximo)
@@ -191,6 +196,7 @@ export const CONFIG = {
     // MP5: SMG para rushes y eco - Movilidad y cadencia
     "MP5": {
       nombre: "MP5",
+      descripcion: "Subfusil de alta cadencia ideal para combate rápido y móvil",
       tipo: "subfusil",
       cadenciaDisparo: 800, // 800 RPM (alta cadencia)
       daño: 26, // 4 balas al cuerpo, 2 headshots
@@ -221,6 +227,37 @@ export const CONFIG = {
         tiempoTransicion: 0.18,
         posicionArma: { x: 0, y: -0.14, z: -0.15 },
         reduccionDispersion: 0.4
+      }
+    },
+    
+    // SCAR: Rifle de batalla pesado - Daño alto, cadencia media
+    "SCAR": {
+      nombre: "SCAR-H",
+      descripcion: "Rifle de batalla pesado con gran poder de parada y alcance",
+      tipo: "rifle",
+      cadenciaDisparo: 625, // 625 RPM (entre M4A1 y AK47)
+      daño: 40, // Más daño que M4A1 pero menos que AK47
+      tamañoCargador: 20, // Cargador más pequeño
+      municionTotal: 80,
+      tiempoRecarga: 2.8,
+      velocidadBala: 45.0,
+      modelo: "modelos/FBX/Weapons/SCAR.fbx",
+      sonidoDisparo: "sonidos/SCAR.mp3",
+      posicion: { x: 0.3, y: -0.3, z: -0.5 },
+      rotacion: { x: 0, y: Math.PI, z: 0 },
+      retroceso: {
+        cantidad: 0.09, // Retroceso moderado-alto
+        arriba: 0.05,
+        duracion: 75
+      },
+      multiplicadorHeadshot: 4.0, // Headshot letal
+      dispersion: 0.025, // Precisión buena pero no perfecta
+      apuntado: {
+        zoom: 1.6,
+        reduccionRetroceso: 0.45,
+        tiempoTransicion: 0.28,
+        posicionArma: { x: 0, y: -0.08, z: -0.18 },
+        reduccionDispersion: 0.35
       }
     }
   },
