@@ -2,7 +2,7 @@
  * WebSocket Server Entry Point
  * Main server for multiplayer FPS game
  * 
- * Requirements: 1.1, 1.2, 1.3, 1.4, 5.2, 5.3, 5.4, 5.5, 6.1, 6.5, 8.3, 10.3
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 5.2, 5.3, 5.4, 5.5, 6.1, 6.2, 6.3, 6.5, 8.3, 10.3
  */
 
 import express from 'express';
@@ -20,6 +20,18 @@ import { encontrarMejorSala } from './rooms/matchmaking.js';
 // ES module dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+/**
+ * Standardized error messages for lobby operations
+ * Requirements: 6.1, 6.2, 6.3
+ */
+const ERROR_MESSAGES = {
+  ROOM_NOT_FOUND: 'Sala no encontrada',
+  WRONG_PASSWORD: 'Contraseña incorrecta',
+  ROOM_FULL: 'Partida llena',
+  MATCHMAKING_FAILED: 'No se pudo encontrar partida',
+  UNKNOWN_ACTION: 'Acción no reconocida'
+};
 
 // Create Express app for static file serving (Requirement 8.3)
 const app = express();
@@ -95,6 +107,15 @@ function handleLobbyMessage(ws, message) {
       const sala = encontrarMejorSala(roomManager);
       const playerName = data.playerName || `Jugador_${Math.floor(Math.random() * 10000)}`;
       
+      // Get current players BEFORE adding the new player (Requirement 5.3)
+      const jugadoresActuales = [];
+      for (const [id, jugador] of sala.jugadores) {
+        jugadoresActuales.push({
+          id: jugador.id,
+          nombre: jugador.nombre
+        });
+      }
+      
       // Add player to room
       const added = sala.agregarJugador(playerId, playerName);
       
@@ -105,7 +126,7 @@ function handleLobbyMessage(ws, message) {
         
         console.log(`[LOBBY] Player ${playerId} joined room ${sala.codigo} via matchmaking`);
         
-        // Send success response
+        // Send success response with player list (Requirement 5.3)
         ws.send(serializeMessage('lobbyResponse', {
           action: 'matchmaking',
           success: true,
@@ -113,11 +134,12 @@ function handleLobbyMessage(ws, message) {
             roomId: sala.id,
             roomCode: sala.codigo,
             players: sala.getPlayerCount(),
-            maxPlayers: sala.maxJugadores
+            maxPlayers: sala.maxJugadores,
+            playerList: jugadoresActuales
           }
         }));
         
-        // Notify other players in the room
+        // Notify other players in the room (Requirement 5.1)
         broadcastToRoom(sala.id, serializeMessage('playerJoined', {
           player: { id: playerId, nombre: playerName }
         }), playerId);
@@ -128,10 +150,11 @@ function handleLobbyMessage(ws, message) {
           gameState: sala.gameManager.getState()
         }));
       } else {
+        // Requirement 6.1: Send descriptive error message for matchmaking failure
         ws.send(serializeMessage('lobbyResponse', {
           action: 'matchmaking',
           success: false,
-          data: { error: 'No se pudo unir a la partida' }
+          data: { error: ERROR_MESSAGES.ROOM_FULL }
         }));
       }
       break;
@@ -186,35 +209,44 @@ function handleLobbyMessage(ws, message) {
       const sala = roomManager.obtenerSalaPorCodigo(roomCode);
       
       if (!sala) {
-        // Requirement 5.3: Room not found
+        // Requirement 6.2: Room not found error
         ws.send(serializeMessage('lobbyResponse', {
           action: 'joinPrivate',
           success: false,
-          data: { error: 'Sala no encontrada' }
+          data: { error: ERROR_MESSAGES.ROOM_NOT_FOUND }
         }));
         return;
       }
       
       // Verify password (Requirement 10.4)
       if (!sala.verificarPassword(password)) {
-        // Requirement 5.4: Incorrect password
+        // Requirement 6.3: Incorrect password error
         ws.send(serializeMessage('lobbyResponse', {
           action: 'joinPrivate',
           success: false,
-          data: { error: 'Contraseña incorrecta' }
+          data: { error: ERROR_MESSAGES.WRONG_PASSWORD }
         }));
         return;
       }
       
       // Check if room has space (Requirement 10.5)
       if (!sala.tieneEspacio()) {
-        // Requirement 5.5: Room is full
+        // Requirement 6.1: Room is full error
         ws.send(serializeMessage('lobbyResponse', {
           action: 'joinPrivate',
           success: false,
-          data: { error: 'Partida llena' }
+          data: { error: ERROR_MESSAGES.ROOM_FULL }
         }));
         return;
+      }
+      
+      // Get current players BEFORE adding the new player (Requirement 5.3)
+      const jugadoresActuales = [];
+      for (const [id, jugador] of sala.jugadores) {
+        jugadoresActuales.push({
+          id: jugador.id,
+          nombre: jugador.nombre
+        });
       }
       
       // Add player to room
@@ -225,7 +257,7 @@ function handleLobbyMessage(ws, message) {
       
       console.log(`[LOBBY] Player ${playerId} joined private room ${sala.codigo}`);
       
-      // Send success response
+      // Send success response with player list (Requirement 5.3)
       ws.send(serializeMessage('lobbyResponse', {
         action: 'joinPrivate',
         success: true,
@@ -233,11 +265,12 @@ function handleLobbyMessage(ws, message) {
           roomId: sala.id,
           roomCode: sala.codigo,
           players: sala.getPlayerCount(),
-          maxPlayers: sala.maxJugadores
+          maxPlayers: sala.maxJugadores,
+          playerList: jugadoresActuales
         }
       }));
       
-      // Notify other players in the room
+      // Notify other players in the room (Requirement 5.1)
       broadcastToRoom(sala.id, serializeMessage('playerJoined', {
         player: { id: playerId, nombre: playerName }
       }), playerId);
@@ -273,7 +306,7 @@ function handleLobbyMessage(ws, message) {
       ws.send(serializeMessage('lobbyResponse', {
         action: action,
         success: false,
-        data: { error: 'Acción no reconocida' }
+        data: { error: ERROR_MESSAGES.UNKNOWN_ACTION }
       }));
   }
 }
@@ -370,6 +403,9 @@ function handleDisconnection(ws) {
   
   if (!playerId) return;
   
+  console.log(`[DISCONNECT] Player ${playerId} disconnecting...`);
+  console.log(`[DISCONNECT] Was in lobby: ${ws.inLobby}, Room ID: ${ws.roomId}`);
+  
   // Get player's room
   const roomId = playerRooms.get(playerId);
   
@@ -377,12 +413,17 @@ function handleDisconnection(ws) {
     // Remove player from room
     const sala = roomManager.obtenerSala(roomId);
     if (sala) {
-      sala.removerJugador(playerId);
-      console.log(`Player ${playerId} removed from room ${sala.codigo} (Players: ${sala.getPlayerCount()})`);
+      // Get player name before removing (Requirement 5.2)
+      const jugador = sala.jugadores.get(playerId);
+      const playerName = jugador ? jugador.nombre : 'Jugador';
       
-      // Broadcast player left to remaining clients in the room
+      sala.removerJugador(playerId);
+      console.log(`Player ${playerId} (${playerName}) removed from room ${sala.codigo} (Players: ${sala.getPlayerCount()})`);
+      
+      // Broadcast player left to remaining clients in the room (Requirement 5.2)
       broadcastToRoom(roomId, serializeMessage('playerLeft', {
-        playerId: playerId
+        playerId: playerId,
+        playerName: playerName
       }));
     }
     

@@ -109,7 +109,8 @@ import {
   actualizarEstadoMatchmaking,
   mostrarSalaCreada,
   mostrarErrorCrear,
-  mostrarErrorUnirse
+  mostrarErrorUnirse,
+  actualizarListaJugadores
 } from './lobby/lobbyUI.js';
 
 import { 
@@ -324,6 +325,7 @@ async function inicializar() {
 
 /**
  * Maneja el proceso de matchmaking
+ * Requirement 6.4: Show errors in the correct screen
  * @param {string} nombre - Nombre del jugador
  */
 async function manejarMatchmaking(nombre) {
@@ -339,13 +341,31 @@ async function manejarMatchmaking(nombre) {
     salaActualId = resultado.roomId;
     nombreJugadorActual = nombre;
     
+    // Inicializar lista de jugadores con los jugadores existentes (Requirement 5.3, 5.4)
+    jugadoresEnSala = (resultado.playerList || []).map((jugador, index) => ({
+      id: jugador.id,
+      nombre: jugador.nombre,
+      esHost: index === 0 // El primer jugador es el host
+    }));
+    
+    // Agregar al jugador actual a la lista
+    jugadoresEnSala.push({
+      id: connection.getPlayerId(),
+      nombre: nombre,
+      esHost: jugadoresEnSala.length === 0 // Es host si es el primero
+    });
+    
     // Iniciar juego directamente después del matchmaking
     onIniciarJuego('online', resultado.roomId, nombre);
     
   } catch (error) {
     console.error('❌ Error en matchmaking:', error);
-    mostrarError(error.message || 'Error al buscar partida');
+    // Requirement 6.4: First change to online screen, then show error there
     mostrarPantalla('online');
+    // Small delay to ensure screen transition completes before showing error
+    setTimeout(() => {
+      mostrarError(error.message || 'Error al buscar partida');
+    }, 350);
   }
 }
 
@@ -365,8 +385,18 @@ async function manejarCrearPartida(nombre, password) {
     salaActualId = resultado.roomId;
     nombreJugadorActual = nombre;
     
+    // Inicializar lista de jugadores con el creador (Requirement 5.4)
+    jugadoresEnSala = [{
+      id: connection.getPlayerId(),
+      nombre: nombre,
+      esHost: true
+    }];
+    
     // Mostrar pantalla de sala creada con el código
     mostrarSalaCreada(resultado.roomCode);
+    
+    // Actualizar lista de jugadores en la UI
+    actualizarListaJugadores(jugadoresEnSala);
     
   } catch (error) {
     console.error('❌ Error al crear partida:', error);
@@ -390,6 +420,20 @@ async function manejarUnirsePartida(nombre, codigo, password) {
     console.log('✅ Unido a partida:', resultado);
     salaActualId = resultado.roomId;
     nombreJugadorActual = nombre;
+    
+    // Inicializar lista de jugadores con los jugadores existentes (Requirement 5.3, 5.4)
+    jugadoresEnSala = (resultado.playerList || []).map((jugador, index) => ({
+      id: jugador.id,
+      nombre: jugador.nombre,
+      esHost: index === 0 // El primer jugador es el host
+    }));
+    
+    // Agregar al jugador actual a la lista
+    jugadoresEnSala.push({
+      id: connection.getPlayerId(),
+      nombre: nombre,
+      esHost: false
+    });
     
     // Iniciar juego directamente después de unirse
     onIniciarJuego('online', resultado.roomId, nombre);
@@ -415,6 +459,19 @@ async function conectarServidorParaLobby() {
     manejarRespuestaLobby(response);
   });
   
+  // Configurar callbacks para eventos de jugadores en el lobby (Requirement 5.4)
+  connection.onPlayerJoined((player) => {
+    console.log(`[LOBBY] Jugador unido: ${player.nombre}`);
+    // Actualizar lista de jugadores en la UI si estamos en la sala de espera
+    manejarJugadorUnido(player);
+  });
+  
+  connection.onPlayerLeft((playerId) => {
+    console.log(`[LOBBY] Jugador salió: ${playerId}`);
+    // Actualizar lista de jugadores en la UI si estamos en la sala de espera
+    manejarJugadorSalio(playerId);
+  });
+  
   const serverUrl = obtenerUrlServidor();
   
   try {
@@ -424,6 +481,41 @@ async function conectarServidorParaLobby() {
     console.error('❌ Error conectando al servidor:', error);
     throw new Error('No se pudo conectar al servidor');
   }
+}
+
+// Lista de jugadores en la sala actual (para el lobby)
+let jugadoresEnSala = [];
+
+/**
+ * Maneja cuando un jugador se une a la sala
+ * Requirement 5.4: Actualizar UI con lista de jugadores
+ * @param {Object} player - Datos del jugador
+ */
+function manejarJugadorUnido(player) {
+  // Agregar jugador a la lista local
+  if (!jugadoresEnSala.find(j => j.id === player.id)) {
+    jugadoresEnSala.push({
+      id: player.id,
+      nombre: player.nombre,
+      esHost: false
+    });
+  }
+  
+  // Actualizar UI
+  actualizarListaJugadores(jugadoresEnSala);
+}
+
+/**
+ * Maneja cuando un jugador sale de la sala
+ * Requirement 5.4: Actualizar UI con lista de jugadores
+ * @param {string} playerId - ID del jugador que salió
+ */
+function manejarJugadorSalio(playerId) {
+  // Remover jugador de la lista local
+  jugadoresEnSala = jugadoresEnSala.filter(j => j.id !== playerId);
+  
+  // Actualizar UI
+  actualizarListaJugadores(jugadoresEnSala);
 }
 
 /**
@@ -680,6 +772,16 @@ async function inicializarRed() {
   // Si ya está conectado (desde el lobby), solo configurar callbacks
   if (connection.isConnected()) {
     console.log('✅ Reutilizando conexión existente del lobby');
+    
+    // IMPORTANTE: Configurar el localPlayerId en el remotePlayerManager
+    // ya que el callback onWelcome ya se ejecutó durante el matchmaking
+    const existingPlayerId = connection.getPlayerId();
+    if (existingPlayerId) {
+      localPlayerId = existingPlayerId;
+      remotePlayerManager.setLocalPlayerId(existingPlayerId);
+      isMultiplayerConnected = true;
+      console.log(`✅ LocalPlayerId configurado: ${existingPlayerId}`);
+    }
     
     // Enviar nombre del jugador al servidor
     // Requirements: 1.1 - Pasar nombre del jugador al servidor al conectar

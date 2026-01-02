@@ -129,7 +129,10 @@ export class RoomManager {
   obtenerSalasPublicasDisponibles() {
     const salasDisponibles = [];
     
+    console.log(`[ROOM_MANAGER] Total de salas: ${this.salas.size}`);
+    
     for (const sala of this.salas.values()) {
+      console.log(`  - Sala ${sala.codigo}: tipo=${sala.tipo}, jugadores=${sala.getPlayerCount()}/${sala.maxJugadores}, tieneEspacio=${sala.tieneEspacio()}`);
       if (sala.tipo === 'publica' && sala.tieneEspacio()) {
         salasDisponibles.push(sala);
       }

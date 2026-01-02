@@ -40,6 +40,8 @@ export class NetworkConnection {
       try {
         this.socket = new WebSocket(serverUrl);
         
+        let connectionResolved = false;
+        
         this.socket.onopen = () => {
           this.connected = true;
           console.log('Connected to server');
@@ -47,11 +49,6 @@ export class NetworkConnection {
         
         this.socket.onmessage = (event) => {
           this._handleMessage(event.data);
-          
-          // Resolve promise on welcome message (Requirement 2.2)
-          if (!this.playerId) {
-            // Wait for welcome message to resolve
-          }
         };
         
         this.socket.onerror = (error) => {
@@ -59,7 +56,8 @@ export class NetworkConnection {
           if (this._onError) {
             this._onError(error);
           }
-          if (!this.connected) {
+          if (!this.connected && !connectionResolved) {
+            connectionResolved = true;
             reject(new Error('Connection failed'));
           }
         };
@@ -73,14 +71,34 @@ export class NetworkConnection {
           }
         };
         
-        // Set up welcome handler to resolve promise
+        // Resolver la promesa cuando recibimos 'connected' (conexión inicial al lobby)
+        const originalOnConnected = this._onConnected;
+        this._onConnected = (data) => {
+          if (data && data.playerId) {
+            this.playerId = data.playerId;
+          }
+          if (originalOnConnected) {
+            originalOnConnected(data);
+          }
+          if (!connectionResolved) {
+            connectionResolved = true;
+            resolve();
+          }
+        };
+        
+        // También resolver en welcome (para compatibilidad con flujo de juego)
         const originalOnWelcome = this._onWelcome;
         this._onWelcome = (data) => {
-          this.playerId = data.playerId;
+          if (data && data.playerId) {
+            this.playerId = data.playerId;
+          }
           if (originalOnWelcome) {
             originalOnWelcome(data);
           }
-          resolve();
+          if (!connectionResolved) {
+            connectionResolved = true;
+            resolve();
+          }
         };
         
       } catch (error) {

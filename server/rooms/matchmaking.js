@@ -34,8 +34,14 @@ export function encontrarMejorSala(roomManager) {
   // Get all available public rooms (Requirement 6.1)
   const salasDisponibles = roomManager.obtenerSalasPublicasDisponibles();
   
+  console.log(`[MATCHMAKING] Salas públicas disponibles: ${salasDisponibles.length}`);
+  salasDisponibles.forEach(sala => {
+    console.log(`  - Sala ${sala.codigo}: ${sala.getPlayerCount()}/${sala.maxJugadores} jugadores`);
+  });
+  
   // If no rooms available, create a new public room (Requirement 6.3)
   if (salasDisponibles.length === 0) {
+    console.log('[MATCHMAKING] No hay salas disponibles, creando nueva sala pública');
     return roomManager.crearSala({ tipo: 'publica' });
   }
   
@@ -53,5 +59,6 @@ export function encontrarMejorSala(roomManager) {
     }
   }
   
+  console.log(`[MATCHMAKING] Mejor sala encontrada: ${mejorSala.codigo} con ${mejorSala.getPlayerCount()} jugadores`);
   return mejorSala;
 }

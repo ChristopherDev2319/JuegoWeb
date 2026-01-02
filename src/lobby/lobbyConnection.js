@@ -54,7 +54,8 @@ export function manejarRespuestaLobby(response) {
             roomId: data.roomId,
             roomCode: data.roomCode,
             players: data.players,
-            maxPlayers: data.maxPlayers
+            maxPlayers: data.maxPlayers,
+            playerList: data.playerList || []
           });
         }
       } else {
@@ -88,7 +89,8 @@ export function manejarRespuestaLobby(response) {
             roomId: data.roomId,
             roomCode: data.roomCode,
             players: data.players,
-            maxPlayers: data.maxPlayers
+            maxPlayers: data.maxPlayers,
+            playerList: data.playerList || []
           });
         }
       } else {

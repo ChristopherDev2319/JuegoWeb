@@ -77,10 +77,13 @@ function cachearElementos() {
     inputUnirsePassword: document.getElementById('unirse-password'),
     
     // Errores
+    // Requirement 6.4: Error elements for each screen
     errorNombre: document.getElementById('nombre-error'),
     errorCrearPassword: document.getElementById('crear-password-error'),
     errorCrear: document.getElementById('crear-error'),
     errorUnirse: document.getElementById('unirse-error'),
+    errorOnline: document.getElementById('online-error'),
+    errorMatchmaking: document.getElementById('matchmaking-error'),
     
     // Estadísticas (nuevo layout vertical)
     statsKills: document.getElementById('lobby-kills'),
@@ -630,10 +633,37 @@ function limpiarErrorEnElemento(elemento) {
   }
 }
 
+/**
+ * Limpia el error de una pantalla específica
+ * Requirement 6.4: Clear error when leaving a screen
+ * @param {string} pantalla - Nombre de la pantalla
+ */
+function limpiarErrorDePantalla(pantalla) {
+  switch (pantalla) {
+    case 'inicial':
+      limpiarErrorEnElemento(elementos.errorNombre);
+      break;
+    case 'online':
+      limpiarErrorEnElemento(elementos.errorOnline);
+      break;
+    case 'crear':
+      limpiarErrorEnElemento(elementos.errorCrear);
+      limpiarErrorEnElemento(elementos.errorCrearPassword);
+      break;
+    case 'unirse':
+      limpiarErrorEnElemento(elementos.errorUnirse);
+      break;
+    case 'matchmaking':
+      limpiarErrorEnElemento(elementos.errorMatchmaking);
+      break;
+  }
+}
+
 // ==================== FUNCIONES PÚBLICAS ====================
 
 /**
  * Muestra una pantalla específica del lobby con transición suave
+ * Requirement 6.4: Clear errors when changing screens
  * @param {string} pantalla - Nombre de la pantalla ('inicial', 'online', 'privada', 'crear', 'unirse', 'matchmaking', 'esperando', 'config')
  */
 export function mostrarPantalla(pantalla) {
@@ -653,6 +683,10 @@ export function mostrarPantalla(pantalla) {
   
   // Si es la misma pantalla, no hacer nada
   if (pantallaActual === pantalla) return;
+  
+  // Limpiar errores de la pantalla anterior al cambiar
+  // Requirement 6.4: Clear errors when navigating between screens
+  limpiarErrorDePantalla(pantallaActual);
   
   // Agregar clase de salida a la pantalla anterior
   // Requirements: 6.1, 6.2 - Transiciones fade/slide con duración 300ms
@@ -691,6 +725,7 @@ export function actualizarNombreJugador(nombre) {
 
 /**
  * Muestra un mensaje de error en la pantalla actual
+ * Requirement 6.4: Show error messages in the correct screen
  * @param {string} mensaje - Mensaje de error
  */
 export function mostrarError(mensaje) {
@@ -701,14 +736,20 @@ export function mostrarError(mensaje) {
     case 'inicial':
       elementoError = elementos.errorNombre;
       break;
+    case 'online':
+      elementoError = elementos.errorOnline;
+      break;
     case 'crear':
       elementoError = elementos.errorCrear;
       break;
     case 'unirse':
       elementoError = elementos.errorUnirse;
       break;
+    case 'matchmaking':
+      elementoError = elementos.errorMatchmaking;
+      break;
     default:
-      // Crear un elemento de error temporal si no hay uno específico
+      // Log error if no specific element exists
       console.error('Error del lobby:', mensaje);
       return;
   }
@@ -819,6 +860,7 @@ function agregarJugadorALista(nombre, esHost = false) {
 
 /**
  * Muestra error en la pantalla de crear partida
+ * Requirement 6.4: Show error in create screen
  * @param {string} mensaje - Mensaje de error
  */
 export function mostrarErrorCrear(mensaje) {
@@ -827,6 +869,7 @@ export function mostrarErrorCrear(mensaje) {
 
 /**
  * Muestra error en la pantalla de unirse a partida
+ * Requirement 6.4: Show error in join screen
  * @param {string} mensaje - Mensaje de error
  */
 export function mostrarErrorUnirse(mensaje) {
@@ -834,13 +877,34 @@ export function mostrarErrorUnirse(mensaje) {
 }
 
 /**
+ * Muestra error en la pantalla online
+ * Requirement 6.4: Show error in online screen
+ * @param {string} mensaje - Mensaje de error
+ */
+export function mostrarErrorOnline(mensaje) {
+  mostrarErrorEnElemento(elementos.errorOnline, mensaje);
+}
+
+/**
+ * Muestra error en la pantalla de matchmaking
+ * Requirement 6.4: Show error in matchmaking screen
+ * @param {string} mensaje - Mensaje de error
+ */
+export function mostrarErrorMatchmaking(mensaje) {
+  mostrarErrorEnElemento(elementos.errorMatchmaking, mensaje);
+}
+
+/**
  * Limpia todos los errores visibles
+ * Requirement 6.4: Clear all error messages
  */
 export function limpiarErrores() {
   limpiarErrorEnElemento(elementos.errorNombre);
   limpiarErrorEnElemento(elementos.errorCrearPassword);
   limpiarErrorEnElemento(elementos.errorCrear);
   limpiarErrorEnElemento(elementos.errorUnirse);
+  limpiarErrorEnElemento(elementos.errorOnline);
+  limpiarErrorEnElemento(elementos.errorMatchmaking);
 }
 
 /**
