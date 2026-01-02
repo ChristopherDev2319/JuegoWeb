@@ -87,6 +87,11 @@ import {
   animarRetroceso,
   habilitarCrosshairDinamico
 } from './sistemas/crosshair.js';
+// Sistema de colisiones
+import { inicializarColisiones, toggleDebugVisual } from './sistemas/colisiones.js';
+
+// Exponer función de debug en consola
+window.toggleCollisionDebug = toggleDebugVisual;
 
 // Arrays globales del juego
 const balas = [];
@@ -185,6 +190,21 @@ async function inicializar() {
 
   // Esperar a que el mapa cargue (ESENCIAL)
   await mapaPromise;
+  
+  actualizarCarga(45, 'Cargando colisiones...');
+  
+  // Inicializar sistema de colisiones después del mapa visual
+  // Requirements: 2.1 - Cargar map_coll.glb como geometría de colisiones
+  try {
+    await inicializarColisiones(scene, (progresoColisiones) => {
+      const progresoTotal = 45 + (progresoColisiones * 0.05);
+      actualizarCarga(progresoTotal, `Cargando colisiones: ${progresoColisiones}%`);
+    });
+    console.log('✅ Sistema de colisiones inicializado');
+  } catch (error) {
+    console.warn('⚠️ Error inicializando colisiones, usando fallback:', error);
+    // El sistema de colisiones maneja internamente el fallback
+  }
   
   actualizarCarga(50, 'Cargando arma principal...');
 
@@ -727,16 +747,6 @@ function manejarDash() {
     const dashPower = CONFIG.dash.poder;
     jugador.posicion.x += direccion.x * dashPower;
     jugador.posicion.z += direccion.z * dashPower;
-    
-    // Aplicar límites del mapa
-    jugador.posicion.x = Math.max(
-      CONFIG.jugador.limites.min,
-      Math.min(CONFIG.jugador.limites.max, jugador.posicion.x)
-    );
-    jugador.posicion.z = Math.max(
-      CONFIG.jugador.limites.min,
-      Math.min(CONFIG.jugador.limites.max, jugador.posicion.z)
-    );
     
     // Send dash input to server
     inputSender.sendDash(direccion);

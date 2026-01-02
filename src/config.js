@@ -8,11 +8,16 @@ export const CONFIG = {
     velocidad: 0.15,
     poderSalto: 0.25,
     alturaOjos: 1.7,
-    limites: {
-      min: -24,
-      max: 24
-    },
     gravedad: 0.015
+  },
+
+  // Configuración del sistema de colisiones
+  colisiones: {
+    radioJugador: 0.5,      // Radio del jugador para colisiones horizontales
+    alturaJugador: 1.7,     // Altura del jugador
+    margenPared: 0.1,       // Margen de separación de paredes
+    rayosHorizontales: 8,   // Número de rayos para detección horizontal
+    distanciaRayo: 0.6      // Distancia máxima de detección
   },
 
   armas: {
@@ -255,5 +260,17 @@ export const CONFIG = {
     puertoServidor: 3000,
     reintentos: 3,
     tiempoEspera: 5000
+  },
+
+  // Configuración del sistema de física Rapier3D
+  // Requirements: 2.1, 2.2, 5.4
+  fisica: {
+    gravedad: -9.81,           // Gravedad del mundo (m/s²)
+    alturaMaxEscalon: 0.8,     // Altura máxima de escalón automático (unidades) - aumentado para cajas/autos
+    anguloMaxRampa: 50,        // Ángulo máximo de rampa caminable (grados) - aumentado para rampas empinadas
+    offsetSuelo: 0.01,         // Offset para detección de suelo
+    radioJugador: 0.4,         // Radio de la cápsula del jugador
+    alturaJugador: 1.7,        // Altura de la cápsula del jugador (igual a alturaOjos)
+    margenColision: 0.02       // Margen de separación de superficies
   }
 };

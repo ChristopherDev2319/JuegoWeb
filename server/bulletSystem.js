@@ -2,18 +2,21 @@
  * Bullet System Module
  * Manages bullet creation, movement, and collision detection
  * 
- * Requirements: 5.2, 5.3
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 5.2, 5.3
  */
 
 import { BULLET_CONFIG, getWeaponConfig } from './config.js';
+import { raycastContraMapa, estaActivo as mapCollisionsActivo } from './mapCollisions.js';
 
 let bulletIdCounter = 0;
 
-// Hitbox del personaje cartoon (rectangular)
+// Hitbox del personaje cartoon (rectangular) - más grande para mejor detección
+// IMPORTANTE: La posición del jugador (player.position.y) es la altura de los OJOS (1.7 desde el suelo)
 const CHARACTER_HITBOX = {
-  width: 0.8,   // Ancho (X)
-  height: 2.0,  // Altura (Y)
-  depth: 0.6    // Profundidad (Z)
+  width: 1.4,   // Ancho (X) - aumentado para mejor detección
+  height: 2.0,  // Altura (Y) - altura total del personaje
+  depth: 1.2,   // Profundidad (Z) - aumentado para mejor detección
+  eyeHeight: 1.7 // Altura de los ojos desde los pies
 };
 
 /**
@@ -110,6 +113,8 @@ export class BulletSystem {
 
   /**
    * Update all bullets and check for collisions (Requirement 5.3)
+   * IMPORTANTE: Verifica colisiones con jugadores PRIMERO, luego con el mapa
+   * Esto asegura que las balas puedan impactar jugadores cerca de paredes
    * @param {number} deltaTime - Time since last update in seconds
    * @param {Map<string, PlayerState>} players - Map of all players
    * @returns {Array} - Array of collision results
@@ -132,26 +137,19 @@ export class BulletSystem {
         continue;
       }
       
-      // Check for collisions with players
+      // PRIMERO: Check for collisions with players (prioridad sobre mapa)
+      let hitPlayer = false;
       for (const [playerId, player] of players) {
         // Skip bullet owner and dead players
         if (playerId === bullet.ownerId || !player.isAlive) continue;
         
         // Verificar colisión con posición actual
-        if (this.checkCollision(bullet, player)) {
-          collisions.push({
-            bulletId: bullet.id,
-            ownerId: bullet.ownerId,
-            targetId: playerId,
-            damage: bullet.damage,
-            position: { ...bullet.position }
-          });
-          bullet.deactivate();
-          break;
-        }
+        const hitDirect = this.checkCollision(bullet, player);
         
         // Verificar colisión por raycast (para balas rápidas)
-        if (this.checkRayCollision(prevPosition, bullet.position, player)) {
+        const hitRay = this.checkRayCollision(prevPosition, bullet.position, player);
+        
+        if (hitDirect || hitRay) {
           collisions.push({
             bulletId: bullet.id,
             ownerId: bullet.ownerId,
@@ -160,8 +158,18 @@ export class BulletSystem {
             position: { ...bullet.position }
           });
           bullet.deactivate();
+          hitPlayer = true;
           break;
         }
+      }
+      
+      // Si ya impactó un jugador, no verificar mapa
+      if (hitPlayer) continue;
+      
+      // SEGUNDO: Check map collision (solo si no impactó jugador)
+      if (this.checkMapCollision(prevPosition, bullet.position)) {
+        bullet.deactivate();
+        continue;
       }
     }
     
@@ -172,9 +180,31 @@ export class BulletSystem {
   }
 
   /**
+   * Check if bullet trajectory collides with map geometry
+   * Requirements: 1.1, 1.2, 1.3
+   * @param {Object} from - Previous bullet position {x, y, z}
+   * @param {Object} to - Current bullet position {x, y, z}
+   * @returns {boolean} - True if bullet hit map geometry
+   */
+  checkMapCollision(from, to) {
+    // Skip if map collisions system is not active
+    if (!mapCollisionsActivo()) {
+      return false;
+    }
+    
+    // Requirement 1.1: Perform raycast from bullet origin to current position
+    // Requirement 1.2: Calculate exact impact point
+    const hit = raycastContraMapa(from, to);
+    
+    // Requirement 1.3: Deactivate bullet if it collides with map
+    return hit !== null && hit.hit;
+  }
+
+  /**
    * Check ray collision between previous and current bullet position
    * Prevents bullets from passing through players at high speeds
    * Uses rectangular hitbox for cartoon character
+   * IMPORTANTE: player.position.y es la altura de los OJOS, no de los pies
    * @param {Object} from - Previous position
    * @param {Object} to - Current position
    * @param {PlayerState} player - Player to check against
@@ -184,13 +214,16 @@ export class BulletSystem {
     const halfWidth = CHARACTER_HITBOX.width / 2;
     const halfDepth = CHARACTER_HITBOX.depth / 2;
     const playerHeight = CHARACTER_HITBOX.height;
-    const playerCenterY = player.position.y - 0.7;
+    const eyeHeight = CHARACTER_HITBOX.eyeHeight;
+    
+    // La posición del jugador es la de los ojos (eyeHeight desde el suelo)
+    const playerFeetY = player.position.y - eyeHeight;
     
     // Usar AABB (Axis-Aligned Bounding Box) para el raycast
     const minX = player.position.x - halfWidth;
     const maxX = player.position.x + halfWidth;
-    const minY = playerCenterY - playerHeight / 2;
-    const maxY = playerCenterY + playerHeight / 2;
+    const minY = playerFeetY;  // Desde los pies
+    const maxY = playerFeetY + playerHeight;  // Hasta la cabeza
     const minZ = player.position.z - halfDepth;
     const maxZ = player.position.z + halfDepth;
     
@@ -239,6 +272,7 @@ export class BulletSystem {
   /**
    * Check collision between bullet and player
    * Uses rectangular AABB hitbox for cartoon character
+   * IMPORTANTE: player.position.y es la altura de los OJOS, no de los pies
    * @param {Bullet} bullet - The bullet to check
    * @param {PlayerState} player - The player to check against
    * @returns {boolean} - True if collision detected
@@ -247,17 +281,25 @@ export class BulletSystem {
     const halfWidth = CHARACTER_HITBOX.width / 2;
     const halfDepth = CHARACTER_HITBOX.depth / 2;
     const playerHeight = CHARACTER_HITBOX.height;
+    const eyeHeight = CHARACTER_HITBOX.eyeHeight;
     
-    // Centro del jugador
-    const playerCenterY = player.position.y - 0.7;
+    // La posición del jugador es la de los ojos (eyeHeight desde el suelo)
+    // Pies están en: player.position.y - eyeHeight
+    // Centro del cuerpo: player.position.y - eyeHeight + playerHeight/2
+    const playerFeetY = player.position.y - eyeHeight;
+    const playerCenterY = playerFeetY + playerHeight / 2;
     
-    // Calcular distancia desde la bala al centro del jugador
+    // Calcular distancia desde la bala al centro del jugador (X y Z)
     const dx = Math.abs(bullet.position.x - player.position.x);
-    const dy = Math.abs(bullet.position.y - playerCenterY);
     const dz = Math.abs(bullet.position.z - player.position.z);
     
+    // Calcular distancia vertical desde la bala al centro del cuerpo
+    const dy = Math.abs(bullet.position.y - playerCenterY);
+    
     // Colisión AABB (Axis-Aligned Bounding Box)
-    return dx < halfWidth && dy < playerHeight / 2 && dz < halfDepth;
+    const hit = dx < halfWidth && dy < playerHeight / 2 && dz < halfDepth;
+    
+    return hit;
   }
 
   /**

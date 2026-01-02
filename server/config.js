@@ -16,15 +16,16 @@ export const PLAYER_CONFIG = {
   eyeHeight: 1.7,           // Altura de los ojos (para cámara en primera persona)
   gravity: 0.015,           // Gravedad aplicada al jugador
   respawnTime: 5000,        // Tiempo de reaparición en milisegundos (Requisito 5.5)
-  spawnPoints: [            // Puntos de aparición en el mapa
-    { x: -10, y: 1.7, z: -10 },
-    { x: 10, y: 1.7, z: -10 },
-    { x: -10, y: 1.7, z: 10 },
-    { x: 10, y: 1.7, z: 10 }
+  spawnPoints: [            // Puntos de aparición en el mapa (dentro del área jugable)
+    { x: -15, y: 1.7, z: -15 },
+    { x: 15, y: 1.7, z: -15 },
+    { x: -15, y: 1.7, z: 15 },
+    { x: 15, y: 1.7, z: 15 },
+    { x: 0, y: 1.7, z: 0 }
   ],
-  bounds: {                 // Límites del mapa
-    min: -24,
-    max: 24
+  bounds: {                 // Límites del mapa (escalado 5x)
+    min: -125,
+    max: 125
   }
 };
 
@@ -172,6 +173,6 @@ export const BULLET_CONFIG = {
 // Configuración del servidor
 export const SERVER_CONFIG = {
   port: 3000,                // Puerto del servidor
-  tickRate: 20,              // Actualizaciones por segundo (optimizado para hosting en la nube)
-  tickInterval: 1000 / 20    // Intervalo entre ticks: 50ms
+  tickRate: 30,              // Actualizaciones por segundo
+  tickInterval: 1000 / 30    // Intervalo entre ticks: ~33.33ms
 };

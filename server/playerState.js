@@ -72,10 +72,12 @@ export class PlayerState {
 
   /**
    * Update player position with bounds checking
+   * NOTA: Confía en el cliente para la altura Y ya que tiene las colisiones del mapa
    */
   updatePosition(x, y, z) {
     this.position.x = clamp(x, PLAYER_CONFIG.bounds.min, PLAYER_CONFIG.bounds.max);
-    this.position.y = y;
+    // Aceptar la altura Y del cliente, solo limitar a valores razonables
+    this.position.y = clamp(y, 0, 100);
     this.position.z = clamp(z, PLAYER_CONFIG.bounds.min, PLAYER_CONFIG.bounds.max);
   }
 
@@ -256,28 +258,41 @@ export class PlayerState {
 
   /**
    * Apply gravity to player
+   * NOTA: El servidor confía en el cliente para la altura Y
+   * ya que el cliente tiene el sistema de colisiones del mapa completo
    */
   applyGravity() {
     if (!this.isAlive) return;
     
-    // Apply gravity to velocity
-    this.velocity.y -= PLAYER_CONFIG.gravity;
+    // Solo aplicar gravedad si el jugador está muy alto (cayendo al vacío)
+    // o si está por debajo del suelo base
+    const alturaMinima = 0; // Suelo base del mapa
+    const alturaMaxima = 100; // Límite superior razonable
     
-    // Update position
-    this.position.y += this.velocity.y;
-    
-    // Ground collision
-    if (this.position.y <= PLAYER_CONFIG.eyeHeight) {
+    // Si el jugador está por debajo del suelo base, corregir
+    if (this.position.y < alturaMinima + PLAYER_CONFIG.eyeHeight) {
       this.position.y = PLAYER_CONFIG.eyeHeight;
       this.velocity.y = 0;
     }
+    
+    // Si el jugador está demasiado alto (bug o hack), limitar
+    if (this.position.y > alturaMaxima) {
+      this.position.y = alturaMaxima;
+      this.velocity.y = 0;
+    }
+    
+    // No forzar la altura - confiar en el cliente que tiene las colisiones del mapa
   }
 
   /**
    * Check if player is on ground
+   * NOTA: El servidor no puede saber exactamente si el jugador está en el suelo
+   * porque no tiene la geometría completa del mapa
    */
   isOnGround() {
-    return this.position.y <= PLAYER_CONFIG.eyeHeight;
+    // Considerar que está en el suelo si está cerca del suelo base
+    // o si su velocidad Y es 0 (el cliente lo puso en el suelo)
+    return this.position.y <= PLAYER_CONFIG.eyeHeight + 0.5 || this.velocity.y === 0;
   }
 
   /**
