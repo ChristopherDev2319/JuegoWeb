@@ -54,7 +54,8 @@ import { Bala } from './entidades/Bala.js';
 import { 
   sistemaDash, 
   actualizarRecargaDash,
-  actualizarDesdeServidor as actualizarDashDesdeServidor
+  actualizarDesdeServidor as actualizarDashDesdeServidor,
+  ejecutarDash
 } from './sistemas/dash.js';
 
 import { 
@@ -75,6 +76,17 @@ import { precargarAnimaciones } from './sistemas/animaciones.js';
 import { getInputSender } from './network/inputSender.js';
 import { initializeRemotePlayerManager } from './network/remotePlayers.js';
 
+// Sistema de crosshair dinámico
+import {
+  inicializarCrosshair,
+  establecerTipoArma,
+  establecerApuntando,
+  establecerMovimiento,
+  establecerRetroceso,
+  animarDisparo,
+  animarRetroceso,
+  habilitarCrosshairDinamico
+} from './sistemas/crosshair.js';
 // Sistema de colisiones
 import { inicializarColisiones, toggleDebugVisual } from './sistemas/colisiones.js';
 
@@ -226,6 +238,48 @@ async function inicializar() {
   // Establecer referencia de cámara para el sistema de apuntado
   establecerCamara(camera);
 
+  // Inicializar menú de pausa
+  try {
+    inicializarMenuPausa({
+      onReanudar: () => {
+        console.log('🎮 Juego reanudado desde menú');
+      },
+      onDesconectar: () => {
+        console.log('🔌 Desconectando del servidor...');
+        if (connection && isMultiplayerConnected) {
+          connection.disconnect();
+        }
+      },
+      onSalir: () => {
+        console.log('🚪 Saliendo del juego...');
+        window.location.href = 'configurar.html';
+      },
+      onConfiguracionCambiada: (tipo, valor) => {
+        console.log(`⚙️ Configuración cambiada: ${tipo} = ${valor}`);
+        // Aplicar cambios de configuración en tiempo real
+        if (tipo === 'fov' && camera) {
+          camera.fov = valor;
+          camera.updateProjectionMatrix();
+        } else if (tipo === 'crosshairDinamico') {
+          habilitarCrosshairDinamico(valor);
+        }
+      }
+    });
+    console.log('✅ Menú de pausa inicializado correctamente');
+  } catch (error) {
+    console.warn('⚠️ Error inicializando menú de pausa:', error);
+    // Continuar sin menú de pausa si hay error
+  }
+
+  // Inicializar sistema de crosshair dinámico
+  try {
+    inicializarCrosshair();
+    console.log('✅ Sistema de crosshair dinámico inicializado');
+  } catch (error) {
+    console.warn('⚠️ Error inicializando crosshair dinámico:', error);
+    // Continuar sin crosshair dinámico si hay error
+  }
+
   // Inicializar displays de UI
   actualizarDisplayMunicion();
   actualizarDisplayDash();
@@ -243,6 +297,9 @@ async function inicializar() {
   // Ocultar pantalla de carga
   ocultarPantallaCarga();
 
+  // Pequeña pausa para que se oculte completamente
+  await new Promise(resolve => setTimeout(resolve, 600));
+
   // Iniciar bucle del juego
   bucleJuego();
   
@@ -255,6 +312,16 @@ async function inicializar() {
  * Requirements: 2.1, 2.2
  */
 async function inicializarRed() {
+  // 🚨 ARREGLO PARA GITHUB: Solo conectar en localhost
+  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    console.log('� Modo GitHlub: WebSocket deshabilitado (no hay servidor remoto)');
+    mostrarMensajeConexion('Modo local - Sin servidor multijugador', false);
+    setTimeout(() => {
+      ocultarMensajeConexion();
+    }, 3000);
+    return;
+  }
+
   // Verificar si el multijugador está habilitado
   if (!CONFIG.red.habilitarMultijugador) {
     console.log('🎮 Modo local: Multijugador deshabilitado');
@@ -367,6 +434,8 @@ function configurarCallbacksRed() {
   connection.onHit((data) => {
     mostrarEfectoDaño();
     actualizarBarraVida(data.health, 200);
+    // Registrar impacto para estadísticas
+    registrarImpacto();
   });
   
   // Death notification (Requirement 3.5, 5.4)
@@ -374,6 +443,11 @@ function configurarCallbacksRed() {
     if (data.playerId === localPlayerId) {
       mostrarPantallaMuerte(data.killerId, 5000);
       actualizarBarraVida(0, 200);
+      // Registrar muerte para estadísticas
+      registrarDeath();
+    } else if (data.killerId === localPlayerId) {
+      // El jugador local eliminó a alguien
+      registrarKill();
     }
     agregarEntradaKillFeed(data.killerId, data.playerId, localPlayerId);
   });
@@ -549,6 +623,9 @@ function manejarSiguienteArma() {
   actualizarInfoArma(estado);
   actualizarDisplayMunicion();
   
+  // Actualizar crosshair dinámico
+  establecerTipoArma(CONFIG.armas[estado.tipoActual].tipo);
+  
   // Notificar al servidor del cambio de arma
   if (isMultiplayerConnected) {
     inputSender.sendWeaponChange(estado.tipoActual);
@@ -565,6 +642,9 @@ function manejarArmaAnterior() {
   mostrarCambioArma(estado.nombre);
   actualizarInfoArma(estado);
   actualizarDisplayMunicion();
+  
+  // Actualizar crosshair dinámico
+  establecerTipoArma(CONFIG.armas[estado.tipoActual].tipo);
   
   // Notificar al servidor del cambio de arma
   if (isMultiplayerConnected) {
@@ -609,6 +689,23 @@ function manejarApuntado(apuntar) {
     console.log(`Apuntando con ${estado.nombre}`);
   } else {
     console.log(`Dejando de apuntar con ${estado.nombre}`);
+  }
+}
+
+/**
+ * Maneja la pausa del juego
+ */
+function manejarPausar() {
+  // No pausar si hay overlay de conexión visible
+  const connectionOverlay = document.getElementById('connection-overlay');
+  if (connectionOverlay && connectionOverlay.style.display !== 'none') {
+    return;
+  }
+
+  try {
+    alternarMenuPausa();
+  } catch (error) {
+    console.warn('⚠️ Error al alternar menú de pausa:', error);
   }
 }
 /**
@@ -789,9 +886,68 @@ function manejarDisparo() {
     // Animar retroceso del arma
     animarRetroceso();
     
+    // Registrar disparo para estadísticas
+    registrarDisparo();
+    
+    // *** DEBUG Y SONIDO - MODO MULTIJUGADOR ***
+    console.log('🔫 DISPARO MULTIJUGADOR');
+    console.log('Arma actual:', estadoArma.tipoActual);
+    console.log('Config arma:', configArma);
+    console.log('Sonido configurado:', configArma.sonidoDisparo);
+    
+    if (configArma.sonidoDisparo) {
+      try {
+        console.log('🔊 CREANDO AUDIO:', configArma.sonidoDisparo);
+        const audio = new Audio(configArma.sonidoDisparo);
+        
+        // Volumen específico por arma
+        switch (estadoArma.tipoActual) {
+          case 'PISTOLA':
+            audio.volume = 0.4;
+            break;
+          case 'SNIPER':
+            audio.volume = 0.6;
+            break;
+          case 'ESCOPETA':
+            audio.volume = 0.5;
+            break;
+          case 'AK47':
+            audio.volume = 0.5;
+            break;
+          case 'M4A1':
+            audio.volume = 0.4;
+            break;
+          case 'MP5':
+            audio.volume = 0.4;
+            break;
+          default:
+            audio.volume = 0.4;
+        }
+        
+        console.log('🔊 REPRODUCIENDO AUDIO...');
+        audio.play().then(() => {
+          console.log('✅ AUDIO REPRODUCIDO EXITOSAMENTE');
+        }).catch(e => {
+          console.error('❌ ERROR REPRODUCIENDO AUDIO:', e);
+        });
+      } catch (e) {
+        console.error('❌ ERROR CREANDO AUDIO:', e);
+      }
+    } else {
+      console.log('❌ NO HAY SONIDO CONFIGURADO PARA:', estadoArma.tipoActual);
+    }
+    
     // Actualizar UI de munición
     actualizarDisplayMunicion();
   } else {
+    // *** DEBUG Y SONIDO - MODO LOCAL ***
+    console.log('🔫 DISPARO LOCAL');
+    const estadoArma = obtenerEstado();
+    const configArma = CONFIG.armas[estadoArma.tipoActual];
+    console.log('Arma actual LOCAL:', estadoArma.tipoActual);
+    console.log('Config arma LOCAL:', configArma);
+    console.log('Sonido configurado LOCAL:', configArma.sonidoDisparo);
+    
     // Fallback a procesamiento local
     const disparo = disparar(camera, [], balas, scene, null);
     
@@ -815,6 +971,23 @@ function manejarSalto() {
  */
 function manejarMovimientoMouse(movimientoX, movimientoY) {
   actualizarRotacion(movimientoX, movimientoY);
+}
+
+/**
+ * Maneja la pausa del juego
+ */
+function manejarPausar() {
+  console.log('🎮 manejarPausar llamado');
+  
+  // No pausar si hay overlay de conexión visible
+  const connectionOverlay = document.getElementById('connection-overlay');
+  if (connectionOverlay && connectionOverlay.style.display !== 'none') {
+    console.log('⚠️ No pausar - overlay de conexión visible');
+    return;
+  }
+
+  console.log('🎮 Llamando alternarMenuPausa...');
+  alternarMenuPausa();
 }
 
 /**
@@ -897,53 +1070,64 @@ function bucleJuego() {
   const deltaTime = (tiempoActual - ultimoTiempo) / 1000;
   ultimoTiempo = tiempoActual;
 
-  // Update local systems (for prediction/responsiveness)
-  if (!isMultiplayerConnected) {
-    // Only update dash recharge locally when not connected
-    actualizarRecargaDash();
+  // No actualizar el juego si el menú de pausa está activo
+  let menuActivo = false;
+  try {
+    menuActivo = estaMenuActivo();
+  } catch (error) {
+    // Si hay error con el menú, continuar normalmente
+    menuActivo = false;
   }
-  actualizarDisplayDash();
   
-  // Actualizar retroceso acumulado (se reduce con el tiempo)
-  actualizarRetroceso();
-
-  // Disparo automático si el mouse está presionado (solo para armas automáticas)
-  if (estaMousePresionado() && estaPointerLockActivo()) {
-    const estadoArma = obtenerEstado();
-    const configArma = CONFIG.armas[estadoArma.tipoActual];
+  if (!menuActivo) {
+    // Update local systems (for prediction/responsiveness)
+    if (!isMultiplayerConnected) {
+      // Only update dash recharge locally when not connected
+      actualizarRecargaDash();
+    }
+    actualizarDisplayDash();
     
-    // Solo disparar automáticamente si el arma NO es semiautomática
-    if (!configArma.semiAutomatica) {
-      manejarDisparo();
+    // Actualizar retroceso acumulado (se reduce con el tiempo)
+    actualizarRetroceso();
+
+    // Disparo automático si el mouse está presionado (solo para armas automáticas)
+    if (estaMousePresionado() && estaPointerLockActivo()) {
+      const estadoArma = obtenerEstado();
+      const configArma = CONFIG.armas[estadoArma.tipoActual];
+      
+      // Solo disparar automáticamente si el arma NO es semiautomática
+      if (!configArma.semiAutomatica) {
+        manejarDisparo();
+      }
     }
-  }
 
-  // Update local movement (for prediction)
-  actualizarMovimiento(teclas);
+    // Update local movement (for prediction)
+    actualizarMovimiento(teclas);
 
-  // Apply gravity locally (for prediction)
-  aplicarGravedad();
+    // Apply gravity locally (for prediction)
+    aplicarGravedad();
 
-  // Send movement input to server (Requirement 4.1)
-  enviarInputMovimiento();
+    // Send movement input to server (Requirement 4.1)
+    enviarInputMovimiento();
 
-  // Interpolate remote players (Requirement 2.5)
-  if (remotePlayerManager) {
-    remotePlayerManager.interpolate(deltaTime);
-  }
-
-  // Update local bullets (for visual feedback)
-  for (let i = balas.length - 1; i >= 0; i--) {
-    if (!balas[i].actualizar(deltaTime)) {
-      balas[i].destruir();
-      balas.splice(i, 1);
+    // Interpolate remote players (Requirement 2.5)
+    if (remotePlayerManager) {
+      remotePlayerManager.interpolate(deltaTime);
     }
+
+    // Update local bullets (for visual feedback)
+    for (let i = balas.length - 1; i >= 0; i--) {
+      if (!balas[i].actualizar(deltaTime)) {
+        balas[i].destruir();
+        balas.splice(i, 1);
+      }
+    }
+
+    // Sincronizar cámara con jugador
+    sincronizarCamara(camera);
   }
 
-  // Sincronizar cámara con jugador
-  sincronizarCamara(camera);
-
-  // Renderizar escena
+  // 🔥 OBLIGATORIO - Renderizar SIEMPRE (incluso cuando está pausado)
   renderizar();
 }
 

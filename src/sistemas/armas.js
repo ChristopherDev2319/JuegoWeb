@@ -447,6 +447,18 @@ export function disparar(camera, enemigos, balas, scene, onImpacto = null) {
   // Animar retroceso
   animarRetroceso();
 
+  // SONIDO DIRECTO - MÉTODO SIMPLE QUE FUNCIONA (REVERTIDO)
+  if (configArma.sonidoDisparo) {
+    try {
+      const audio = new Audio(configArma.sonidoDisparo);
+      audio.volume = 0.4;
+      audio.play().catch(e => console.log('Audio error:', e));
+      console.log(`🔫 SONIDO: ${configArma.sonidoDisparo}`);
+    } catch (e) {
+      console.log('Error creando audio:', e);
+    }
+  }
+
   return true;
 }
 
