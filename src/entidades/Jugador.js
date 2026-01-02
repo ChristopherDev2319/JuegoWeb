@@ -1,13 +1,22 @@
 /**
  * Módulo Jugador
  * Gestiona el estado y movimiento del jugador
+ * Usa el sistema de colisiones con Rapier3D para física mejorada
  * 
- * Requirements: 2.3, 3.2, 3.3, 4.2
+ * Requirements: 2.3, 3.1, 3.2, 3.3, 3.4, 4.2
  * @requires THREE - Three.js debe estar disponible globalmente
  */
 
 import { CONFIG } from '../config.js';
-import { resolverColision, verificarSuelo, estaActivo as colisionesActivas } from '../sistemas/colisiones.js';
+import { 
+  resolverColision, 
+  verificarSuelo, 
+  verificarTecho,
+  verificarYDesatorar,
+  estaActivo as colisionesActivas,
+  usaRapier 
+} from '../sistemas/colisiones.js';
+import * as Fisica from '../sistemas/fisica.js';
 
 /**
  * Estado del jugador
@@ -17,6 +26,9 @@ export const jugador = {
   velocidad: null,
   rotacion: null,
   enSuelo: true,
+  enRampa: false,
+  normalSuelo: null,
+  tiempoEnAire: 0,
   // Server state for reconciliation
   serverPosition: null,
   serverRotation: null,
@@ -29,7 +41,7 @@ export const jugador = {
 };
 
 // Reconciliation threshold - if local differs from server by more than this, snap to server
-const RECONCILIATION_THRESHOLD = 2.0;
+const RECONCILIATION_THRESHOLD = 5.0; // Aumentado para permitir más diferencia en superficies elevadas
 // Tiempo de gracia después de un dash para no reconciliar (ms)
 const DASH_GRACE_PERIOD = 500;
 
@@ -42,6 +54,9 @@ export function inicializarJugador() {
   jugador.velocidad = new THREE.Vector3();
   jugador.rotacion = new THREE.Euler(0, 0, 0, 'YXZ');
   jugador.enSuelo = true;
+  jugador.enRampa = false;
+  jugador.normalSuelo = new THREE.Vector3(0, 1, 0);
+  jugador.tiempoEnAire = 0;
   jugador.serverPosition = new THREE.Vector3(0, CONFIG.jugador.alturaOjos, 0);
   jugador.serverRotation = new THREE.Euler(0, 0, 0, 'YXZ');
   jugador.health = 200;
@@ -94,8 +109,10 @@ export function calcularDireccionMovimiento(teclas) {
 
 /**
  * Actualiza el movimiento horizontal del jugador
- * Usa el sistema de colisiones para detectar y resolver colisiones con paredes
- * Requirements: 2.3, 3.2, 3.3
+ * Usa el sistema de colisiones con Rapier3D para detectar y resolver colisiones
+ * El character controller maneja automáticamente escalones y rampas
+ * Requirements: 2.1, 2.2, 2.3, 2.4, 3.2, 3.3
+ * 
  * @param {Object} teclas - Estado de las teclas presionadas
  */
 export function actualizarMovimiento(teclas) {
@@ -104,67 +121,216 @@ export function actualizarMovimiento(teclas) {
   
   const { direccion } = calcularDireccionMovimiento(teclas);
 
-  if (direccion.length() > 0) {
-    direccion.normalize();
-    
-    // Calcular posición deseada
-    const posicionDeseada = jugador.posicion.clone();
-    posicionDeseada.x += direccion.x * CONFIG.jugador.velocidad;
-    posicionDeseada.z += direccion.z * CONFIG.jugador.velocidad;
-    
-    // Usar sistema de colisiones si está activo
-    if (colisionesActivas()) {
-      const radio = CONFIG.colisiones.radioJugador;
-      const posicionFinal = resolverColision(jugador.posicion, posicionDeseada, radio);
-      jugador.posicion.x = posicionFinal.x;
-      jugador.posicion.z = posicionFinal.z;
+  // Calcular desplazamiento deseado (puede ser 0 si no hay input)
+  const desplazamientoX = direccion.length() > 0 ? direccion.x / direccion.length() * CONFIG.jugador.velocidad : 0;
+  const desplazamientoZ = direccion.length() > 0 ? direccion.z / direccion.length() * CONFIG.jugador.velocidad : 0;
+  
+  // Debug: mostrar qué sistema se está usando (solo una vez)
+  if (!window._debugSistemaColisionesMostrado) {
+    console.log('🎮 Sistema de movimiento:', {
+      colisionesActivas: colisionesActivas(),
+      usaRapier: usaRapier()
+    });
+    window._debugSistemaColisionesMostrado = true;
+  }
+  
+  // Usar sistema de colisiones si está activo
+  if (colisionesActivas()) {
+    // Solo usar Rapier si el sistema de colisiones lo indica
+    if (usaRapier()) {
+      // Aplicar gravedad antes de mover (si no está en suelo)
+      if (!jugador.enSuelo) {
+        jugador.velocidad.y -= CONFIG.jugador.gravedad;
+      }
+      
+      // Limitar velocidad de caída para evitar atravesar el suelo
+      const velocidadMaxCaida = -0.5;
+      if (jugador.velocidad.y < velocidadMaxCaida) {
+        jugador.velocidad.y = velocidadMaxCaida;
+      }
+      
+      // Incluir velocidad vertical (gravedad/salto) en el desplazamiento
+      const desplazamiento = new THREE.Vector3(
+        desplazamientoX, 
+        jugador.velocidad.y, 
+        desplazamientoZ
+      );
+      
+      // Usar el character controller de Rapier para movimiento con colisiones
+      const resultado = Fisica.moverJugador(jugador.posicion, desplazamiento, 1/30);
+      
+      // Aplicar posición completa incluyendo Y
+      jugador.posicion.copy(resultado.posicion);
+      
+      // Actualizar estado de suelo desde el character controller
+      if (resultado.enSuelo) {
+        if (!jugador.enSuelo) {
+          // Transición de aire a suelo - aterrizar
+          jugador.tiempoEnAire = 0;
+        }
+        jugador.enSuelo = true;
+        jugador.velocidad.y = 0; // Resetear velocidad vertical al tocar suelo
+      } else {
+        jugador.enSuelo = false;
+        jugador.tiempoEnAire += 1/60;
+      }
+      
     } else {
-      // Fallback: movimiento libre sin colisiones
-      jugador.posicion.x = posicionDeseada.x;
-      jugador.posicion.z = posicionDeseada.z;
+      // Fallback: usar resolverColision con raycasting
+      if (direccion.length() > 0) {
+        direccion.normalize();
+        const posicionDeseada = jugador.posicion.clone();
+        posicionDeseada.x += desplazamientoX;
+        posicionDeseada.z += desplazamientoZ;
+        
+        const radio = CONFIG.colisiones.radioJugador;
+        const posicionFinal = resolverColision(jugador.posicion, posicionDeseada, radio);
+        jugador.posicion.x = posicionFinal.x;
+        jugador.posicion.z = posicionFinal.z;
+      }
+      
+      // Verificar si el jugador está atrapado y desatorar si es necesario
+      const estadoAtrapado = verificarYDesatorar(jugador.posicion);
+      if (estadoAtrapado.necesitaCorreccion) {
+        jugador.posicion.copy(estadoAtrapado.posicionCorregida);
+      }
+    }
+  } else {
+    // Fallback: movimiento libre sin colisiones
+    if (direccion.length() > 0) {
+      direccion.normalize();
+      jugador.posicion.x += desplazamientoX;
+      jugador.posicion.z += desplazamientoZ;
     }
   }
 }
 
 /**
  * Aplica la gravedad al jugador
- * Usa verificarSuelo() para detección de altura del suelo
- * Requirements: 5.3
+ * Usa verificarSuelo() mejorado con Rapier para detección precisa
+ * NOTA: Cuando se usa Rapier, la gravedad se aplica en actualizarMovimiento()
+ * Requirements: 3.1, 3.2, 3.3, 3.4
  */
 export function aplicarGravedad() {
-  jugador.velocidad.y -= CONFIG.jugador.gravedad;
-  jugador.posicion.y += jugador.velocidad.y;
-
+  // Si usamos Rapier, la gravedad ya se maneja en actualizarMovimiento()
+  if (colisionesActivas() && usaRapier()) {
+    // Solo verificar suelo para actualizar información de rampa y normal
+    const estadoSuelo = verificarSuelo(jugador.posicion);
+    if (estadoSuelo.normal) {
+      jugador.normalSuelo = estadoSuelo.normal.clone();
+    }
+    jugador.enRampa = estadoSuelo.enRampa || false;
+    return;
+  }
+  
+  // Fallback: sistema de gravedad manual para cuando no hay Rapier
+  
   // Usar sistema de colisiones para verificar suelo si está activo
   if (colisionesActivas()) {
+    // Obtener estado del suelo con información detallada
     const estadoSuelo = verificarSuelo(jugador.posicion);
+    
+    // Calcular altura objetivo basada en la altura del suelo detectada
     const alturaObjetivo = estadoSuelo.altura + CONFIG.jugador.alturaOjos;
     
-    if (jugador.posicion.y <= alturaObjetivo) {
+    // Actualizar información de rampa y normal del suelo
+    if (estadoSuelo.normal) {
+      jugador.normalSuelo = estadoSuelo.normal.clone();
+    }
+    jugador.enRampa = estadoSuelo.enRampa || false;
+    
+    // Calcular la diferencia de altura entre posición actual y suelo detectado
+    const diferenciaAltura = alturaObjetivo - jugador.posicion.y;
+    const alturaMaxEscalon = CONFIG.fisica?.alturaMaxEscalon || 0.8;
+    
+    // SNAP TO GROUND: Si estamos en el suelo o muy cerca, pegarnos al suelo
+    // Esto evita los saltitos al bajar rampas
+    if (estadoSuelo.enSuelo && jugador.velocidad.y <= 0) {
+      // Si el suelo está cerca (arriba o abajo), hacer snap
+      if (Math.abs(diferenciaAltura) <= alturaMaxEscalon) {
+        jugador.posicion.y = alturaObjetivo;
+        jugador.velocidad.y = 0;
+        jugador.enSuelo = true;
+        jugador.tiempoEnAire = 0;
+        return;
+      }
+    }
+    
+    // Si estamos saltando, verificar techo y aplicar gravedad
+    if (jugador.velocidad.y > 0) {
+      // Verificar si hay techo arriba
+      const techo = verificarTecho(jugador.posicion, jugador.velocidad.y);
+      if (techo && techo.hayTecho) {
+        // Calcular distancia al techo
+        const margenCabeza = 0.3;
+        const distanciaAlTecho = techo.alturaTecho - (jugador.posicion.y + margenCabeza);
+        
+        // Si vamos a golpear el techo, detener el salto
+        if (distanciaAlTecho < jugador.velocidad.y + 0.1) {
+          jugador.posicion.y = techo.alturaTecho - margenCabeza - 0.1;
+          jugador.velocidad.y = -0.01; // Empezar a caer
+          jugador.enSuelo = false;
+          jugador.tiempoEnAire += 1/60;
+          return;
+        }
+      }
+      
+      jugador.velocidad.y -= CONFIG.jugador.gravedad;
+      jugador.posicion.y += jugador.velocidad.y;
+      jugador.enSuelo = false;
+      jugador.tiempoEnAire += 1/60;
+      return;
+    }
+    
+    // Cayendo - aplicar gravedad
+    jugador.velocidad.y -= CONFIG.jugador.gravedad;
+    
+    // Limitar velocidad de caída
+    const velocidadMaxCaida = -1.0;
+    if (jugador.velocidad.y < velocidadMaxCaida) {
+      jugador.velocidad.y = velocidadMaxCaida;
+    }
+    
+    const nuevaY = jugador.posicion.y + jugador.velocidad.y;
+    
+    // Si vamos a caer por debajo del suelo, aterrizar
+    if (nuevaY <= alturaObjetivo) {
       jugador.posicion.y = alturaObjetivo;
       jugador.velocidad.y = 0;
       jugador.enSuelo = true;
+      jugador.tiempoEnAire = 0;
     } else {
-      jugador.enSuelo = estadoSuelo.enSuelo;
+      jugador.posicion.y = nuevaY;
+      jugador.enSuelo = false;
+      jugador.tiempoEnAire += 1/60;
     }
   } else {
     // Fallback: usar altura fija del suelo (0)
+    jugador.velocidad.y -= CONFIG.jugador.gravedad;
+    jugador.posicion.y += jugador.velocidad.y;
+    
     if (jugador.posicion.y <= CONFIG.jugador.alturaOjos) {
       jugador.posicion.y = CONFIG.jugador.alturaOjos;
       jugador.velocidad.y = 0;
       jugador.enSuelo = true;
+      jugador.tiempoEnAire = 0;
+    } else {
+      jugador.enSuelo = false;
+      jugador.tiempoEnAire += 1/60;
     }
   }
 }
 
 /**
  * Ejecuta un salto si el jugador está en el suelo
+ * Requirement 3.1: Apply upward velocity
  * @returns {boolean} - true si el salto se ejecutó
  */
 export function saltar() {
   if (jugador.enSuelo) {
     jugador.velocidad.y = CONFIG.jugador.poderSalto;
     jugador.enSuelo = false;
+    jugador.tiempoEnAire = 0;
     return true;
   }
   return false;
@@ -222,8 +388,35 @@ export function estaEnSuelo() {
 }
 
 /**
- * Apply server state to local player with reconciliation (Requirement 3.2, 4.2)
+ * Verifica si el jugador está en una rampa
+ * @returns {boolean}
+ */
+export function estaEnRampa() {
+  return jugador.enRampa;
+}
+
+/**
+ * Obtiene la normal del suelo actual
+ * @returns {THREE.Vector3}
+ */
+export function obtenerNormalSuelo() {
+  return jugador.normalSuelo ? jugador.normalSuelo.clone() : new THREE.Vector3(0, 1, 0);
+}
+
+/**
+ * Obtiene el tiempo que el jugador ha estado en el aire
+ * @returns {number} - Tiempo en segundos
+ */
+export function obtenerTiempoEnAire() {
+  return jugador.tiempoEnAire;
+}
+
+/**
+ * Apply server state to local player with reconciliation
  * Keeps local prediction for responsiveness while reconciling with server state
+ * Maintains compatibility with server reconciliation
+ * Requirements: 3.2, 4.2
+ * 
  * @param {Object} serverState - Player state from server
  */
 export function aplicarEstadoServidor(serverState) {
@@ -254,6 +447,8 @@ export function aplicarEstadoServidor(serverState) {
     jugador.posicion.copy(jugador.serverPosition);
     jugador.velocidad.set(0, 0, 0);
     jugador.enSuelo = true;
+    jugador.enRampa = false;
+    jugador.tiempoEnAire = 0;
     jugador.dashEnProgreso = false;
     console.log('Jugador revivido - posición sincronizada');
   } else {

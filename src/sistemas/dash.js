@@ -1,12 +1,14 @@
 /**
  * Sistema de Dash
  * Gestiona las cargas de dash, ejecución y recarga
+ * Usa shape casting para detectar colisiones durante el dash
  * 
- * Requirements: 7.1, 7.5
+ * Requirements: 4.1, 4.2, 4.3, 4.4, 7.1, 7.5
  * @requires THREE - Three.js debe estar disponible globalmente
  */
 
 import { CONFIG } from '../config.js';
+import { shapeCastDash, verificarPosicionValida, estaActivo as colisionesActivas } from './colisiones.js';
 
 /**
  * Estado del sistema de dash
@@ -20,6 +22,9 @@ export const sistemaDash = {
 
 /**
  * Ejecuta un dash si hay cargas disponibles
+ * Usa shape cast de Rapier para detectar colisiones durante todo el trayecto
+ * Requirements: 4.1, 4.2, 4.3, 4.4
+ * 
  * @param {Object} jugador - Estado del jugador con posicion y rotacion
  * @param {Object} teclas - Estado de las teclas presionadas
  * @param {Function} onDashEjecutado - Callback cuando se ejecuta el dash
@@ -64,14 +69,47 @@ export function ejecutarDash(jugador, teclas, onDashEjecutado = null) {
   sistemaDash.cargasActuales--;
   sistemaDash.estaEnDash = true;
 
-  // Aplicar impulso de dash
-  const impulsoDash = direccionDash.multiplyScalar(CONFIG.dash.poder);
-  jugador.posicion.x += impulsoDash.x;
-  jugador.posicion.z += impulsoDash.z;
+  // Calcular posición final del dash usando shape cast
+  // Requirements: 4.1, 4.2, 4.3, 4.4
+  const distanciaDash = CONFIG.dash.poder;
+  let posicionFinal;
+  let huboColision = false;
+  
+  if (colisionesActivas()) {
+    // Usar shape cast para detectar colisiones durante el dash completo
+    // Requirement 4.1: Stop dash at wall surface
+    // Requirement 4.2: Allow sliding along the wall
+    // Requirement 4.3: Allow passage through gaps wider than player
+    const resultadoDash = shapeCastDash(
+      jugador.posicion,
+      direccionDash,
+      distanciaDash
+    );
+    
+    posicionFinal = resultadoDash.posicionFinal;
+    huboColision = resultadoDash.colision;
+    
+    // Requirement 4.4: Find nearest valid position if inside geometry
+    const validacion = verificarPosicionValida(posicionFinal);
+    if (!validacion.valida) {
+      posicionFinal = validacion.posicionCorregida;
+    }
+  } else {
+    // Fallback: dash sin colisiones si el sistema no está disponible
+    posicionFinal = new THREE.Vector3(
+      jugador.posicion.x + direccionDash.x * distanciaDash,
+      jugador.posicion.y,
+      jugador.posicion.z + direccionDash.z * distanciaDash
+    );
+  }
+  
+  // Aplicar posición final del dash
+  jugador.posicion.x = posicionFinal.x;
+  jugador.posicion.z = posicionFinal.z;
 
   // Ejecutar callback si existe
   if (onDashEjecutado) {
-    onDashEjecutado(direccionDash);
+    onDashEjecutado(direccionDash, huboColision);
   }
 
   // Terminar dash después de la duración
