@@ -84,7 +84,7 @@ import {
   establecerMovimiento,
   establecerRetroceso,
   animarDisparo,
-  animarRetroceso,
+  animarRetroceso as animarRetrocesoCrosshair,
   habilitarCrosshairDinamico
 } from './sistemas/crosshair.js';
 // Sistema de colisiones
