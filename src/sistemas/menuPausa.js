@@ -4,6 +4,7 @@
  */
 
 import { CONFIG } from '../config.js';
+import { establecerVerificadorMenu, ignorarCambiosPointerLock } from './controles.js';
 
 // Estado del menú
 let menuActivo = false;
@@ -50,6 +51,9 @@ export function inicializarMenuPausa(eventCallbacks = {}) {
   
   // Inicializar contador FPS
   inicializarContadorFPS();
+  
+  // Registrar verificador de menú en el sistema de controles
+  establecerVerificadorMenu(estaMenuActivo);
   
   console.log('✅ Menú de pausa inicializado');
   return true;
@@ -117,8 +121,12 @@ function obtenerElementosDOM() {
  * Configura todos los event listeners
  */
 function configurarEventListeners() {
-  // Botones principales
-  elementos.resumeBtn?.addEventListener('click', reanudarJuego);
+  // Botón continuar - activa pointer lock directamente desde el click
+  elementos.resumeBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    reanudarConPointerLock();
+  });
+  
   elementos.settingsBtn?.addEventListener('click', () => mostrarPanel('settings'));
   elementos.controlsBtn?.addEventListener('click', () => mostrarPanel('controls'));
   elementos.statsBtn?.addEventListener('click', () => mostrarPanel('stats'));
@@ -180,10 +188,10 @@ function configurarEventListeners() {
   // Teclas rápidas en el menú
   document.addEventListener('keydown', manejarTeclasMenu);
   
-  // Clic fuera del menú para cerrar
+  // Clic en el overlay (fondo) para cerrar y activar pointer lock
   elementos.pauseMenu?.addEventListener('click', (e) => {
-    if (e.target === elementos.pauseMenu) {
-      reanudarJuego();
+    if (e.target === elementos.pauseMenu || e.target.classList.contains('pause-overlay')) {
+      reanudarConPointerLock();
     }
   });
 }
@@ -194,29 +202,23 @@ function configurarEventListeners() {
 function manejarTeclasMenu(evento) {
   if (!menuActivo) return;
   
-  switch (evento.code) {
-    case 'KeyP':
-      if (panelActual === 'main') {
-        reanudarJuego();
-      } else {
-        mostrarPanel('main');
-      }
-      break;
-    case 'KeyC':
-      if (panelActual === 'main') mostrarPanel('settings');
-      break;
-    case 'KeyK':
-      if (panelActual === 'main') mostrarPanel('controls');
-      break;
-    case 'KeyT':
-      if (panelActual === 'main') mostrarPanel('stats');
-      break;
-    case 'KeyD':
-      if (panelActual === 'main') desconectar();
-      break;
-    case 'KeyQ':
-      if (panelActual === 'main') salirDelJuego();
-      break;
+  // ESC solo vuelve al panel principal si estamos en un subpanel
+  // NO cierra el menú - solo se cierra con click en Continuar o en el overlay
+  if (evento.code === 'Escape') {
+    evento.preventDefault();
+    evento.stopPropagation();
+    
+    if (panelActual !== 'main') {
+      mostrarPanel('main');
+    }
+    // Si ya estamos en main, no hacer nada
+  }
+  
+  // TEMPORAL: Tecla P para ocultar menú sin pointer lock (para pruebas)
+  if (evento.code === 'KeyP') {
+    evento.preventDefault();
+    evento.stopPropagation();
+    ocultarMenuSinPointerLock();
   }
 }
 
@@ -224,11 +226,11 @@ function manejarTeclasMenu(evento) {
  * Muestra u oculta el menú de pausa
  */
 export function alternarMenuPausa() {
+  // Si el menú ya está activo, no hacer nada (se cierra con el botón de reanudar)
   if (menuActivo) {
-    reanudarJuego();
-  } else {
-    pausarJuego();
+    return;
   }
+  pausarJuego();
 }
 
 /**
@@ -247,7 +249,7 @@ function pausarJuego() {
   // Actualizar estadísticas
   actualizarEstadisticas();
   
-  // Liberar pointer lock
+  // Liberar pointer lock solo si está activo (puede que ya se haya liberado por ESC)
   if (document.pointerLockElement) {
     document.exitPointerLock();
   }
@@ -256,23 +258,68 @@ function pausarJuego() {
 }
 
 /**
- * Reanuda el juego y oculta el menú
+ * Reanuda el juego CON pointer lock (desde click)
  */
-function reanudarJuego() {
-  menuActivo = false;
+function reanudarConPointerLock() {
+  if (!menuActivo) return;
   
-  // Ocultar menú
+  menuActivo = false;
   elementos.pauseMenu?.classList.add('hidden');
   
-  // Reactivar pointer lock
+  // Ignorar cambios de pointer lock temporalmente
+  ignorarCambiosPointerLock(500);
+  
+  // Activar pointer lock - esto funciona porque viene de un click
   document.body.requestPointerLock();
   
-  // Callback de reanudar
   if (callbacks.onReanudar) {
     callbacks.onReanudar();
   }
   
-  console.log('▶️ Juego reanudado');
+  console.log('▶️ Juego reanudado (con pointer lock)');
+}
+
+/**
+ * Reanuda el juego SIN pointer lock (desde ESC)
+ * El pointer lock se activará con el siguiente click
+ */
+function reanudarSinPointerLock() {
+  if (!menuActivo) return;
+  
+  menuActivo = false;
+  elementos.pauseMenu?.classList.add('hidden');
+  
+  // Ignorar cambios de pointer lock temporalmente
+  ignorarCambiosPointerLock(500);
+  
+  // NO intentar activar pointer lock aquí - el navegador lo rechazará
+  // El siguiente click del usuario lo activará automáticamente
+  
+  if (callbacks.onReanudar) {
+    callbacks.onReanudar();
+  }
+  
+  console.log('▶️ Juego reanudado (click para activar controles)');
+}
+
+/**
+ * TEMPORAL: Oculta el menú sin activar pointer lock (para pruebas)
+ * Presiona P cuando el menú está abierto
+ */
+function ocultarMenuSinPointerLock() {
+  if (!menuActivo) return;
+  
+  menuActivo = false;
+  elementos.pauseMenu?.classList.add('hidden');
+  
+  console.log('🧪 PRUEBA: Menú ocultado sin pointer lock (tecla P)');
+}
+
+/**
+ * Reanuda el juego y oculta el menú (legacy, usa reanudarConPointerLock)
+ */
+function reanudarJuego() {
+  reanudarConPointerLock();
 }
 
 /**

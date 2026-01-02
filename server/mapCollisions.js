@@ -11,7 +11,7 @@ let mapWalls = [];
 let mapBounds = null;
 let sistemaActivo = false;
 
-// Colisiones del mapa habilitadas (ya corregido el orden de verificación)
+// Colisiones del mapa habilitadas
 const ENABLE_MAP_COLLISIONS = true;
 
 /**
@@ -30,44 +30,25 @@ const ENABLE_MAP_COLLISIONS = true;
  * Estos AABBs representan las paredes principales del mapa
  * Escalados a 5x para coincidir con el mapa visual
  * 
- * NOTA: El suelo NO se incluye para evitar que las balas impacten el suelo
- * antes de llegar a los jugadores. Solo se incluyen paredes verticales.
- * 
- * Nota: Estos valores son aproximaciones basadas en el mapa típico de FPS
- * En producción, estos datos deberían extraerse del modelo map_coll.glb
+ * NOTA: Solo incluir paredes EXTERIORES del mapa para evitar
+ * que las balas se detengan en estructuras internas incorrectas.
+ * Las estructuras internas deben coincidir exactamente con el mapa visual.
  */
 const DEFAULT_MAP_WALLS = [
   // Paredes exteriores del mapa (límites del área jugable)
   // Pared Norte
-  { minX: -125, maxX: 125, minY: 0, maxY: 20, minZ: -125, maxZ: -120 },
+  { minX: -125, maxX: 125, minY: 0, maxY: 20, minZ: -125, maxZ: -122 },
   // Pared Sur
-  { minX: -125, maxX: 125, minY: 0, maxY: 20, minZ: 120, maxZ: 125 },
+  { minX: -125, maxX: 125, minY: 0, maxY: 20, minZ: 122, maxZ: 125 },
   // Pared Este
-  { minX: 120, maxX: 125, minY: 0, maxY: 20, minZ: -125, maxZ: 125 },
+  { minX: 122, maxX: 125, minY: 0, maxY: 20, minZ: -125, maxZ: 125 },
   // Pared Oeste
-  { minX: -125, maxX: -120, minY: 0, maxY: 20, minZ: -125, maxZ: 125 },
+  { minX: -125, maxX: -122, minY: 0, maxY: 20, minZ: -125, maxZ: 125 }
   
-  // Estructuras internas típicas de un mapa FPS
-  // Edificio central - solo paredes, no techo
-  { minX: -15, maxX: 15, minY: 0, maxY: 15, minZ: -15, maxZ: -10 },
-  { minX: -15, maxX: -10, minY: 0, maxY: 15, minZ: -15, maxZ: 15 },
-  { minX: 10, maxX: 15, minY: 0, maxY: 15, minZ: -15, maxZ: 15 },
-  { minX: -15, maxX: 15, minY: 0, maxY: 15, minZ: 10, maxZ: 15 },
-  
-  // Coberturas laterales
-  { minX: -60, maxX: -50, minY: 0, maxY: 8, minZ: -30, maxZ: -20 },
-  { minX: 50, maxX: 60, minY: 0, maxY: 8, minZ: -30, maxZ: -20 },
-  { minX: -60, maxX: -50, minY: 0, maxY: 8, minZ: 20, maxZ: 30 },
-  { minX: 50, maxX: 60, minY: 0, maxY: 8, minZ: 20, maxZ: 30 },
-  
-  // Cajas/obstáculos pequeños
-  { minX: -35, maxX: -30, minY: 0, maxY: 4, minZ: -5, maxZ: 5 },
-  { minX: 30, maxX: 35, minY: 0, maxY: 4, minZ: -5, maxZ: 5 },
-  { minX: -5, maxX: 5, minY: 0, maxY: 4, minZ: -40, maxZ: -35 },
-  { minX: -5, maxX: 5, minY: 0, maxY: 4, minZ: 35, maxZ: 40 }
-  
-  // NOTA: NO incluir el suelo aquí - las balas deben poder pasar cerca del suelo
-  // para impactar a jugadores que están agachados o en posiciones bajas
+  // NOTA: Las estructuras internas han sido removidas porque no coinciden
+  // con la geometría real del mapa y causan que las balas se detengan
+  // incorrectamente. Para agregar colisiones internas, extraer los AABBs
+  // del modelo map_coll.glb
 ];
 
 /**

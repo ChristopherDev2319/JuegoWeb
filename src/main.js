@@ -84,9 +84,16 @@ import {
   establecerMovimiento,
   establecerRetroceso,
   animarDisparo,
-  animarRetroceso,
+  animarRetroceso as animarRetrocesoCrosshair,
   habilitarCrosshairDinamico
 } from './sistemas/crosshair.js';
+
+// Sistema de menú de pausa
+import { inicializarMenuPausa, alternarMenuPausa } from './sistemas/menuPausa.js';
+
+// Sistema de sonidos
+import { inicializarSonidos, reproducirSonidoDisparo } from './sistemas/sonidos.js';
+
 // Sistema de colisiones
 import { inicializarColisiones, toggleDebugVisual } from './sistemas/colisiones.js';
 
@@ -232,7 +239,8 @@ async function inicializar() {
     onSiguienteArma: manejarSiguienteArma,
     onArmaAnterior: manejarArmaAnterior,
     onSeleccionarArma: manejarSeleccionarArma,
-    onApuntar: manejarApuntado
+    onApuntar: manejarApuntado,
+    onPausar: manejarPausar
   });
 
   // Establecer referencia de cámara para el sistema de apuntado
@@ -271,6 +279,14 @@ async function inicializar() {
     // Continuar sin menú de pausa si hay error
   }
 
+  // Inicializar sistema de sonidos
+  try {
+    inicializarSonidos();
+    console.log('✅ Sistema de sonidos inicializado');
+  } catch (error) {
+    console.warn('⚠️ Error inicializando sonidos:', error);
+  }
+
   // Inicializar sistema de crosshair dinámico
   try {
     inicializarCrosshair();
@@ -294,14 +310,12 @@ async function inicializar() {
   // Pequeña pausa para mostrar el 100%
   await new Promise(resolve => setTimeout(resolve, 300));
 
+  // Iniciar bucle del juego ANTES de ocultar la pantalla
+  // Esto asegura que el canvas ya esté renderizando cuando se quite la pantalla de carga
+  bucleJuego();
+
   // Ocultar pantalla de carga
   ocultarPantallaCarga();
-
-  // Pequeña pausa para que se oculte completamente
-  await new Promise(resolve => setTimeout(resolve, 600));
-
-  // Iniciar bucle del juego
-  bucleJuego();
   
   // Cargar el resto de armas en background (LAZY LOADING)
   cargarArmasEnBackground();
@@ -886,72 +900,21 @@ function manejarDisparo() {
     // Animar retroceso del arma
     animarRetroceso();
     
-    // Registrar disparo para estadísticas
-    registrarDisparo();
-    
-    // *** DEBUG Y SONIDO - MODO MULTIJUGADOR ***
-    console.log('🔫 DISPARO MULTIJUGADOR');
-    console.log('Arma actual:', estadoArma.tipoActual);
-    console.log('Config arma:', configArma);
-    console.log('Sonido configurado:', configArma.sonidoDisparo);
-    
-    if (configArma.sonidoDisparo) {
-      try {
-        console.log('🔊 CREANDO AUDIO:', configArma.sonidoDisparo);
-        const audio = new Audio(configArma.sonidoDisparo);
-        
-        // Volumen específico por arma
-        switch (estadoArma.tipoActual) {
-          case 'PISTOLA':
-            audio.volume = 0.4;
-            break;
-          case 'SNIPER':
-            audio.volume = 0.6;
-            break;
-          case 'ESCOPETA':
-            audio.volume = 0.5;
-            break;
-          case 'AK47':
-            audio.volume = 0.5;
-            break;
-          case 'M4A1':
-            audio.volume = 0.4;
-            break;
-          case 'MP5':
-            audio.volume = 0.4;
-            break;
-          default:
-            audio.volume = 0.4;
-        }
-        
-        console.log('🔊 REPRODUCIENDO AUDIO...');
-        audio.play().then(() => {
-          console.log('✅ AUDIO REPRODUCIDO EXITOSAMENTE');
-        }).catch(e => {
-          console.error('❌ ERROR REPRODUCIENDO AUDIO:', e);
-        });
-      } catch (e) {
-        console.error('❌ ERROR CREANDO AUDIO:', e);
-      }
-    } else {
-      console.log('❌ NO HAY SONIDO CONFIGURADO PARA:', estadoArma.tipoActual);
-    }
+    // Reproducir sonido de disparo usando el sistema de sonidos
+    reproducirSonidoDisparo(estadoArma.tipoActual, configArma);
     
     // Actualizar UI de munición
     actualizarDisplayMunicion();
   } else {
-    // *** DEBUG Y SONIDO - MODO LOCAL ***
-    console.log('🔫 DISPARO LOCAL');
+    // Modo local
     const estadoArma = obtenerEstado();
     const configArma = CONFIG.armas[estadoArma.tipoActual];
-    console.log('Arma actual LOCAL:', estadoArma.tipoActual);
-    console.log('Config arma LOCAL:', configArma);
-    console.log('Sonido configurado LOCAL:', configArma.sonidoDisparo);
     
     // Fallback a procesamiento local
     const disparo = disparar(camera, [], balas, scene, null);
     
     if (disparo) {
+      reproducirSonidoDisparo(estadoArma.tipoActual, configArma);
       actualizarDisplayMunicion();
     }
   }
@@ -971,23 +934,6 @@ function manejarSalto() {
  */
 function manejarMovimientoMouse(movimientoX, movimientoY) {
   actualizarRotacion(movimientoX, movimientoY);
-}
-
-/**
- * Maneja la pausa del juego
- */
-function manejarPausar() {
-  console.log('🎮 manejarPausar llamado');
-  
-  // No pausar si hay overlay de conexión visible
-  const connectionOverlay = document.getElementById('connection-overlay');
-  if (connectionOverlay && connectionOverlay.style.display !== 'none') {
-    console.log('⚠️ No pausar - overlay de conexión visible');
-    return;
-  }
-
-  console.log('🎮 Llamando alternarMenuPausa...');
-  alternarMenuPausa();
 }
 
 /**
