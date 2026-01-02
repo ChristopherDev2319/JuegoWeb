@@ -81,67 +81,49 @@
     <div id="pause-menu" class="hidden">
       <div class="pause-overlay"></div>
       <div class="pause-content">
-        <div class="pause-title">JUEGO PAUSADO</div>
-        
         <div class="pause-buttons">
           <button id="resume-btn" class="pause-btn primary">
             <span class="btn-icon">▶</span>
             Continuar
-            <span class="btn-key">P</span>
           </button>
           
           <button id="settings-btn" class="pause-btn">
             <span class="btn-icon">⚙</span>
             Configuración
-            <span class="btn-key">C</span>
           </button>
           
           <button id="controls-btn" class="pause-btn">
             <span class="btn-icon">🎮</span>
             Controles
-            <span class="btn-key">K</span>
           </button>
           
           <button id="stats-btn" class="pause-btn">
             <span class="btn-icon">📊</span>
             Estadísticas
-            <span class="btn-key">T</span>
-          </button>
-          
-          <button id="disconnect-btn" class="pause-btn warning">
-            <span class="btn-icon">🔌</span>
-            Desconectar
-            <span class="btn-key">D</span>
           </button>
           
           <button id="exit-btn" class="pause-btn danger">
             <span class="btn-icon">🚪</span>
-            Salir del Juego
-            <span class="btn-key">Q</span>
+            Salir
           </button>
         </div>
         
         <!-- Settings Panel -->
         <div id="settings-panel" class="pause-panel hidden">
           <div class="panel-header">
-            <h3>Configuración</h3>
             <button id="settings-back-btn" class="back-btn">←</button>
+            <h3>Configuración</h3>
           </div>
           <div class="settings-grid">
             <div class="setting-item">
-              <label>Sensibilidad del Mouse</label>
+              <label>Sensibilidad</label>
               <input type="range" id="mouse-sensitivity" min="0.001" max="0.01" step="0.001" value="0.002">
               <span id="sensitivity-value">0.002</span>
             </div>
             <div class="setting-item">
-              <label>Volumen General</label>
+              <label>Volumen</label>
               <input type="range" id="master-volume" min="0" max="1" step="0.1" value="0.5">
               <span id="volume-value">50%</span>
-            </div>
-            <div class="setting-item">
-              <label>FOV (Campo de Visión)</label>
-              <input type="range" id="fov-slider" min="60" max="120" step="5" value="75">
-              <span id="fov-value">75°</span>
             </div>
             <div class="setting-item">
               <label>Mostrar FPS</label>
@@ -157,46 +139,29 @@
         <!-- Controls Panel -->
         <div id="controls-panel" class="pause-panel hidden">
           <div class="panel-header">
-            <h3>Controles</h3>
             <button id="controls-back-btn" class="back-btn">←</button>
+            <h3>Controles</h3>
           </div>
-          <div class="controls-grid">
-            <div class="control-group">
-              <h4>Movimiento</h4>
-              <div class="control-item"><span>Adelante</span><kbd>W</kbd></div>
-              <div class="control-item"><span>Atrás</span><kbd>S</kbd></div>
-              <div class="control-item"><span>Izquierda</span><kbd>A</kbd></div>
-              <div class="control-item"><span>Derecha</span><kbd>D</kbd></div>
-              <div class="control-item"><span>Saltar</span><kbd>ESPACIO</kbd></div>
-              <div class="control-item"><span>Dash</span><kbd>E</kbd></div>
-            </div>
-            <div class="control-group">
-              <h4>Combate</h4>
-              <div class="control-item"><span>Disparar</span><kbd>CLIC IZQ</kbd></div>
-              <div class="control-item"><span>Apuntar</span><kbd>CLIC DER</kbd></div>
-              <div class="control-item"><span>Recargar</span><kbd>R</kbd></div>
-              <div class="control-item"><span>Cambiar Arma</span><kbd>Q / RUEDA</kbd></div>
-              <div class="control-item"><span>Arma Específica</span><kbd>1-8</kbd></div>
-            </div>
-            <div class="control-group">
-              <h4>Sistema</h4>
-              <div class="control-item"><span>Pausar</span><kbd>TAB</kbd></div>
-              <div class="control-item"><span>Configuración</span><kbd>TAB + C</kbd></div>
-              <div class="control-item"><span>Estadísticas</span><kbd>TAB + T</kbd></div>
-            </div>
+          <div class="controls-list">
+            <div class="control-item"><span>Mover</span><kbd>WASD</kbd></div>
+            <div class="control-item"><span>Saltar</span><kbd>SPACE</kbd></div>
+            <div class="control-item"><span>Dash</span><kbd>E</kbd></div>
+            <div class="control-item"><span>Disparar</span><kbd>CLICK</kbd></div>
+            <div class="control-item"><span>Apuntar</span><kbd>RMB</kbd></div>
+            <div class="control-item"><span>Recargar</span><kbd>R</kbd></div>
           </div>
         </div>
         
         <!-- Stats Panel -->
         <div id="stats-panel" class="pause-panel hidden">
           <div class="panel-header">
-            <h3>Estadísticas de la Partida</h3>
             <button id="stats-back-btn" class="back-btn">←</button>
+            <h3>Estadísticas</h3>
           </div>
           <div class="stats-grid">
             <div class="stat-card">
               <div class="stat-value" id="kills-stat">0</div>
-              <div class="stat-label">Eliminaciones</div>
+              <div class="stat-label">Kills</div>
             </div>
             <div class="stat-card">
               <div class="stat-value" id="deaths-stat">0</div>
@@ -204,19 +169,19 @@
             </div>
             <div class="stat-card">
               <div class="stat-value" id="kd-ratio">0.00</div>
-              <div class="stat-label">K/D Ratio</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value" id="shots-fired">0</div>
-              <div class="stat-label">Disparos</div>
+              <div class="stat-label">K/D</div>
             </div>
             <div class="stat-card">
               <div class="stat-value" id="accuracy-stat">0%</div>
               <div class="stat-label">Precisión</div>
             </div>
             <div class="stat-card">
+              <div class="stat-value" id="shots-fired">0</div>
+              <div class="stat-label">Disparos</div>
+            </div>
+            <div class="stat-card">
               <div class="stat-value" id="playtime-stat">00:00</div>
-              <div class="stat-label">Tiempo Jugado</div>
+              <div class="stat-label">Tiempo</div>
             </div>
           </div>
         </div>

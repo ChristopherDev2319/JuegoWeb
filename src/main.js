@@ -310,14 +310,12 @@ async function inicializar() {
   // Pequeña pausa para mostrar el 100%
   await new Promise(resolve => setTimeout(resolve, 300));
 
+  // Iniciar bucle del juego ANTES de ocultar la pantalla
+  // Esto asegura que el canvas ya esté renderizando cuando se quite la pantalla de carga
+  bucleJuego();
+
   // Ocultar pantalla de carga
   ocultarPantallaCarga();
-
-  // Pequeña pausa para que se oculte completamente
-  await new Promise(resolve => setTimeout(resolve, 600));
-
-  // Iniciar bucle del juego
-  bucleJuego();
   
   // Cargar el resto de armas en background (LAZY LOADING)
   cargarArmasEnBackground();

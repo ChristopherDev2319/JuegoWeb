@@ -3,6 +3,12 @@
  * Gestiona el manejo de teclado y mouse
  */
 
+// Referencia al estado del menú (se establece después de inicializar)
+let verificarMenuActivo = null;
+
+// Flag temporal para ignorar cambios de pointer lock después de cerrar el menú
+let ignorarCambioPointerLock = false;
+
 /**
  * Estado de las teclas presionadas
  */
@@ -114,10 +120,9 @@ function manejarTeclaPresionada(evento) {
     }
   }
   
-  // ESC - Abrir/cerrar menú de opciones
-  if (evento.code === 'Escape' && callbacks.onPausar) {
-    callbacks.onPausar();
-  }
+  // ESC - No hacer nada aquí, el menú se abre cuando se pierde el pointer lock
+  // El navegador automáticamente libera el pointer lock con ESC
+  // y manejarCambioPointerLock se encarga de abrir el menú
 }
 
 /**
@@ -131,7 +136,12 @@ function manejarTeclaSoltada(evento) {
 /**
  * Maneja el clic en el body para activar pointer lock
  */
-function manejarClickBody() {
+function manejarClickBody(evento) {
+  // No activar pointer lock si el menú de pausa está activo
+  if (verificarMenuActivo && verificarMenuActivo()) {
+    return;
+  }
+  
   if (!pointerLockActivo) {
     document.body.requestPointerLock();
   }
@@ -142,7 +152,44 @@ function manejarClickBody() {
  * Maneja el cambio de estado del pointer lock
  */
 function manejarCambioPointerLock() {
+  const anteriorEstado = pointerLockActivo;
   pointerLockActivo = document.pointerLockElement === document.body;
+  
+  // Si estamos ignorando cambios temporalmente, no hacer nada
+  if (ignorarCambioPointerLock) {
+    return;
+  }
+  
+  // Si se perdió el pointer lock (por ESC u otra razón), abrir menú de pausa
+  if (anteriorEstado && !pointerLockActivo) {
+    // No abrir menú si ya está activo
+    if (verificarMenuActivo && verificarMenuActivo()) {
+      return;
+    }
+    
+    if (callbacks.onPausar) {
+      callbacks.onPausar();
+    }
+  }
+}
+
+/**
+ * Establece la función para verificar si el menú está activo
+ * @param {Function} fn - Función que retorna true si el menú está activo
+ */
+export function establecerVerificadorMenu(fn) {
+  verificarMenuActivo = fn;
+}
+
+/**
+ * Ignora temporalmente los cambios de pointer lock
+ * @param {number} duracion - Duración en ms para ignorar cambios
+ */
+export function ignorarCambiosPointerLock(duracion = 500) {
+  ignorarCambioPointerLock = true;
+  setTimeout(() => {
+    ignorarCambioPointerLock = false;
+  }, duracion);
 }
 
 /**
