@@ -2,7 +2,7 @@
  * Punto de entrada principal del juego FPS Three.js Multijugador
  * Importa todos los módulos y crea el bucle principal del juego
  * 
- * Requisitos: 2.1, 2.2, 3.3, 4.1
+ * Requisitos: 1.1, 2.1, 2.2, 2.3, 3.3, 4.1
  */
 
 // Importar módulos del juego
@@ -97,6 +97,40 @@ import { inicializarSonidos, reproducirSonidoDisparo } from './sistemas/sonidos.
 // Sistema de colisiones
 import { inicializarColisiones, toggleDebugVisual } from './sistemas/colisiones.js';
 
+// Importar módulos del lobby
+// Requirements: 1.1, 2.1, 2.2, 2.3
+import { 
+  inicializarLobbyUI, 
+  ocultarLobby, 
+  mostrarLobby,
+  mostrarPantalla,
+  mostrarError,
+  mostrarCargando,
+  actualizarEstadoMatchmaking,
+  mostrarSalaCreada,
+  mostrarErrorCrear,
+  mostrarErrorUnirse
+} from './lobby/lobbyUI.js';
+
+import { 
+  lobbyState,
+  obtenerNombre,
+  guardarConfiguracion,
+  cargarConfiguracion as cargarConfiguracionLobby,
+  actualizarEstadisticas as actualizarEstadisticasLobby,
+  establecerModoJuego,
+  establecerSalaActual
+} from './lobby/lobbyState.js';
+
+import {
+  configurarCallbacksLobby,
+  manejarRespuestaLobby,
+  solicitarMatchmaking,
+  crearPartidaPrivada,
+  unirsePartidaPrivada,
+  cancelarOperacionesPendientes
+} from './lobby/lobbyConnection.js';
+
 // Exponer función de debug en consola
 window.toggleCollisionDebug = toggleDebugVisual;
 
@@ -109,8 +143,16 @@ let modeloArma = null;
 // Control de tiempo
 let ultimoTiempo = performance.now();
 
+// Estado del lobby y modo de juego
+// Requirements: 1.1, 2.1, 2.2, 2.3
+let modoJuegoActual = null; // 'local' | 'online'
+let salaActualId = null;
+let nombreJugadorActual = '';
+let juegoIniciado = false;
+
 /**
  * Lee la configuración guardada del juego
+ * @deprecated Usar cargarConfiguracionLobby() del módulo lobbyState
  */
 function leerConfiguracionGuardada() {
   try {
@@ -128,6 +170,71 @@ function leerConfiguracionGuardada() {
     }
   } catch (error) {
     console.warn('No se pudo cargar la configuración guardada:', error);
+  }
+}
+
+/**
+ * Callback cuando el jugador inicia el juego desde el lobby
+ * Requirements: 1.1, 2.1, 2.2, 2.3
+ * @param {'local' | 'online'} modo - Modo de juego seleccionado
+ * @param {string|null} salaId - ID de la sala (solo para modo online)
+ * @param {string} nombreJugador - Nombre del jugador
+ */
+async function onIniciarJuego(modo, salaId = null, nombreJugador = '') {
+  console.log(`🎮 Iniciando juego en modo: ${modo}`);
+  
+  modoJuegoActual = modo;
+  salaActualId = salaId;
+  nombreJugadorActual = nombreJugador || obtenerNombre();
+  
+  // Establecer modo en el estado del lobby
+  establecerModoJuego(modo);
+  if (salaId) {
+    establecerSalaActual(salaId);
+  }
+  
+  // Configurar multijugador según el modo
+  if (modo === 'local') {
+    CONFIG.red.habilitarMultijugador = false;
+    console.log('🎯 Modo local: Multijugador deshabilitado');
+  } else {
+    CONFIG.red.habilitarMultijugador = true;
+    console.log('🌐 Modo online: Multijugador habilitado');
+  }
+  
+  // Ocultar lobby y mostrar pantalla de carga
+  ocultarLobby();
+  
+  // Iniciar el juego
+  await inicializarJuegoCompleto();
+}
+
+/**
+ * Muestra el indicador de modo local en la UI
+ * Requirements: 2.3
+ */
+function mostrarIndicadorModoLocal() {
+  // Verificar si ya existe el indicador
+  let indicador = document.getElementById('modo-local-indicator');
+  
+  if (!indicador) {
+    indicador = document.createElement('div');
+    indicador.id = 'modo-local-indicator';
+    indicador.className = 'modo-local-indicator';
+    indicador.innerHTML = '🎮 Modo Local';
+    document.body.appendChild(indicador);
+  }
+  
+  indicador.style.display = 'block';
+}
+
+/**
+ * Oculta el indicador de modo local
+ */
+function ocultarIndicadorModoLocal() {
+  const indicador = document.getElementById('modo-local-indicator');
+  if (indicador) {
+    indicador.style.display = 'none';
   }
 }
 
@@ -168,18 +275,173 @@ function ocultarPantallaCarga() {
 }
 
 /**
- * Inicializa el juego
+ * Inicializa el lobby y espera la selección del jugador
+ * Requirements: 1.1 - Mostrar lobby en lugar de iniciar juego directamente
  */
 async function inicializar() {
+  console.log('🎮 Inicializando sistema de lobby...');
+  
+  // Cargar configuración del lobby
+  cargarConfiguracionLobby();
+  
+  // Inicializar UI del lobby con callbacks
+  inicializarLobbyUI({
+    onModoLocal: (nombre) => {
+      console.log(`🎮 Modo local seleccionado por: ${nombre}`);
+      onIniciarJuego('local', null, nombre);
+    },
+    onMatchmaking: async (nombre) => {
+      console.log(`🔍 Iniciando matchmaking para: ${nombre}`);
+      await manejarMatchmaking(nombre);
+    },
+    onCrearPartida: async (nombre, password) => {
+      console.log(`➕ Creando partida privada para: ${nombre}`);
+      await manejarCrearPartida(nombre, password);
+    },
+    onUnirsePartida: async (nombre, codigo, password) => {
+      console.log(`🚪 Uniéndose a partida: ${codigo}`);
+      await manejarUnirsePartida(nombre, codigo, password);
+    },
+    onCancelarMatchmaking: () => {
+      console.log('❌ Matchmaking cancelado');
+      cancelarOperacionesPendientes();
+    },
+    onSalirSala: () => {
+      console.log('🚪 Saliendo de la sala');
+      cancelarOperacionesPendientes();
+      salaActualId = null;
+    },
+    onIniciarPartida: () => {
+      console.log('▶️ Iniciando partida desde sala de espera');
+      if (salaActualId) {
+        onIniciarJuego('online', salaActualId, nombreJugadorActual);
+      }
+    }
+  });
+  
+  console.log('✅ Lobby inicializado - Esperando selección del jugador');
+}
+
+/**
+ * Maneja el proceso de matchmaking
+ * @param {string} nombre - Nombre del jugador
+ */
+async function manejarMatchmaking(nombre) {
+  try {
+    // Primero conectar al servidor si no está conectado
+    await conectarServidorParaLobby();
+    
+    actualizarEstadoMatchmaking('Buscando partida...');
+    
+    const resultado = await solicitarMatchmaking(nombre);
+    
+    console.log('✅ Matchmaking exitoso:', resultado);
+    salaActualId = resultado.roomId;
+    nombreJugadorActual = nombre;
+    
+    // Iniciar juego directamente después del matchmaking
+    onIniciarJuego('online', resultado.roomId, nombre);
+    
+  } catch (error) {
+    console.error('❌ Error en matchmaking:', error);
+    mostrarError(error.message || 'Error al buscar partida');
+    mostrarPantalla('online');
+  }
+}
+
+/**
+ * Maneja la creación de una partida privada
+ * @param {string} nombre - Nombre del jugador
+ * @param {string} password - Contraseña de la sala
+ */
+async function manejarCrearPartida(nombre, password) {
+  try {
+    // Primero conectar al servidor si no está conectado
+    await conectarServidorParaLobby();
+    
+    const resultado = await crearPartidaPrivada(nombre, password);
+    
+    console.log('✅ Partida creada:', resultado);
+    salaActualId = resultado.roomId;
+    nombreJugadorActual = nombre;
+    
+    // Mostrar pantalla de sala creada con el código
+    mostrarSalaCreada(resultado.roomCode);
+    
+  } catch (error) {
+    console.error('❌ Error al crear partida:', error);
+    mostrarErrorCrear(error.message || 'Error al crear partida');
+  }
+}
+
+/**
+ * Maneja unirse a una partida privada
+ * @param {string} nombre - Nombre del jugador
+ * @param {string} codigo - Código de la sala
+ * @param {string} password - Contraseña de la sala
+ */
+async function manejarUnirsePartida(nombre, codigo, password) {
+  try {
+    // Primero conectar al servidor si no está conectado
+    await conectarServidorParaLobby();
+    
+    const resultado = await unirsePartidaPrivada(nombre, codigo, password);
+    
+    console.log('✅ Unido a partida:', resultado);
+    salaActualId = resultado.roomId;
+    nombreJugadorActual = nombre;
+    
+    // Iniciar juego directamente después de unirse
+    onIniciarJuego('online', resultado.roomId, nombre);
+    
+  } catch (error) {
+    console.error('❌ Error al unirse a partida:', error);
+    mostrarErrorUnirse(error.message || 'Error al unirse a partida');
+  }
+}
+
+/**
+ * Conecta al servidor para operaciones del lobby
+ */
+async function conectarServidorParaLobby() {
+  if (connection && connection.isConnected()) {
+    return; // Ya conectado
+  }
+  
+  connection = getConnection();
+  
+  // Configurar callback para respuestas del lobby
+  connection.onLobbyResponse((response) => {
+    manejarRespuestaLobby(response);
+  });
+  
+  const serverUrl = obtenerUrlServidor();
+  
+  try {
+    await connection.connect(serverUrl);
+    console.log('✅ Conectado al servidor para lobby');
+  } catch (error) {
+    console.error('❌ Error conectando al servidor:', error);
+    throw new Error('No se pudo conectar al servidor');
+  }
+}
+
+/**
+ * Inicializa el juego completo después de la selección del lobby
+ */
+async function inicializarJuegoCompleto() {
   // Obtener referencias a elementos de carga
   loadingScreen = document.getElementById('loading-screen');
   loadingBar = document.getElementById('loading-bar');
   loadingText = document.getElementById('loading-text');
+  
+  // Mostrar pantalla de carga
+  if (loadingScreen) {
+    loadingScreen.style.display = 'flex';
+    loadingScreen.classList.remove('hidden');
+  }
 
   actualizarCarga(5, 'Iniciando...');
-
-  // Leer configuración guardada
-  leerConfiguracionGuardada();
 
   actualizarCarga(10, 'Creando escena...');
 
@@ -259,8 +521,8 @@ async function inicializar() {
         }
       },
       onSalir: () => {
-        console.log('🚪 Saliendo del juego...');
-        window.location.href = 'configurar.html';
+        console.log('🚪 Saliendo al lobby...');
+        volverAlLobby();
       },
       onConfiguracionCambiada: (tipo, valor) => {
         console.log(`⚙️ Configuración cambiada: ${tipo} = ${valor}`);
@@ -303,12 +565,22 @@ async function inicializar() {
   actualizarCarga(90, 'Conectando al servidor...');
 
   // Initialize network connection (Requirement 2.1)
-  await inicializarRed();
+  // Solo conectar si es modo online
+  if (modoJuegoActual === 'online') {
+    await inicializarRed();
+  } else {
+    // Modo local - mostrar indicador
+    mostrarIndicadorModoLocal();
+    console.log('🎮 Modo local iniciado - Sin conexión al servidor');
+  }
 
   actualizarCarga(100, '¡Listo!');
 
   // Pequeña pausa para mostrar el 100%
   await new Promise(resolve => setTimeout(resolve, 300));
+
+  // Marcar juego como iniciado
+  juegoIniciado = true;
 
   // Iniciar bucle del juego ANTES de ocultar la pantalla
   // Esto asegura que el canvas ya esté renderizando cuando se quite la pantalla de carga
@@ -319,6 +591,64 @@ async function inicializar() {
   
   // Cargar el resto de armas en background (LAZY LOADING)
   cargarArmasEnBackground();
+}
+
+/**
+ * Vuelve al lobby desde el juego
+ */
+function volverAlLobby() {
+  // Desconectar del servidor si está conectado
+  if (connection && isMultiplayerConnected) {
+    connection.disconnect();
+  }
+  
+  // Resetear estado
+  isMultiplayerConnected = false;
+  localPlayerId = null;
+  juegoIniciado = false;
+  modoJuegoActual = null;
+  salaActualId = null;
+  
+  // Ocultar indicador de modo local
+  ocultarIndicadorModoLocal();
+  
+  // Limpiar jugadores remotos
+  if (remotePlayerManager) {
+    remotePlayerManager.clear();
+  }
+  
+  // Mostrar lobby
+  mostrarLobby();
+  
+  // Recargar la página para reiniciar completamente
+  // (alternativa más simple que resetear todo el estado del juego)
+  window.location.reload();
+}
+
+/**
+ * Registra un kill para las estadísticas
+ * Requirements: 8.1, 8.2
+ */
+function registrarKill() {
+  actualizarEstadisticasLobby(1, 0);
+  console.log('📊 Kill registrado');
+}
+
+/**
+ * Registra una muerte para las estadísticas
+ * Requirements: 8.1, 8.2
+ */
+function registrarDeath() {
+  actualizarEstadisticasLobby(0, 1);
+  console.log('📊 Muerte registrada');
+}
+
+/**
+ * Registra un impacto recibido (para estadísticas futuras)
+ */
+function registrarImpacto() {
+  // Por ahora solo log, se puede expandir para estadísticas de daño
+  console.log('📊 Impacto recibido');
 }
 
 /**
@@ -334,7 +664,11 @@ async function inicializarRed() {
 
   mostrarMensajeConexion('Conectando al servidor...');
   
-  connection = getConnection();
+  // Reutilizar conexión existente si ya está conectada (del lobby)
+  if (!connection) {
+    connection = getConnection();
+  }
+  
   inputSender = getInputSender();
   
   // Initialize remote player manager
@@ -342,6 +676,21 @@ async function inicializarRed() {
   
   // Set up event callbacks before connecting
   configurarCallbacksRed();
+  
+  // Si ya está conectado (desde el lobby), solo configurar callbacks
+  if (connection.isConnected()) {
+    console.log('✅ Reutilizando conexión existente del lobby');
+    
+    // Enviar nombre del jugador al servidor
+    // Requirements: 1.1 - Pasar nombre del jugador al servidor al conectar
+    connection.send('playerInfo', {
+      playerName: nombreJugadorActual,
+      roomId: salaActualId
+    });
+    
+    ocultarMensajeConexion();
+    return;
+  }
   
   // Get server URL (default to localhost:3000)
   const serverUrl = obtenerUrlServidor();
@@ -354,6 +703,14 @@ async function inicializarRed() {
       console.log(`Intento de conexión ${intentos + 1}/${maxIntentos} a ${serverUrl}`);
       await connection.connect(serverUrl);
       console.log('✅ Conectado al servidor exitosamente');
+      
+      // Enviar nombre del jugador al servidor después de conectar
+      // Requirements: 1.1 - Pasar nombre del jugador al servidor al conectar
+      connection.send('playerInfo', {
+        playerName: nombreJugadorActual,
+        roomId: salaActualId
+      });
+      
       return;
     } catch (error) {
       intentos++;
@@ -362,6 +719,10 @@ async function inicializarRed() {
       if (intentos >= maxIntentos) {
         console.log('🎮 Cambiando a modo local (sin multijugador)');
         mostrarMensajeConexion('Modo local - Sin conexión al servidor', false);
+        
+        // Mostrar indicador de modo local
+        mostrarIndicadorModoLocal();
+        modoJuegoActual = 'local';
         
         // Ocultar mensaje después de 3 segundos
         setTimeout(() => {
