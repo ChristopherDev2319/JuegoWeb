@@ -239,7 +239,8 @@ async function inicializar() {
     onSiguienteArma: manejarSiguienteArma,
     onArmaAnterior: manejarArmaAnterior,
     onSeleccionarArma: manejarSeleccionarArma,
-    onApuntar: manejarApuntado
+    onApuntar: manejarApuntado,
+    onPausar: manejarPausar
   });
 
   // Establecer referencia de cámara para el sistema de apuntado
