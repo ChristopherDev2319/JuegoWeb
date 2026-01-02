@@ -220,7 +220,10 @@ export class BulletSystem {
     const halfWidth = CHARACTER_HITBOX.width / 2;
     const halfDepth = CHARACTER_HITBOX.depth / 2;
     const playerHeight = CHARACTER_HITBOX.height;
-    const playerCenterY = player.position.y - 0.7;
+    
+    // La posición del jugador es la de los ojos (eyeHeight = 1.7)
+    const playerFeetY = player.position.y - 1.7;
+    const playerCenterY = playerFeetY + playerHeight / 2;
     
     // Usar AABB (Axis-Aligned Bounding Box) para el raycast
     const minX = player.position.x - halfWidth;
@@ -284,8 +287,12 @@ export class BulletSystem {
     const halfDepth = CHARACTER_HITBOX.depth / 2;
     const playerHeight = CHARACTER_HITBOX.height;
     
-    // Centro del jugador
-    const playerCenterY = player.position.y - 0.7;
+    // La posición del jugador es la de los ojos (eyeHeight = 1.7)
+    // El centro del cuerpo está más abajo
+    // Pies están en: player.position.y - 1.7
+    // Centro del cuerpo: player.position.y - 1.7 + 1.0 = player.position.y - 0.7
+    const playerFeetY = player.position.y - 1.7;
+    const playerCenterY = playerFeetY + playerHeight / 2;
     
     // Calcular distancia desde la bala al centro del jugador
     const dx = Math.abs(bullet.position.x - player.position.x);
@@ -293,7 +300,16 @@ export class BulletSystem {
     const dz = Math.abs(bullet.position.z - player.position.z);
     
     // Colisión AABB (Axis-Aligned Bounding Box)
-    return dx < halfWidth && dy < playerHeight / 2 && dz < halfDepth;
+    const hit = dx < halfWidth && dy < playerHeight / 2 && dz < halfDepth;
+    
+    // Debug cuando hay hit
+    if (hit) {
+      console.log(`[HIT CHECK] Bullet at (${bullet.position.x.toFixed(2)}, ${bullet.position.y.toFixed(2)}, ${bullet.position.z.toFixed(2)})`);
+      console.log(`[HIT CHECK] Player center at (${player.position.x.toFixed(2)}, ${playerCenterY.toFixed(2)}, ${player.position.z.toFixed(2)})`);
+      console.log(`[HIT CHECK] Distance: dx=${dx.toFixed(2)}, dy=${dy.toFixed(2)}, dz=${dz.toFixed(2)}`);
+    }
+    
+    return hit;
   }
 
   /**
