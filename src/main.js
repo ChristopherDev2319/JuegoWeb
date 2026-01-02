@@ -974,23 +974,6 @@ function manejarMovimientoMouse(movimientoX, movimientoY) {
 }
 
 /**
- * Maneja la pausa del juego
- */
-function manejarPausar() {
-  console.log('🎮 manejarPausar llamado');
-  
-  // No pausar si hay overlay de conexión visible
-  const connectionOverlay = document.getElementById('connection-overlay');
-  if (connectionOverlay && connectionOverlay.style.display !== 'none') {
-    console.log('⚠️ No pausar - overlay de conexión visible');
-    return;
-  }
-
-  console.log('🎮 Llamando alternarMenuPausa...');
-  alternarMenuPausa();
-}
-
-/**
  * Send movement input to server
  * Requirement 4.1: Send movement input to server
  */
