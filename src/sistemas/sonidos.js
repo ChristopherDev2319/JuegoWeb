@@ -3,12 +3,25 @@
  * Usa el método directo que funciona
  */
 
+// Estado del sistema de sonidos
+let sonidosHabilitados = true;
+
+/**
+ * Inicializa el sistema de sonidos
+ */
+export function inicializarSonidos() {
+  sonidosHabilitados = true;
+  console.log('🔊 Sistema de sonidos inicializado');
+}
+
 /**
  * Reproduce el sonido de disparo de un arma (método directo)
  * @param {string} tipoArma - Tipo de arma (M4A1, PISTOLA, etc.)
  * @param {Object} configArma - Configuración del arma
  */
 export function reproducirSonidoDisparo(tipoArma, configArma) {
+  if (!sonidosHabilitados) return;
+  
   if (!configArma.sonidoDisparo) {
     console.log(`No hay sonido configurado para ${tipoArma}`);
     return;

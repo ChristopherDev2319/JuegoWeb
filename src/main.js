@@ -87,6 +87,13 @@ import {
   animarRetroceso as animarRetrocesoCrosshair,
   habilitarCrosshairDinamico
 } from './sistemas/crosshair.js';
+
+// Sistema de menú de pausa
+import { inicializarMenuPausa, alternarMenuPausa } from './sistemas/menuPausa.js';
+
+// Sistema de sonidos
+import { inicializarSonidos, reproducirSonidoDisparo } from './sistemas/sonidos.js';
+
 // Sistema de colisiones
 import { inicializarColisiones, toggleDebugVisual } from './sistemas/colisiones.js';
 
@@ -269,6 +276,14 @@ async function inicializar() {
   } catch (error) {
     console.warn('⚠️ Error inicializando menú de pausa:', error);
     // Continuar sin menú de pausa si hay error
+  }
+
+  // Inicializar sistema de sonidos
+  try {
+    inicializarSonidos();
+    console.log('✅ Sistema de sonidos inicializado');
+  } catch (error) {
+    console.warn('⚠️ Error inicializando sonidos:', error);
   }
 
   // Inicializar sistema de crosshair dinámico
