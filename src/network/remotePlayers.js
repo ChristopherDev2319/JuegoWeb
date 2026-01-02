@@ -75,11 +75,14 @@ export class RemotePlayerManager {
     if (!gameState || !gameState.players) return;
 
     const serverPlayerIds = new Set();
+    const previousCount = this.players.size;
 
     // Update existing players and add new ones
     for (const playerState of gameState.players) {
       // Skip local player
-      if (playerState.id === this.localPlayerId) continue;
+      if (playerState.id === this.localPlayerId) {
+        continue;
+      }
 
       serverPlayerIds.add(playerState.id);
 
@@ -89,6 +92,7 @@ export class RemotePlayerManager {
         existingPlayer.updateFromState(playerState);
       } else {
         // Add new player
+        console.log(`[REMOTE] Adding new remote player: ${playerState.id} at pos (${playerState.position.x.toFixed(2)}, ${playerState.position.y.toFixed(2)}, ${playerState.position.z.toFixed(2)})`);
         this.addPlayer(playerState);
       }
     }
@@ -98,6 +102,11 @@ export class RemotePlayerManager {
       if (!serverPlayerIds.has(id)) {
         this.removePlayer(id);
       }
+    }
+    
+    // Log only when count changes
+    if (this.players.size !== previousCount) {
+      console.log(`[REMOTE] Remote players count changed: ${previousCount} -> ${this.players.size}`);
     }
   }
 

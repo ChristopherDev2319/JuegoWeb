@@ -26,6 +26,8 @@ export class NetworkConnection {
     this._onDamageDealt = null;
     this._onError = null;
     this._onDisconnect = null;
+    this._onLobbyResponse = null;
+    this._onConnected = null;
   }
 
   /**
@@ -38,6 +40,8 @@ export class NetworkConnection {
       try {
         this.socket = new WebSocket(serverUrl);
         
+        let connectionResolved = false;
+        
         this.socket.onopen = () => {
           this.connected = true;
           console.log('Connected to server');
@@ -45,11 +49,6 @@ export class NetworkConnection {
         
         this.socket.onmessage = (event) => {
           this._handleMessage(event.data);
-          
-          // Resolve promise on welcome message (Requirement 2.2)
-          if (!this.playerId) {
-            // Wait for welcome message to resolve
-          }
         };
         
         this.socket.onerror = (error) => {
@@ -57,7 +56,8 @@ export class NetworkConnection {
           if (this._onError) {
             this._onError(error);
           }
-          if (!this.connected) {
+          if (!this.connected && !connectionResolved) {
+            connectionResolved = true;
             reject(new Error('Connection failed'));
           }
         };
@@ -71,14 +71,34 @@ export class NetworkConnection {
           }
         };
         
-        // Set up welcome handler to resolve promise
+        // Resolver la promesa cuando recibimos 'connected' (conexión inicial al lobby)
+        const originalOnConnected = this._onConnected;
+        this._onConnected = (data) => {
+          if (data && data.playerId) {
+            this.playerId = data.playerId;
+          }
+          if (originalOnConnected) {
+            originalOnConnected(data);
+          }
+          if (!connectionResolved) {
+            connectionResolved = true;
+            resolve();
+          }
+        };
+        
+        // También resolver en welcome (para compatibilidad con flujo de juego)
         const originalOnWelcome = this._onWelcome;
         this._onWelcome = (data) => {
-          this.playerId = data.playerId;
+          if (data && data.playerId) {
+            this.playerId = data.playerId;
+          }
           if (originalOnWelcome) {
             originalOnWelcome(data);
           }
-          resolve();
+          if (!connectionResolved) {
+            connectionResolved = true;
+            resolve();
+          }
         };
         
       } catch (error) {
@@ -194,6 +214,23 @@ export class NetworkConnection {
         }
         break;
         
+      case 'lobbyResponse':
+        // Lobby response from server
+        if (this._onLobbyResponse) {
+          this._onLobbyResponse(message.data);
+        }
+        break;
+        
+      case 'connected':
+        // Initial connection acknowledgment
+        if (message.data && message.data.playerId) {
+          this.playerId = message.data.playerId;
+        }
+        if (this._onConnected) {
+          this._onConnected(message.data);
+        }
+        break;
+        
       default:
         console.log('Unknown message type:', message.type);
     }
@@ -288,6 +325,22 @@ export class NetworkConnection {
   }
 
   /**
+   * Register callback for lobby responses
+   * @param {Function} callback - Function to call with lobby response data
+   */
+  onLobbyResponse(callback) {
+    this._onLobbyResponse = callback;
+  }
+
+  /**
+   * Register callback for initial connection acknowledgment
+   * @param {Function} callback - Function to call when connected
+   */
+  onConnected(callback) {
+    this._onConnected = callback;
+  }
+
+  /**
    * Check if connected to server
    * @returns {boolean} - True if connected
    */
@@ -301,6 +354,19 @@ export class NetworkConnection {
    */
   getPlayerId() {
     return this.playerId;
+  }
+
+  /**
+   * Send a lobby message to the server
+   * Requirements: 3.2, 5.2
+   * @param {string} action - Lobby action ('matchmaking', 'createPrivate', 'joinPrivate', 'listRooms')
+   * @param {Object} data - Additional data for the action
+   */
+  sendLobbyMessage(action, data = {}) {
+    this.send('lobby', {
+      action,
+      ...data
+    });
   }
 }
 

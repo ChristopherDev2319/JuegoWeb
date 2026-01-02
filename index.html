@@ -16,6 +16,324 @@
     </script>
   </head>
   <body>
+    <!-- ==================== LOBBY SCREEN ==================== -->
+    <div id="lobby-screen">
+      <!-- Pantalla Inicial del Lobby - Pantalla Completa -->
+      <div id="lobby-inicial" class="lobby-pantalla active">
+        <div class="lobby-layout">
+          <!-- Panel Izquierdo - Perfil y Stats -->
+          <div class="lobby-sidebar-left">
+            <div class="lobby-card">
+              <h3 class="lobby-card-title">Tu Perfil</h3>
+              <div class="lobby-seccion">
+                <label for="nombre-jugador">Nombre del Jugador</label>
+                <div class="input-grupo">
+                  <input type="text" id="nombre-jugador" placeholder="Ingresa tu nombre..." maxlength="16">
+                  <button id="btn-nombre-aleatorio" class="btn-icono" title="Nombre aleatorio">🎲</button>
+                </div>
+                <span id="nombre-error" class="error-mensaje"></span>
+              </div>
+            </div>
+            
+            <div class="lobby-card">
+              <h3 class="lobby-card-title">Estadísticas</h3>
+              <div class="lobby-stats-vertical">
+                <div class="stat-row">
+                  <span class="stat-row-label">Kills</span>
+                  <span class="stat-row-value" id="lobby-kills">0</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-row-label">Muertes</span>
+                  <span class="stat-row-value" id="lobby-muertes">0</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-row-label">K/D Ratio</span>
+                  <span class="stat-row-value" id="lobby-kd">0.00</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-row-label">Partidas</span>
+                  <span class="stat-row-value" id="lobby-partidas">0</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-row-label">Victorias</span>
+                  <span class="stat-row-value" id="lobby-victorias">0</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Botón de configuración -->
+            <button id="btn-config-lobby" class="lobby-btn-config">
+              <span>⚙️</span> Configuración
+            </button>
+          </div>
+          
+          <!-- Panel Central - Título y Modos de Juego -->
+          <div class="lobby-main">
+            <div class="lobby-titulo-container">
+              <h1 class="lobby-titulo">FPS ARENA</h1>
+              <p class="lobby-titulo-sub">Combate Multijugador</p>
+            </div>
+            
+            <!-- Botones de modo de juego -->
+            <div class="lobby-botones" style="width: 100%; max-width: 400px;">
+              <button id="btn-modo-local" class="lobby-btn btn-secundario">
+                <span class="btn-icono-grande">🎮</span>
+                <span class="btn-texto">
+                  <span class="btn-titulo">Modo Local</span>
+                  <span class="btn-desc">Practica sin conexión</span>
+                </span>
+              </button>
+              <button id="btn-modo-online" class="lobby-btn btn-primario">
+                <span class="btn-icono-grande">🌐</span>
+                <span class="btn-texto">
+                  <span class="btn-titulo">Modo Online</span>
+                  <span class="btn-desc">Juega con otros jugadores</span>
+                </span>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Panel Derecho - Info del Juego y Noticias -->
+          <div class="lobby-sidebar-right">
+            <div class="lobby-card">
+              <h3 class="lobby-card-title">Controles</h3>
+              <div class="lobby-controls-list">
+                <div class="control-hint"><kbd>WASD</kbd> Movimiento</div>
+                <div class="control-hint"><kbd>SPACE</kbd> Saltar</div>
+                <div class="control-hint"><kbd>E</kbd> Dash</div>
+                <div class="control-hint"><kbd>CLICK</kbd> Disparar</div>
+                <div class="control-hint"><kbd>RMB</kbd> Apuntar</div>
+                <div class="control-hint"><kbd>R</kbd> Recargar</div>
+                <div class="control-hint"><kbd>1-8</kbd> Cambiar arma</div>
+                <div class="control-hint"><kbd>ESC</kbd> Menú pausa</div>
+              </div>
+            </div>
+            
+            <div class="lobby-card">
+              <h3 class="lobby-card-title">Jugadores Online</h3>
+              <div class="online-status">
+                <div class="online-indicator"></div>
+                <span class="online-count">-- jugadores</span>
+              </div>
+            </div>
+            
+            <div class="lobby-card lobby-tips">
+              <h3 class="lobby-card-title">Tip del día</h3>
+              <p class="tip-text">Usa el dash (E) para esquivar balas y moverte rápidamente por el mapa. ¡Tienes 3 cargas!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Pantalla de Selección Online -->
+      <div id="lobby-online" class="lobby-pantalla">
+        <div class="lobby-pantalla-centrada">
+          <div class="lobby-container">
+            <div class="lobby-header">
+              <button id="btn-volver-inicial" class="btn-volver">← Volver</button>
+              <h2 class="lobby-subtitulo">Modo Online</h2>
+            </div>
+            
+            <span id="online-error" class="error-mensaje centro"></span>
+            
+            <div class="lobby-botones">
+              <button id="btn-partida-publica" class="lobby-btn btn-primario">
+                <span class="btn-icono-grande">🔓</span>
+                <span class="btn-texto">
+                  <span class="btn-titulo">Partida Pública</span>
+                  <span class="btn-desc">Matchmaking automático</span>
+                </span>
+              </button>
+              <button id="btn-partida-privada" class="lobby-btn btn-secundario">
+                <span class="btn-icono-grande">🔒</span>
+                <span class="btn-texto">
+                  <span class="btn-titulo">Partida Privada</span>
+                  <span class="btn-desc">Juega con amigos</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Pantalla de Opciones Partida Privada -->
+      <div id="lobby-privada" class="lobby-pantalla">
+        <div class="lobby-pantalla-centrada">
+          <div class="lobby-container">
+            <div class="lobby-header">
+              <button id="btn-volver-online" class="btn-volver">← Volver</button>
+              <h2 class="lobby-subtitulo">Partida Privada</h2>
+            </div>
+            
+            <div class="lobby-botones">
+              <button id="btn-crear-partida" class="lobby-btn btn-primario">
+                <span class="btn-icono-grande">➕</span>
+                <span class="btn-texto">
+                  <span class="btn-titulo">Crear Partida</span>
+                  <span class="btn-desc">Crea una sala nueva</span>
+                </span>
+              </button>
+              <button id="btn-unirse-partida" class="lobby-btn btn-secundario">
+                <span class="btn-icono-grande">🚪</span>
+                <span class="btn-texto">
+                  <span class="btn-titulo">Unirse a Partida</span>
+                  <span class="btn-desc">Ingresa código de sala</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Pantalla de Crear Partida Privada -->
+      <div id="lobby-crear" class="lobby-pantalla">
+        <div class="lobby-pantalla-centrada">
+          <div class="lobby-container">
+            <div class="lobby-header">
+              <button id="btn-volver-privada-crear" class="btn-volver">← Volver</button>
+              <h2 class="lobby-subtitulo">Crear Partida</h2>
+            </div>
+            
+            <div class="lobby-seccion">
+              <label for="crear-password">Contraseña de la Sala</label>
+              <input type="password" id="crear-password" placeholder="4-20 caracteres" maxlength="20">
+              <span id="crear-password-error" class="error-mensaje"></span>
+            </div>
+            
+            <button id="btn-confirmar-crear" class="lobby-btn btn-primario btn-full">
+              <span>🎯</span> Crear Partida
+            </button>
+            
+            <span id="crear-error" class="error-mensaje centro"></span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Pantalla de Unirse a Partida -->
+      <div id="lobby-unirse" class="lobby-pantalla">
+        <div class="lobby-pantalla-centrada">
+          <div class="lobby-container">
+            <div class="lobby-header">
+              <button id="btn-volver-privada-unirse" class="btn-volver">← Volver</button>
+              <h2 class="lobby-subtitulo">Unirse a Partida</h2>
+            </div>
+            
+            <div class="lobby-seccion">
+              <label for="unirse-codigo">Código de Sala</label>
+              <input type="text" id="unirse-codigo" placeholder="Ej: ABC123" maxlength="6" style="text-transform: uppercase;">
+            </div>
+          
+            <div class="lobby-seccion">
+              <label for="unirse-password">Contraseña</label>
+              <input type="password" id="unirse-password" placeholder="Contraseña de la sala" maxlength="20">
+            </div>
+            
+            <button id="btn-confirmar-unirse" class="lobby-btn btn-primario btn-full">
+              <span>🚀</span> Unirse
+            </button>
+            
+            <span id="unirse-error" class="error-mensaje centro"></span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Pantalla de Matchmaking -->
+      <div id="lobby-matchmaking" class="lobby-pantalla">
+        <div class="lobby-pantalla-centrada">
+          <div class="lobby-container">
+            <div class="lobby-header">
+              <button id="btn-cancelar-matchmaking" class="btn-volver">← Cancelar</button>
+              <h2 class="lobby-subtitulo">Buscando Partida</h2>
+            </div>
+            
+            <div class="matchmaking-contenido">
+              <div class="matchmaking-spinner"></div>
+              <p class="matchmaking-texto" id="matchmaking-estado">Buscando partida...</p>
+              <p class="matchmaking-subtexto">Esto puede tomar unos segundos</p>
+            </div>
+            
+            <span id="matchmaking-error" class="error-mensaje centro"></span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Pantalla de Sala Creada (Esperando) -->
+      <div id="lobby-esperando" class="lobby-pantalla">
+        <div class="lobby-pantalla-centrada">
+          <div class="lobby-container">
+            <div class="lobby-header">
+              <button id="btn-salir-sala" class="btn-volver">← Salir</button>
+              <h2 class="lobby-subtitulo">Sala Creada</h2>
+            </div>
+            
+            <div class="sala-info">
+              <p class="sala-label">Código de Sala:</p>
+              <div class="sala-codigo-container">
+                <span id="sala-codigo" class="sala-codigo">------</span>
+                <button id="btn-copiar-codigo" class="btn-copiar" title="Copiar código">📋</button>
+              </div>
+              <p class="sala-hint">Comparte este código con tus amigos</p>
+            </div>
+            
+            <div class="sala-jugadores">
+              <p class="sala-label">Jugadores: <span id="sala-jugadores-count">1</span>/8</p>
+              <div id="sala-jugadores-lista" class="jugadores-lista">
+                <!-- Lista de jugadores se llena dinámicamente -->
+              </div>
+            </div>
+            
+            <button id="btn-iniciar-partida" class="lobby-btn btn-primario btn-full">
+              <span>▶️</span> Iniciar Partida
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Panel de Configuración del Lobby -->
+      <div id="lobby-config" class="lobby-pantalla">
+        <div class="lobby-pantalla-centrada">
+          <div class="lobby-container">
+            <div class="lobby-header">
+              <button id="btn-volver-config" class="btn-volver">← Volver</button>
+              <h2 class="lobby-subtitulo">Configuración</h2>
+            </div>
+            
+            <div class="config-lista">
+              <div class="config-item">
+                <label>Sensibilidad</label>
+                <div class="config-control">
+                  <input type="range" id="lobby-sensibilidad" min="0.001" max="0.01" step="0.001" value="0.002">
+                  <span id="lobby-sensibilidad-valor">0.002</span>
+                </div>
+              </div>
+              
+              <div class="config-item">
+                <label>Volumen</label>
+                <div class="config-control">
+                  <input type="range" id="lobby-volumen" min="0" max="1" step="0.1" value="0.5">
+                  <span id="lobby-volumen-valor">50%</span>
+                </div>
+              </div>
+              
+              <div class="config-item">
+                <label>Mostrar FPS</label>
+                <input type="checkbox" id="lobby-mostrar-fps">
+              </div>
+              
+              <div class="config-item">
+                <label>Crosshair Dinámico</label>
+                <input type="checkbox" id="lobby-crosshair-dinamico" checked>
+              </div>
+            </div>
+            
+            <button id="btn-guardar-config" class="lobby-btn btn-primario btn-full">
+              <span>💾</span> Guardar Configuración
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ==================== FIN LOBBY SCREEN ==================== -->
+
     <!-- Pantalla de carga -->
     <div id="loading-screen">
       <div class="loading-content">

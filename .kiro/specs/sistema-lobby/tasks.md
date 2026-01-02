@@ -1,0 +1,184 @@
+# Plan de Implementación - Sistema de Lobby
+
+- [x] 1. Configurar estructura del proyecto y dependencias
+  - [x] 1.1 Instalar fast-check para property-based testing
+    - Ejecutar `npm install --save-dev fast-check`
+    - _Requirements: Testing Strategy_
+  - [x] 1.2 Crear estructura de carpetas para el lobby
+    - Crear `src/lobby/` para componentes del cliente
+    - Crear `server/rooms/` para gestión de salas
+    - _Requirements: Architecture_
+
+- [-] 2. Implementar validaciones y utilidades del lobby
+  - [x] 2.1 Crear módulo de validaciones (`src/lobby/validaciones.js`)
+    - Implementar `validarNombre(nombre)` - acepta 3-16 chars alfanuméricos
+    - Implementar `validarPassword(password)` - acepta 4-20 chars
+    - Implementar `generarNombreAleatorio()` - formato "Jugador_XXXX"
+    - Implementar `generarCodigoSala()` - 6 chars alfanuméricos únicos
+    - _Requirements: 1.4, 1.5, 4.2, 4.4_
+  - [ ]* 2.2 Escribir property test para validación de nombre
+    - **Property 1: Validación de nombre de jugador**
+    - **Validates: Requirements 1.5**
+  - [ ]* 2.3 Escribir property test para generación de nombre aleatorio
+    - **Property 2: Generación de nombre aleatorio**
+    - **Validates: Requirements 1.4**
+  - [ ]* 2.4 Escribir property test para validación de contraseña
+    - **Property 3: Validación de contraseña**
+    - **Validates: Requirements 4.4**
+  - [ ]* 2.5 Escribir property test para unicidad de códigos de sala
+    - **Property 4: Unicidad de códigos de sala**
+    - **Validates: Requirements 4.2, 10.1**
+
+- [x] 3. Implementar estado y persistencia del lobby
+  - [x] 3.1 Crear módulo de estado del lobby (`src/lobby/lobbyState.js`)
+    - Implementar estado inicial con nombre, modo, estadísticas
+    - Implementar `guardarConfiguracion()` para localStorage
+    - Implementar `cargarConfiguracion()` desde localStorage
+    - Implementar `actualizarEstadisticas(kills, muertes)`
+    - _Requirements: 2.2, 7.3, 8.1, 8.2, 8.3_
+  - [ ]* 3.2 Escribir property test para persistencia de configuración
+    - **Property 5: Persistencia de configuración (Round-trip)**
+    - **Validates: Requirements 2.2, 7.3**
+
+- [x] 4. Checkpoint - Verificar validaciones y estado
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 5. Implementar interfaz HTML del lobby
+  - [x] 5.1 Crear estructura HTML del lobby en `index.html`
+    - Agregar contenedor principal `#lobby-screen`
+    - Crear pantalla inicial con campo nombre y botones local/online
+    - Crear pantalla de selección online (pública/privada)
+    - Crear pantalla de crear partida privada (formulario contraseña)
+    - Crear pantalla de unirse a partida (código + contraseña)
+    - Crear pantalla de matchmaking (indicador de búsqueda)
+    - Crear panel de configuración
+    - Crear sección de estadísticas del jugador
+    - _Requirements: 1.1, 1.2, 1.3, 3.1, 3.3, 4.1, 5.1, 7.1, 7.2, 8.1, 8.2_
+  - [x] 5.2 Agregar estilos CSS del lobby en `css/estilos.css`
+    - Estilos para pantallas del lobby consistentes con tema del juego
+    - Animaciones de transición entre pantallas
+    - Estilos para botones con feedback visual
+    - Estilos para formularios y campos de entrada
+    - Estilos para indicadores de carga y errores
+    - _Requirements: 9.1, 9.2, 9.3_
+
+- [x] 6. Implementar lógica UI del lobby
+  - [x] 6.1 Crear módulo de UI del lobby (`src/lobby/lobbyUI.js`)
+    - Implementar `inicializarLobbyUI(callbacks)`
+    - Implementar `mostrarPantalla(pantalla)` con transiciones
+    - Implementar `actualizarNombreJugador(nombre)`
+    - Implementar `mostrarError(mensaje)`
+    - Implementar `mostrarCargando(mensaje)`
+    - Implementar `ocultarLobby()`
+    - Conectar eventos de botones con callbacks
+    - _Requirements: 1.1, 1.2, 1.3, 2.3, 3.1, 3.2, 3.3, 4.1, 4.3, 4.5, 5.1, 5.3, 5.4, 5.5, 6.4, 7.1, 7.2, 7.4_
+
+- [x] 7. Implementar gestión de salas en el servidor
+  - [x] 7.1 Crear clase GameRoom (`server/rooms/gameRoom.js`)
+    - Implementar constructor con id, código, tipo, password, maxJugadores
+    - Implementar `agregarJugador(playerId, nombre)`
+    - Implementar `removerJugador(playerId)`
+    - Implementar `tieneEspacio()`
+    - Implementar `verificarPassword(password)`
+    - Implementar `obtenerEstado()`
+    - Implementar `estaVacia()` y `tiempoInactiva()`
+    - _Requirements: 10.1, 10.4, 10.5_
+  - [ ]* 7.2 Escribir property test para límite de jugadores
+    - **Property 8: Límite de jugadores por sala**
+    - **Validates: Requirements 10.5**
+  - [ ]* 7.3 Escribir property test para validación de credenciales
+    - **Property 7: Validación de credenciales de sala**
+    - **Validates: Requirements 10.4**
+
+- [x] 8. Implementar gestor de salas
+  - [x] 8.1 Crear RoomManager (`server/rooms/roomManager.js`)
+    - Implementar `crearSala(opciones)` - genera ID y código únicos
+    - Implementar `obtenerSala(salaId)`
+    - Implementar `obtenerSalaPorCodigo(codigo)`
+    - Implementar `eliminarSala(salaId)`
+    - Implementar `obtenerSalasPublicasDisponibles()`
+    - Implementar `limpiarSalasVacias()` - elimina salas vacías >60s
+    - _Requirements: 10.1, 10.3_
+
+- [x] 9. Implementar sistema de matchmaking
+  - [x] 9.1 Crear módulo de matchmaking (`server/rooms/matchmaking.js`)
+    - Implementar `encontrarMejorSala(roomManager)` - retorna sala con más jugadores
+    - Implementar `calcularPuntuacionSala(sala)` - basado en ocupación
+    - Si no hay salas disponibles, crear nueva sala pública
+    - _Requirements: 6.1, 6.2, 6.3, 10.2_
+  - [ ]* 9.2 Escribir property test para matchmaking óptimo
+    - **Property 6: Matchmaking selecciona sala óptima**
+    - **Validates: Requirements 6.2, 10.2**
+
+- [x] 10. Checkpoint - Verificar servidor de salas
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 11. Integrar lobby con servidor WebSocket
+  - [x] 11.1 Modificar servidor WebSocket (`server/index.js`)
+    - Importar RoomManager y Matchmaking
+    - Crear instancia global de RoomManager
+    - Agregar manejadores para mensajes tipo 'lobby'
+    - Implementar `handleLobbyMessage(ws, message)` para:
+      - `matchmaking`: buscar/crear sala pública
+      - `createPrivate`: crear sala privada con contraseña
+      - `joinPrivate`: unirse a sala con código y contraseña
+      - `listRooms`: listar salas públicas disponibles
+    - Modificar `handleConnection` para asociar jugador a sala
+    - Modificar `handleDisconnection` para remover de sala
+    - Configurar limpieza periódica de salas vacías (cada 60s)
+    - _Requirements: 5.2, 5.3, 5.4, 5.5, 6.1, 6.5, 10.3_
+
+- [x] 12. Implementar conexión del lobby en cliente
+  - [x] 12.1 Crear módulo de conexión del lobby (`src/lobby/lobbyConnection.js`)
+    - Implementar `solicitarMatchmaking(nombreJugador)`
+    - Implementar `crearPartidaPrivada(nombreJugador, password)`
+    - Implementar `unirsePartidaPrivada(nombreJugador, codigo, password)`
+    - Implementar `obtenerSalasPublicas()`
+    - Manejar respuestas del servidor y errores
+    - _Requirements: 3.2, 4.2, 4.3, 5.2, 6.1, 6.4, 6.5_
+
+- [x] 13. Integrar lobby con inicio del juego
+  - [x] 13.1 Modificar flujo de inicio en `src/main.js`
+    - Importar módulos del lobby
+    - Mostrar lobby en lugar de iniciar juego directamente
+    - Implementar callback `onIniciarJuego(modo, salaId)`
+    - Pasar nombre del jugador al servidor al conectar
+    - Configurar modo local sin conexión al servidor
+    - Mostrar indicador "Modo Local" cuando corresponda
+    - _Requirements: 1.1, 2.1, 2.2, 2.3_
+  - [x] 13.2 Actualizar conexión de red (`src/network/connection.js`)
+    - Agregar soporte para mensajes de tipo 'lobby'
+    - Implementar `sendLobbyMessage(action, data)`
+    - Agregar callback `onLobbyResponse`
+    - _Requirements: 3.2, 5.2_
+
+- [x] 14. Implementar funcionalidades adicionales del lobby
+  - [x] 14.1 Integrar panel de configuración del lobby
+    - Conectar sliders de sensibilidad y volumen con lobbyState
+    - Guardar cambios en localStorage al modificar
+    - Cargar valores guardados al abrir configuración
+    - _Requirements: 7.2, 7.3, 7.4_
+  - [x] 14.2 Implementar visualización de estadísticas
+    - Mostrar kills, muertes y K/D desde localStorage
+    - Actualizar estadísticas al finalizar partidas
+    - Mostrar valores en cero si no existen estadísticas
+    - _Requirements: 8.1, 8.2, 8.3_
+
+- [x] 15. Checkpoint - Verificar integración completa
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 16. Pruebas de integración y ajustes finales
+  - [ ]* 16.1 Escribir tests de integración del flujo completo
+    - Test: Flujo completo de modo local
+    - Test: Flujo completo de matchmaking público
+    - Test: Flujo completo de crear/unirse partida privada
+    - Test: Manejo de errores de conexión
+    - _Requirements: All_
+  - [x] 16.2 Ajustar estilos y animaciones
+    - Verificar consistencia visual con el resto del juego
+    - Ajustar tiempos de transición
+    - Verificar responsividad en diferentes tamaños de pantalla
+    - _Requirements: 9.1, 9.2, 9.3_
+
+- [x] 17. Final Checkpoint - Verificar sistema completo
+  - Ensure all tests pass, ask the user if questions arise.
