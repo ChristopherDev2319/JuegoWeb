@@ -18,109 +18,47 @@
   <body>
     <!-- ==================== LOBBY SCREEN ==================== -->
     <div id="lobby-screen">
-      <!-- Pantalla Inicial del Lobby - Pantalla Completa -->
+      <!-- Pantalla Inicial del Lobby - Diseño Minimalista -->
       <div id="lobby-inicial" class="lobby-pantalla active">
-        <div class="lobby-layout">
-          <!-- Panel Izquierdo - Perfil y Stats -->
-          <div class="lobby-sidebar-left">
-            <div class="lobby-card">
-              <h3 class="lobby-card-title">Tu Perfil</h3>
-              <div class="lobby-seccion">
-                <label for="nombre-jugador">Nombre del Jugador</label>
-                <div class="input-grupo">
-                  <input type="text" id="nombre-jugador" placeholder="Ingresa tu nombre..." maxlength="16">
-                  <button id="btn-nombre-aleatorio" class="btn-icono" title="Nombre aleatorio">🎲</button>
-                </div>
-                <span id="nombre-error" class="error-mensaje"></span>
+        <div class="lobby-minimal">
+          <!-- Contenido central -->
+          <div class="lobby-center">
+            <!-- Título del juego -->
+            <h1 class="game-title">BEARSTRIKE</h1>
+            
+            <!-- Nickname con avatar -->
+            <div class="nickname-section">
+              <div class="nickname-input-group">
+                <div class="avatar-minimal"><span>👤</span></div>
+                <input type="text" id="nombre-jugador" placeholder="Ingresa tu nickname..." maxlength="16" class="nickname-input">
+                <button id="btn-nombre-aleatorio" class="random-btn" title="Nickname aleatorio">🎲</button>
               </div>
+              <span id="nombre-error" class="error-minimal"></span>
             </div>
             
-            <div class="lobby-card">
-              <h3 class="lobby-card-title">Estadísticas</h3>
-              <div class="lobby-stats-vertical">
-                <div class="stat-row">
-                  <span class="stat-row-label">Kills</span>
-                  <span class="stat-row-value" id="lobby-kills">0</span>
+            <!-- Botones de juego -->
+            <div class="game-buttons">
+              <button id="btn-modo-online" class="game-btn primary-btn">
+                <span class="btn-icon-game">🌐</span>
+                <div class="btn-content-game">
+                  <span class="btn-title-game">Jugar Online</span>
+                  <span class="btn-subtitle-game">Multijugador</span>
                 </div>
-                <div class="stat-row">
-                  <span class="stat-row-label">Muertes</span>
-                  <span class="stat-row-value" id="lobby-muertes">0</span>
-                </div>
-                <div class="stat-row">
-                  <span class="stat-row-label">K/D Ratio</span>
-                  <span class="stat-row-value" id="lobby-kd">0.00</span>
-                </div>
-                <div class="stat-row">
-                  <span class="stat-row-label">Partidas</span>
-                  <span class="stat-row-value" id="lobby-partidas">0</span>
-                </div>
-                <div class="stat-row">
-                  <span class="stat-row-label">Victorias</span>
-                  <span class="stat-row-value" id="lobby-victorias">0</span>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Botón de configuración -->
-            <button id="btn-config-lobby" class="lobby-btn-config">
-              <span>⚙️</span> Configuración
-            </button>
-          </div>
-          
-          <!-- Panel Central - Título y Modos de Juego -->
-          <div class="lobby-main">
-            <div class="lobby-titulo-container">
-              <h1 class="lobby-titulo">FPS ARENA</h1>
-              <p class="lobby-titulo-sub">Combate Multijugador</p>
-            </div>
-            
-            <!-- Botones de modo de juego -->
-            <div class="lobby-botones" style="width: 100%; max-width: 400px;">
-              <button id="btn-modo-local" class="lobby-btn btn-secundario">
-                <span class="btn-icono-grande">🎮</span>
-                <span class="btn-texto">
-                  <span class="btn-titulo">Modo Local</span>
-                  <span class="btn-desc">Practica sin conexión</span>
-                </span>
               </button>
-              <button id="btn-modo-online" class="lobby-btn btn-primario">
-                <span class="btn-icono-grande">🌐</span>
-                <span class="btn-texto">
-                  <span class="btn-titulo">Modo Online</span>
-                  <span class="btn-desc">Juega con otros jugadores</span>
-                </span>
+              <button id="btn-modo-local" class="game-btn secondary-btn">
+                <span class="btn-icon-game">🎮</span>
+                <div class="btn-content-game">
+                  <span class="btn-title-game">Modo Local</span>
+                  <span class="btn-subtitle-game">Práctica</span>
+                </div>
               </button>
             </div>
           </div>
           
-          <!-- Panel Derecho - Info del Juego y Noticias -->
-          <div class="lobby-sidebar-right">
-            <div class="lobby-card">
-              <h3 class="lobby-card-title">Controles</h3>
-              <div class="lobby-controls-list">
-                <div class="control-hint"><kbd>WASD</kbd> Movimiento</div>
-                <div class="control-hint"><kbd>SPACE</kbd> Saltar</div>
-                <div class="control-hint"><kbd>E</kbd> Dash</div>
-                <div class="control-hint"><kbd>CLICK</kbd> Disparar</div>
-                <div class="control-hint"><kbd>RMB</kbd> Apuntar</div>
-                <div class="control-hint"><kbd>R</kbd> Recargar</div>
-                <div class="control-hint"><kbd>1-8</kbd> Cambiar arma</div>
-                <div class="control-hint"><kbd>ESC</kbd> Menú pausa</div>
-              </div>
-            </div>
-            
-            <div class="lobby-card">
-              <h3 class="lobby-card-title">Jugadores Online</h3>
-              <div class="online-status">
-                <div class="online-indicator"></div>
-                <span class="online-count">-- jugadores</span>
-              </div>
-            </div>
-            
-            <div class="lobby-card lobby-tips">
-              <h3 class="lobby-card-title">Tip del día</h3>
-              <p class="tip-text">Usa el dash (E) para esquivar balas y moverte rápidamente por el mapa. ¡Tienes 3 cargas!</p>
-            </div>
+          <!-- Opciones en la esquina superior derecha -->
+          <div class="corner-options">
+            <button id="lobby-login-btn" class="login-btn-corner"><span>🔐</span> Iniciar Sesión</button>
+            <button id="btn-config-lobby" class="corner-btn"><span>⚙️</span></button>
           </div>
         </div>
       </div>
