@@ -231,8 +231,9 @@ export class GameManager {
 
   /**
    * Process dash input (Requirement 7.2)
+   * Requirements: 5.2, 5.3 - Validar distancia y límites del mapa
    * @param {PlayerState} player - Player state
-   * @param {Object} data - Dash data with direction
+   * @param {Object} data - Dash data with direction and optional positions
    * @returns {Object} - Result
    */
   processDashInput(player, data) {
@@ -240,10 +241,17 @@ export class GameManager {
       return { success: false, reason: 'invalid_data' };
     }
 
-    const executed = player.dash(data.direction);
+    // Extraer posición final del cliente si está disponible
+    // Requirements: 5.2, 5.3 - Usar nueva validación de PlayerState
+    const clientEndPosition = data.endPosition || null;
+    
+    const result = player.dash(data.direction, clientEndPosition);
+    
     return { 
-      success: executed, 
-      reason: executed ? null : 'no_charges' 
+      success: result.success, 
+      reason: result.success ? null : result.reason,
+      position: result.position,
+      usedClientPosition: result.usedClientPosition
     };
   }
 
