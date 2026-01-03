@@ -1235,10 +1235,11 @@ function obtenerUrlServidor() {
   
   // En producción (Render, etc.) no incluir puerto - usa el estándar 443/80
   // Solo incluir puerto en desarrollo local
+  // Usar /ws como path para que Nginx haga proxy correctamente
   if (port) {
-    return `${protocol}//${host}:${port}`;
+    return `${protocol}//${host}:${port}/ws`;
   }
-  return `${protocol}//${host}`;
+  return `${protocol}//${host}/ws`;
 }
 
 /**
