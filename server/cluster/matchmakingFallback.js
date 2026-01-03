@@ -11,7 +11,9 @@
 import { RedisMatchmaking } from './redisMatchmaking.js';
 import { RedisConnection, RedisConnectionError, RedisTimeoutError } from './redisConnection.js';
 import { RoomManager } from '../rooms/roomManager.js';
-import { clusterLogger } from './clusterLogger.js';
+import { getClusterLogger } from './clusterLogger.js';
+
+const clusterLogger = getClusterLogger();
 
 /**
  * Estados del sistema de matchmaking

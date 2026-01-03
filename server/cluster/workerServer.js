@@ -34,7 +34,9 @@ import {
 import { RedisConnection } from './redisConnection.js';
 import { MatchmakingFallback, MatchmakingMode } from './matchmakingFallback.js';
 import { REDIS_CONFIG } from './redisConfig.js';
-import { clusterLogger } from './clusterLogger.js';
+import { getClusterLogger } from './clusterLogger.js';
+
+const clusterLogger = getClusterLogger();
 
 // ES module dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
