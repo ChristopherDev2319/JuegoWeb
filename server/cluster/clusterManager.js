@@ -311,8 +311,11 @@ class ClusterManager {
     console.log(`[CLUSTER] Total Players: ${stats.totalPlayers}`);
     
     for (const worker of stats.workersStats) {
-      const memPercent = (worker.memoryUsage * 100).toFixed(1);
-      console.log(`[CLUSTER] Worker ${worker.id}: ${worker.rooms} rooms, ${worker.players} players, ${memPercent}% memory`);
+      // Manejar rooms y players que pueden ser objetos o números
+      const roomCount = typeof worker.rooms === 'object' ? (worker.rooms.total || 0) : (worker.rooms || 0);
+      const playerCount = typeof worker.players === 'object' ? (worker.players.total || 0) : (worker.players || 0);
+      const memPercent = ((worker.memoryUsage || 0) * 100).toFixed(1);
+      console.log(`[CLUSTER] Worker ${worker.id}: ${roomCount} rooms, ${playerCount} players, ${memPercent}% memory`);
     }
     
     console.log('[CLUSTER] =========================');

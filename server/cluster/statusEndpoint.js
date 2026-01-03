@@ -12,9 +12,10 @@ import http from 'http';
 import { CLUSTER_CONFIG } from './config.js';
 
 /**
- * Puerto para el endpoint de estado (diferente al puerto del juego)
+ * Puerto para el endpoint de estado (diferente al puerto del juego y backend API)
+ * Backend API usa 3001, así que usamos 3002 para evitar conflictos
  */
-const STATUS_PORT = parseInt(process.env.CLUSTER_STATUS_PORT) || 3001;
+const STATUS_PORT = parseInt(process.env.CLUSTER_STATUS_PORT) || 3002;
 
 /**
  * StatusEndpoint - Servidor HTTP para métricas del cluster

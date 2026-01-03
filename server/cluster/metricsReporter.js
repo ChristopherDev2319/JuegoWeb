@@ -110,7 +110,8 @@ class MetricsReporter {
     if (!cluster.isWorker) return;
     
     const metrics = this.collectMetrics();
-    const message = createIPCMessage(IPCMessageType.METRICS, metrics);
+    const workerId = cluster.worker?.id || 0;
+    const message = createIPCMessage(IPCMessageType.METRICS, metrics, workerId);
     
     const sent = this.ipcHandler.sendToMaster(message);
     
@@ -149,7 +150,8 @@ class MetricsReporter {
   notifyRoomCreated(roomId) {
     if (!cluster.isWorker) return;
     
-    const message = createIPCMessage(IPCMessageType.ROOM_CREATED, { roomId });
+    const workerId = cluster.worker?.id || 0;
+    const message = createIPCMessage(IPCMessageType.ROOM_CREATED, { roomId }, workerId);
     this.ipcHandler.sendToMaster(message);
   }
 
@@ -160,7 +162,8 @@ class MetricsReporter {
   notifyRoomDeleted(roomId) {
     if (!cluster.isWorker) return;
     
-    const message = createIPCMessage(IPCMessageType.ROOM_DELETED, { roomId });
+    const workerId = cluster.worker?.id || 0;
+    const message = createIPCMessage(IPCMessageType.ROOM_DELETED, { roomId }, workerId);
     this.ipcHandler.sendToMaster(message);
   }
 
@@ -172,7 +175,8 @@ class MetricsReporter {
   notifyPlayerJoined(playerId, roomId) {
     if (!cluster.isWorker) return;
     
-    const message = createIPCMessage(IPCMessageType.PLAYER_JOINED, { playerId, roomId });
+    const workerId = cluster.worker?.id || 0;
+    const message = createIPCMessage(IPCMessageType.PLAYER_JOINED, { playerId, roomId }, workerId);
     this.ipcHandler.sendToMaster(message);
   }
 
@@ -184,7 +188,8 @@ class MetricsReporter {
   notifyPlayerLeft(playerId, roomId) {
     if (!cluster.isWorker) return;
     
-    const message = createIPCMessage(IPCMessageType.PLAYER_LEFT, { playerId, roomId });
+    const workerId = cluster.worker?.id || 0;
+    const message = createIPCMessage(IPCMessageType.PLAYER_LEFT, { playerId, roomId }, workerId);
     this.ipcHandler.sendToMaster(message);
   }
 
