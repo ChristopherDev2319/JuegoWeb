@@ -178,7 +178,7 @@ canvas {
 
 .lobby-card:hover {
   background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(66, 153, 225, 0.2);
+  border-color: rgba(126, 200, 227, 0.2);
 }
 
 .lobby-card-title {
@@ -192,12 +192,12 @@ canvas {
 
 /* Contenedor principal del lobby - para pantallas secundarias */
 .lobby-container {
-  background: white;
+  background: linear-gradient(135deg, #F8FCFF 0%, #EDF7FC 100%);
   backdrop-filter: blur(20px);
   border-radius: 24px;
   padding: 40px;
-  box-shadow: 0 8px 0 rgba(91, 163, 192, 0.4), 0 15px 40px rgba(126, 200, 227, 0.3);
-  border: 4px solid #7EC8E3;
+  box-shadow: 0 8px 0 rgba(91, 163, 192, 0.35), 0 15px 40px rgba(126, 200, 227, 0.25);
+  border: 4px solid #9DCFE8;
   width: 100%;
   max-width: 480px;
   box-sizing: border-box;
@@ -205,7 +205,7 @@ canvas {
 }
 
 .lobby-container:hover {
-  box-shadow: 0 10px 0 rgba(91, 163, 192, 0.5), 0 20px 50px rgba(126, 200, 227, 0.4);
+  box-shadow: 0 10px 0 rgba(91, 163, 192, 0.4), 0 20px 50px rgba(126, 200, 227, 0.3);
 }
 
 /* Contenedor centrado para pantallas secundarias */
@@ -430,16 +430,16 @@ canvas {
 
 .stat-mini:hover {
   transform: translateY(-4px);
-  background: rgba(66, 153, 225, 0.1);
-  border-color: rgba(66, 153, 225, 0.3);
+  background: rgba(126, 200, 227, 0.15);
+  border-color: rgba(126, 200, 227, 0.3);
 }
 
 .stat-mini-valor {
   display: block;
-  color: #4299e1;
+  color: #5BA3C0;
   font-size: 36px;
   font-weight: 700;
-  text-shadow: 0 0 20px rgba(66, 153, 225, 0.5);
+  text-shadow: 0 0 20px rgba(91, 163, 192, 0.4);
   transition: all 0.25s ease;
   line-height: 1.2;
 }
@@ -527,14 +527,14 @@ canvas {
 }
 
 .lobby-btn.btn-primario {
-  background: linear-gradient(135deg, #AED6F1 0%, #85C1E9 100%);
-  border-color: #5DADE2;
-  box-shadow: 0 4px 0 #3498DB;
+  background: linear-gradient(135deg, #D4F1F9 0%, #B8E4F0 100%);
+  border-color: #9DCFE8;
+  box-shadow: 0 4px 0 #7EC8E3;
 }
 
 .lobby-btn.btn-primario:hover {
-  background: linear-gradient(135deg, #85C1E9 0%, #AED6F1 100%);
-  box-shadow: 0 7px 0 #3498DB, 0 10px 20px rgba(93, 173, 226, 0.4);
+  background: linear-gradient(135deg, #B8E4F0 0%, #D4F1F9 100%);
+  box-shadow: 0 7px 0 #7EC8E3, 0 10px 20px rgba(126, 200, 227, 0.3);
 }
 
 .lobby-btn.btn-secundario {
@@ -609,7 +609,7 @@ canvas {
 .lobby-btn-config:hover {
   background: rgba(255, 255, 255, 0.05);
   color: white;
-  border-color: rgba(66, 153, 225, 0.3);
+  border-color: rgba(126, 200, 227, 0.3);
 }
 
 .lobby-btn-config:active {
@@ -628,22 +628,22 @@ canvas {
 .matchmaking-contenido {
   text-align: center;
   padding: 50px 20px;
-  background: rgba(66, 153, 225, 0.05);
+  background: rgba(126, 200, 227, 0.08);
   border-radius: 16px;
   margin: 10px 0;
-  border: 1px solid rgba(66, 153, 225, 0.1);
+  border: 1px solid rgba(126, 200, 227, 0.15);
 }
 
 .matchmaking-spinner {
   width: 70px;
   height: 70px;
-  border: 4px solid rgba(66, 153, 225, 0.15);
-  border-top-color: #4299e1;
-  border-right-color: #48bb78;
+  border: 4px solid rgba(126, 200, 227, 0.2);
+  border-top-color: #7EC8E3;
+  border-right-color: #9DCFE8;
   border-radius: 50%;
   margin: 0 auto 30px;
   animation: spin 1s linear infinite;
-  box-shadow: 0 0 30px rgba(66, 153, 225, 0.2);
+  box-shadow: 0 0 30px rgba(126, 200, 227, 0.15);
 }
 
 @keyframes spin {
@@ -707,7 +707,7 @@ canvas {
     transform: scale(1);
   }
   50% {
-    background: #4299e1;
+    background: #7EC8E3;
     transform: scale(1.2);
   }
 }
@@ -716,16 +716,16 @@ canvas {
 .sala-info {
   text-align: center;
   padding: 30px;
-  background: rgba(66, 153, 225, 0.1);
+  background: rgba(126, 200, 227, 0.1);
   border-radius: 18px;
-  border: 1px solid rgba(66, 153, 225, 0.2);
+  border: 1px solid rgba(126, 200, 227, 0.2);
   margin-bottom: 25px;
   transition: all 0.3s ease;
 }
 
 .sala-info:hover {
-  background: rgba(66, 153, 225, 0.15);
-  border-color: rgba(66, 153, 225, 0.3);
+  background: rgba(126, 200, 227, 0.15);
+  border-color: rgba(126, 200, 227, 0.3);
 }
 
 .sala-label {
@@ -747,12 +747,12 @@ canvas {
 .sala-codigo {
   font-size: 40px;
   font-weight: 800;
-  background: linear-gradient(135deg, #4299e1 0%, #48bb78 100%);
+  background: linear-gradient(135deg, #5BA3C0 0%, #7EC8E3 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   letter-spacing: 8px;
-  text-shadow: 0 0 30px rgba(66, 153, 225, 0.5);
+  text-shadow: 0 0 30px rgba(91, 163, 192, 0.4);
 }
 
 .btn-copiar {
@@ -766,8 +766,8 @@ canvas {
 }
 
 .btn-copiar:hover {
-  background: rgba(66, 153, 225, 0.2);
-  border-color: rgba(66, 153, 225, 0.3);
+  background: rgba(126, 200, 227, 0.2);
+  border-color: rgba(126, 200, 227, 0.3);
   transform: scale(1.08);
 }
 
@@ -799,7 +799,7 @@ canvas {
 }
 
 .sala-jugadores > .sala-label span {
-  color: #4299e1;
+  color: #5BA3C0;
   font-weight: 700;
 }
 
@@ -825,7 +825,7 @@ canvas {
 }
 
 .jugadores-lista::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #4299e1 0%, #3182ce 100%);
+  background: linear-gradient(180deg, #7EC8E3 0%, #5BA3C0 100%);
   border-radius: 3px;
 }
 
@@ -861,12 +861,12 @@ canvas {
 }
 
 .jugador-item.host {
-  border: 1px solid rgba(66, 153, 225, 0.3);
-  background: rgba(66, 153, 225, 0.1);
+  border: 1px solid rgba(126, 200, 227, 0.3);
+  background: rgba(126, 200, 227, 0.1);
 }
 
 .jugador-item.host:hover {
-  background: rgba(66, 153, 225, 0.15);
+  background: rgba(126, 200, 227, 0.15);
 }
 
 .jugador-item.host::after {
@@ -902,7 +902,7 @@ canvas {
 
 .config-item:hover {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(66, 153, 225, 0.2);
+  border-color: rgba(126, 200, 227, 0.2);
 }
 
 .config-item label {
@@ -934,26 +934,26 @@ canvas {
   appearance: none;
   width: 20px;
   height: 20px;
-  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+  background: linear-gradient(135deg, #7EC8E3 0%, #5BA3C0 100%);
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(66, 153, 225, 0.4);
+  box-shadow: 0 2px 8px rgba(91, 163, 192, 0.4);
   transition: all 0.2s ease;
 }
 
 .config-item input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.15);
-  box-shadow: 0 4px 12px rgba(66, 153, 225, 0.5);
+  box-shadow: 0 4px 12px rgba(91, 163, 192, 0.5);
 }
 
 .config-item input[type="range"]::-moz-range-thumb {
   width: 20px;
   height: 20px;
-  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+  background: linear-gradient(135deg, #7EC8E3 0%, #5BA3C0 100%);
   border-radius: 50%;
   cursor: pointer;
   border: none;
-  box-shadow: 0 2px 8px rgba(66, 153, 225, 0.4);
+  box-shadow: 0 2px 8px rgba(91, 163, 192, 0.4);
 }
 
 .config-item input[type="range"]:focus {
@@ -975,8 +975,8 @@ canvas {
 }
 
 .config-item input[type="checkbox"]:checked {
-  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
-  border-color: #4299e1;
+  background: linear-gradient(135deg, #7EC8E3 0%, #5BA3C0 100%);
+  border-color: #7EC8E3;
 }
 
 .config-item input[type="checkbox"]:checked::after {
@@ -991,21 +991,21 @@ canvas {
 }
 
 .config-item input[type="checkbox"]:hover {
-  border-color: rgba(66, 153, 225, 0.5);
+  border-color: rgba(126, 200, 227, 0.5);
 }
 
 .config-item input[type="checkbox"]:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+  box-shadow: 0 0 0 3px rgba(126, 200, 227, 0.2);
 }
 
 .config-control span {
-  color: #4299e1;
+  color: #5BA3C0;
   font-weight: 700;
   font-size: 14px;
   min-width: 55px;
   text-align: right;
-  background: rgba(66, 153, 225, 0.15);
+  background: rgba(91, 163, 192, 0.15);
   padding: 4px 10px;
   border-radius: 8px;
 }
@@ -1048,13 +1048,13 @@ canvas {
 }
 
 .control-hint kbd {
-  background: rgba(66, 153, 225, 0.2);
-  border: 1px solid rgba(66, 153, 225, 0.3);
+  background: rgba(126, 200, 227, 0.2);
+  border: 1px solid rgba(126, 200, 227, 0.3);
   border-radius: 4px;
   padding: 3px 8px;
   font-family: monospace;
   font-size: 11px;
-  color: #4299e1;
+  color: #5BA3C0;
   min-width: 50px;
   text-align: center;
 }
