@@ -9,7 +9,9 @@
 
 import { REDIS_CONFIG, REDIS_KEYS } from './redisConfig.js';
 import { serializeRoom, deserializeRoom } from './serialization.js';
-import { clusterLogger } from './clusterLogger.js';
+import { getClusterLogger } from './clusterLogger.js';
+
+const clusterLogger = getClusterLogger();
 
 /**
  * Clase principal de matchmaking centralizado con Redis

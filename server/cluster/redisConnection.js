@@ -11,7 +11,9 @@
 
 import Redis from 'ioredis';
 import { REDIS_CONFIG, getIORedisConfig } from './redisConfig.js';
-import { clusterLogger } from './clusterLogger.js';
+import { getClusterLogger } from './clusterLogger.js';
+
+const clusterLogger = getClusterLogger();
 
 /**
  * Error personalizado para errores de conexión Redis
