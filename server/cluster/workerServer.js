@@ -575,12 +575,19 @@ export class WorkerServer {
         const result = await this.matchmakingFallback.findOrCreateRoom();
         roomInfo = result.room;
         
-        // Si la sala fue creada en este worker o ya existe localmente, usarla
-        sala = this.roomManager.obtenerSala(roomInfo.id);
-        
-        if (!sala) {
-          // La sala existe en otro worker o necesitamos crearla localmente
-          if (result.created || roomInfo.workerId === this.workerId) {
+        // Si la sala está en otro worker, informar al cliente para que se reconecte
+        if (!result.created && roomInfo.workerId !== this.workerId) {
+          // La sala existe en otro worker - el cliente debe reconectarse
+          // Por ahora, crear una nueva sala local para este jugador
+          // TODO: Implementar redirección de workers o sticky sessions
+          console.log(`[Worker ${this.workerId}] Sala ${roomInfo.id} está en worker ${roomInfo.workerId}, creando nueva sala local`);
+          sala = this.roomManager.crearSala({ tipo: 'publica' });
+          await this._registerRoomInRedis(sala);
+        } else {
+          // Si la sala fue creada en este worker o ya existe localmente, usarla
+          sala = this.roomManager.obtenerSala(roomInfo.id);
+          
+          if (!sala) {
             // Crear sala local con el mismo ID
             sala = this.roomManager.crearSala({
               tipo: 'publica',
@@ -592,10 +599,6 @@ export class WorkerServer {
             if (result.created) {
               await this._registerRoomInRedis(sala);
             }
-          } else {
-            // La sala está en otro worker, crear una nueva local
-            sala = this.roomManager.crearSala({ tipo: 'publica' });
-            await this._registerRoomInRedis(sala);
           }
         }
       } else {
