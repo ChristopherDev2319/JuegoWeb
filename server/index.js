@@ -363,6 +363,30 @@ function handleMessage(ws, data) {
     return;
   }
   
+  // Manejar solicitud de respawn
+  // Requirements: 4.1, 4.2 - Reaparecer con arma seleccionada
+  if (message.type === 'respawn') {
+    const player = currentGameManager.getPlayer(playerId);
+    if (player) {
+      const result = currentGameManager.processRespawnInput(player, inputData);
+      
+      if (result.success) {
+        // Notificar a todos los jugadores en la sala del respawn
+        const respawnData = { 
+          playerId: playerId,
+          weaponType: result.weaponType
+        };
+        
+        if (roomId) {
+          broadcastToRoom(roomId, serializeMessage('respawn', respawnData));
+        } else {
+          broadcast(serializeMessage('respawn', respawnData));
+        }
+      }
+    }
+    return;
+  }
+  
   // Para disparos, actualizar el arma del jugador antes de procesar
   if (message.type === 'shoot' && inputData.weaponType) {
     const player = currentGameManager.getPlayer(playerId);

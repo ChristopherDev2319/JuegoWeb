@@ -3827,3 +3827,571 @@ canvas {
     gap: 25px;
   }
 }
+
+
+/* ==================== MENÚ DE SELECCIÓN DE ARMAS ==================== */
+/* Requirements: 1.1, 1.2, 1.4, 3.1 */
+
+#menu-seleccion-armas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10001;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+#menu-seleccion-armas.hidden {
+  display: none;
+}
+
+#menu-seleccion-armas.visible {
+  opacity: 1;
+}
+
+.seleccion-armas-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(44, 95, 124, 0.95) 0%, rgba(91, 163, 192, 0.9) 100%);
+  backdrop-filter: blur(10px);
+}
+
+.seleccion-armas-contenido {
+  position: relative;
+  background: linear-gradient(135deg, #F8FCFF 0%, #EDF7FC 100%);
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: 0 8px 0 rgba(91, 163, 192, 0.35), 0 20px 60px rgba(0, 0, 0, 0.4);
+  border: 4px solid #9DCFE8;
+  max-width: 900px;
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: slideUp 0.4s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.seleccion-armas-titulo {
+  color: #2C5F7C;
+  font-size: 32px;
+  font-weight: 800;
+  text-align: center;
+  margin: 0 0 30px 0;
+  letter-spacing: 2px;
+}
+
+/* Grid de tarjetas de armas */
+.seleccion-armas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+/* Tarjeta de arma individual */
+.tarjeta-arma {
+  background: white;
+  border: 3px solid #E8E8E8;
+  border-radius: 16px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-shadow: 0 4px 0 #D0D0D0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tarjeta-arma:hover {
+  transform: translateY(-4px);
+  border-color: #7EC8E3;
+  box-shadow: 0 8px 0 #5BA3C0, 0 12px 25px rgba(126, 200, 227, 0.3);
+}
+
+.tarjeta-arma.seleccionada {
+  border-color: #5BA3C0;
+  background: linear-gradient(135deg, #D4F1F9 0%, #B8E4F0 100%);
+  box-shadow: 0 4px 0 #5BA3C0, 0 0 0 4px rgba(126, 200, 227, 0.3);
+  transform: translateY(-2px);
+}
+
+.tarjeta-arma.seleccionada::before {
+  content: '✓';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #5BA3C0;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.tarjeta-arma {
+  position: relative;
+}
+
+/* Icono del arma */
+.tarjeta-arma-icono {
+  font-size: 48px;
+  text-align: center;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+/* Info del arma */
+.tarjeta-arma-info {
+  text-align: center;
+}
+
+.tarjeta-arma-nombre {
+  color: #2C5F7C;
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+}
+
+.tarjeta-arma-tipo {
+  display: inline-block;
+  background: rgba(126, 200, 227, 0.2);
+  color: #5BA3C0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+.tarjeta-arma-desc {
+  color: #6A9BB5;
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Stats del arma */
+.tarjeta-arma-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 2px solid #E8E8E8;
+}
+
+.stat-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stat-bar-label {
+  color: #6A9BB5;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  min-width: 60px;
+}
+
+.stat-bar-track {
+  flex: 1;
+  height: 8px;
+  background: #E8E8E8;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.stat-bar-fill.daño {
+  background: linear-gradient(90deg, #E74C3C 0%, #C0392B 100%);
+}
+
+.stat-bar-fill.cadencia {
+  background: linear-gradient(90deg, #F39C12 0%, #D68910 100%);
+}
+
+.stat-bar-fill.precision {
+  background: linear-gradient(90deg, #27AE60 0%, #1E8449 100%);
+}
+
+/* Botón Jugar */
+.seleccion-armas-btn-jugar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+  padding: 18px 32px;
+  background: linear-gradient(135deg, #ABEBC6 0%, #82E0AA 100%);
+  border: 4px solid #58D68D;
+  border-radius: 16px;
+  color: #1E8449;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 0 #2ECC71;
+}
+
+.seleccion-armas-btn-jugar:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 9px 0 #2ECC71, 0 15px 30px rgba(46, 204, 113, 0.4);
+}
+
+.seleccion-armas-btn-jugar:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #2ECC71;
+}
+
+.seleccion-armas-btn-jugar:disabled {
+  background: linear-gradient(135deg, #E8E8E8 0%, #D0D0D0 100%);
+  border-color: #BFBFBF;
+  color: #999;
+  cursor: not-allowed;
+  box-shadow: 0 4px 0 #BFBFBF;
+}
+
+.btn-jugar-icono {
+  font-size: 24px;
+}
+
+.btn-jugar-texto {
+  letter-spacing: 1px;
+}
+
+/* Responsive para menú de selección de armas */
+@media (max-width: 768px) {
+  .seleccion-armas-contenido {
+    padding: 25px;
+    margin: 15px;
+    width: calc(100% - 30px);
+  }
+  
+  .seleccion-armas-titulo {
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+  
+  .seleccion-armas-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+  }
+  
+  .tarjeta-arma {
+    padding: 15px;
+  }
+  
+  .tarjeta-arma-icono {
+    font-size: 36px;
+  }
+  
+  .tarjeta-arma-nombre {
+    font-size: 16px;
+  }
+  
+  .tarjeta-arma-desc {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 500px) {
+  .seleccion-armas-contenido {
+    padding: 20px;
+    border-radius: 16px;
+  }
+  
+  .seleccion-armas-titulo {
+    font-size: 20px;
+  }
+  
+  .seleccion-armas-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .tarjeta-arma {
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 15px;
+    gap: 15px;
+  }
+  
+  .tarjeta-arma-icono {
+    font-size: 32px;
+    flex-shrink: 0;
+  }
+  
+  .tarjeta-arma-info {
+    text-align: left;
+    flex: 1;
+  }
+  
+  .tarjeta-arma-stats {
+    display: none;
+  }
+  
+  .seleccion-armas-btn-jugar {
+    padding: 14px 24px;
+    font-size: 16px;
+  }
+}
+
+/* ==================== FIN MENÚ DE SELECCIÓN DE ARMAS ==================== */
+
+/* ==================== PANTALLA DE MUERTE CON SELECCIÓN DE ARMAS ==================== */
+/* Requirements: 3.1, 3.2, 3.4 - Pantalla de muerte con menú de selección de armas */
+
+#death-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9000;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+#death-screen.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.death-content {
+  text-align: center;
+  max-width: 800px;
+  width: 90%;
+  padding: 30px;
+}
+
+.death-title {
+  font-size: 64px;
+  font-weight: 900;
+  color: #ff4444;
+  text-shadow: 0 0 30px rgba(255, 68, 68, 0.6);
+  margin-bottom: 10px;
+  letter-spacing: 8px;
+  animation: deathPulse 2s ease-in-out infinite;
+}
+
+@keyframes deathPulse {
+  0%, 100% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+.death-killer {
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 30px;
+}
+
+.death-killer #killer-name {
+  color: #ffaa00;
+  font-weight: 700;
+}
+
+/* Contenedor de selección de armas en pantalla de muerte */
+.death-weapon-selection {
+  margin: 25px 0;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.death-weapon-selection .death-weapon-title {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+/* Grid de armas en pantalla de muerte */
+.death-weapon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Tarjeta de arma compacta para pantalla de muerte */
+.death-weapon-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 15px 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-align: center;
+}
+
+.death-weapon-card:hover {
+  background: rgba(126, 200, 227, 0.15);
+  border-color: rgba(126, 200, 227, 0.4);
+  transform: translateY(-3px);
+}
+
+.death-weapon-card.seleccionada {
+  background: rgba(126, 200, 227, 0.25);
+  border-color: #7EC8E3;
+  box-shadow: 0 0 20px rgba(126, 200, 227, 0.3);
+}
+
+.death-weapon-card .weapon-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.death-weapon-card .weapon-name {
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.death-weapon-card.seleccionada .weapon-name {
+  color: #7EC8E3;
+}
+
+/* Countdown de respawn */
+.respawn-countdown {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 20px 0;
+}
+
+.respawn-countdown #respawn-timer {
+  color: #ffaa00;
+  font-weight: 700;
+  font-size: 24px;
+}
+
+/* Botón de reaparecer */
+.btn-reaparecer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 18px 40px;
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  border: none;
+  border-radius: 14px;
+  color: white;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 0 #2f855a, 0 8px 20px rgba(72, 187, 120, 0.3);
+  margin-top: 10px;
+}
+
+.btn-reaparecer:hover:not(.disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 7px 0 #2f855a, 0 12px 30px rgba(72, 187, 120, 0.4);
+}
+
+.btn-reaparecer:active:not(.disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #2f855a;
+}
+
+.btn-reaparecer.disabled {
+  background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+  box-shadow: 0 4px 0 #1a202c;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-reaparecer-icono {
+  font-size: 22px;
+  transition: transform 0.3s ease;
+}
+
+.btn-reaparecer:hover:not(.disabled) .btn-reaparecer-icono {
+  transform: rotate(180deg);
+}
+
+/* Responsive para pantalla de muerte */
+@media (max-width: 600px) {
+  .death-title {
+    font-size: 42px;
+    letter-spacing: 4px;
+  }
+  
+  .death-killer {
+    font-size: 16px;
+  }
+  
+  .death-weapon-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  
+  .death-weapon-card {
+    padding: 12px 8px;
+  }
+  
+  .death-weapon-card .weapon-icon {
+    font-size: 24px;
+  }
+  
+  .death-weapon-card .weapon-name {
+    font-size: 11px;
+  }
+  
+  .btn-reaparecer {
+    padding: 14px 30px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 400px) {
+  .death-weapon-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ==================== FIN PANTALLA DE MUERTE ==================== */

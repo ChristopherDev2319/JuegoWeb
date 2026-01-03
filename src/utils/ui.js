@@ -264,23 +264,50 @@ export function ocultarMensajeConexion() {
 
 // Death screen state
 let respawnTimerInterval = null;
+let puedeReaparecer = false;
+let callbackReaparecer = null;
+let callbackSeleccionarArma = null;
 
 /**
- * Show death screen with killer info and respawn countdown
- * Requirements: 3.5, 5.4, 5.5
+ * Show death screen with killer info, weapon selection, and respawn countdown
+ * Requirements: 3.1, 3.2, 3.4 - Mostrar pantalla de muerte con menú de selección de armas
  * @param {string} killerId - ID of the player who killed the local player
  * @param {number} respawnTime - Time until respawn in milliseconds (default 5000)
+ * @param {Object} opciones - Opciones adicionales
+ * @param {string} opciones.armaActual - Arma actualmente equipada (para preseleccionar)
+ * @param {Function} opciones.onReaparecer - Callback cuando el jugador reaparece
+ * @param {Function} opciones.onSeleccionarArma - Callback cuando se selecciona un arma
  */
-export function mostrarPantallaMuerte(killerId, respawnTime = 5000) {
+export function mostrarPantallaMuerte(killerId, respawnTime = 5000, opciones = {}) {
+  const { armaActual = null, onReaparecer = null, onSeleccionarArma = null } = opciones;
+  
+  // Guardar callbacks
+  callbackReaparecer = onReaparecer;
+  callbackSeleccionarArma = onSeleccionarArma;
+  
+  // Desactivar pointer lock al mostrar pantalla de muerte
+  // Requirements: 3.2 - Desactivar pointer lock al mostrar pantalla de muerte
+  if (document.pointerLockElement) {
+    document.exitPointerLock();
+  }
+  
   const deathScreen = document.getElementById('death-screen');
   const killerName = document.getElementById('killer-name');
   const respawnTimer = document.getElementById('respawn-timer');
+  const botonReaparecer = document.getElementById('btn-reaparecer');
   
   if (!deathScreen) return;
   
   // Set killer name
   if (killerName) {
     killerName.textContent = killerId || 'Desconocido';
+  }
+  
+  // Reset respawn button state
+  puedeReaparecer = false;
+  if (botonReaparecer) {
+    botonReaparecer.disabled = true;
+    botonReaparecer.classList.add('disabled');
   }
   
   // Show death screen
@@ -298,6 +325,7 @@ export function mostrarPantallaMuerte(killerId, respawnTime = 5000) {
   }
   
   // Update countdown every second
+  // Requirements: 3.4 - Timer de 5 segundos para mostrar botón "Reaparecer"
   respawnTimerInterval = setInterval(() => {
     timeLeft--;
     if (respawnTimer) {
@@ -307,6 +335,13 @@ export function mostrarPantallaMuerte(killerId, respawnTime = 5000) {
     if (timeLeft <= 0) {
       clearInterval(respawnTimerInterval);
       respawnTimerInterval = null;
+      
+      // Habilitar botón de reaparecer después del timer
+      puedeReaparecer = true;
+      if (botonReaparecer) {
+        botonReaparecer.disabled = false;
+        botonReaparecer.classList.remove('disabled');
+      }
     }
   }, 1000);
 }
@@ -327,6 +362,49 @@ export function ocultarPantallaMuerte() {
     clearInterval(respawnTimerInterval);
     respawnTimerInterval = null;
   }
+  
+  // Reset state
+  puedeReaparecer = false;
+  callbackReaparecer = null;
+  callbackSeleccionarArma = null;
+}
+
+/**
+ * Verifica si el jugador puede reaparecer
+ * @returns {boolean}
+ */
+export function puedePulsarReaparecer() {
+  return puedeReaparecer;
+}
+
+/**
+ * Maneja el click en el botón de reaparecer
+ * Requirements: 4.1 - Reaparecer al jugador con el arma actualmente equipada
+ */
+export function manejarClickReaparecer() {
+  if (!puedeReaparecer) return;
+  
+  if (callbackReaparecer) {
+    callbackReaparecer();
+  }
+  
+  ocultarPantallaMuerte();
+}
+
+/**
+ * Configura el callback de reaparecer
+ * @param {Function} callback - Función a llamar cuando el jugador reaparece
+ */
+export function setCallbackReaparecer(callback) {
+  callbackReaparecer = callback;
+}
+
+/**
+ * Configura el callback de selección de arma en pantalla de muerte
+ * @param {Function} callback - Función a llamar cuando se selecciona un arma
+ */
+export function setCallbackSeleccionarArma(callback) {
+  callbackSeleccionarArma = callback;
 }
 
 /**

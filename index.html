@@ -315,12 +315,25 @@
     </div>
     <div id="damage-indicator"></div>
     
-    <!-- Death screen overlay -->
+    <!-- Death screen overlay with weapon selection -->
+    <!-- Requirements: 3.1, 3.2, 3.4 - Pantalla de muerte con menú de selección de armas -->
     <div id="death-screen" class="hidden">
       <div class="death-content">
         <div class="death-title">ELIMINADO</div>
         <div class="death-killer">por <span id="killer-name">Jugador</span></div>
+        
+        <!-- Contenedor para el menú de selección de armas en muerte -->
+        <div id="death-weapon-selection" class="death-weapon-selection">
+          <!-- El menú de selección de armas se insertará aquí dinámicamente -->
+        </div>
+        
         <div class="respawn-countdown">Reapareciendo en <span id="respawn-timer">5</span>s</div>
+        
+        <!-- Botón de reaparecer (se habilita después del timer) -->
+        <button id="btn-reaparecer" class="btn-reaparecer disabled" disabled>
+          <span class="btn-reaparecer-icono">🔄</span>
+          <span class="btn-reaparecer-texto">Reaparecer</span>
+        </button>
       </div>
     </div>
     

@@ -34,6 +34,45 @@ export const inventarioArmas = {
 };
 
 /**
+ * Establece el inventario con una única arma
+ * Requirements: 2.2 - El jugador solo puede usar el arma seleccionada
+ * @param {string} tipoArma - Tipo de arma a establecer como única en el inventario
+ * @param {THREE.Object3D} weaponContainer - Contenedor del arma (opcional)
+ * @returns {boolean} - true si se estableció exitosamente
+ */
+export function establecerArmaUnica(tipoArma, weaponContainer = null) {
+  if (!CONFIG.armas[tipoArma]) {
+    console.warn(`⚠️ Arma no encontrada: ${tipoArma}`);
+    return false;
+  }
+  
+  // Limpiar inventario y establecer solo el arma seleccionada
+  inventarioArmas.armasDisponibles = [tipoArma];
+  inventarioArmas.armaSeleccionada = 0;
+  
+  // Cambiar al arma seleccionada
+  arma.tipoActual = tipoArma;
+  const configArma = CONFIG.armas[tipoArma];
+  
+  // Reiniciar munición
+  arma.municionActual = configArma.tamañoCargador;
+  arma.municionTotal = configArma.municionTotal;
+  arma.estaRecargando = false;
+  arma.ultimoDisparo = 0;
+  arma.estaApuntando = false;
+  arma.transicionApuntado = 0;
+  arma.disparosConsecutivos = 0;
+  
+  // Cambiar modelo si se proporciona el contenedor
+  if (weaponContainer) {
+    cambiarModeloArma(tipoArma, weaponContainer);
+  }
+  
+  console.log(`🔫 Inventario establecido con arma única: ${configArma.nombre}`);
+  return true;
+}
+
+/**
  * Referencia al modelo del arma para animaciones
  */
 let modeloArma = null;
