@@ -210,6 +210,12 @@ class ClusterManager {
   _handleWorkerMessage(workerId, message) {
     if (!message || !message.type) return;
     
+    // Ignorar mensajes internos de Node.js/cluster que no son nuestros
+    if (typeof message.type !== 'string' || !Object.values(IPCMessageType).includes(message.type)) {
+      // Es un mensaje interno de Node.js, ignorar silenciosamente
+      return;
+    }
+    
     // Validar formato del mensaje (Requirement 3.4)
     const validation = validateIPCMessage(message);
     if (!validation.isValid) {
