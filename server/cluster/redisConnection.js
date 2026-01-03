@@ -97,14 +97,14 @@ export class RedisConnection {
         this._connected = true;
         this._reconnectAttempts = 0;
         
-        clusterLogger.info('Redis', `Conectado a Redis en ${this._config.host}:${this._config.port}`);
+        clusterLogger.info('[Redis] ' + `Conectado a Redis en ${this._config.host}:${this._config.port}`);
         return;
         
       } catch (error) {
         this._reconnectAttempts++;
         const delay = this._calculateBackoff(this._reconnectAttempts);
         
-        clusterLogger.warn('Redis', 
+        clusterLogger.warn('[Redis] ' + 
           `Intento ${this._reconnectAttempts}/${this._config.maxRetries} fallido: ${error.message}. ` +
           `Reintentando en ${delay}ms...`
         );
@@ -134,22 +134,22 @@ export class RedisConnection {
     this._client.on('connect', () => {
       this._connected = true;
       this._reconnectAttempts = 0; // Reset en conexión exitosa
-      clusterLogger.info('Redis', 'Conexión establecida');
+      clusterLogger.info('[Redis] ' + 'Conexión establecida');
     });
 
     this._client.on('ready', () => {
-      clusterLogger.info('Redis', 'Cliente listo para recibir comandos');
+      clusterLogger.info('[Redis] ' + 'Cliente listo para recibir comandos');
     });
 
     this._client.on('error', (error) => {
-      clusterLogger.error('Redis', `Error de conexión: ${error.message}`);
+      clusterLogger.error('[Redis] ' + `Error de conexión: ${error.message}`);
       // No programar reconexión aquí, ioredis lo maneja internamente
     });
 
     this._client.on('close', () => {
       const wasConnected = this._connected;
       this._connected = false;
-      clusterLogger.warn('Redis', 'Conexión cerrada');
+      clusterLogger.warn('[Redis] ' + 'Conexión cerrada');
       
       // Si estábamos conectados y no estamos en proceso de desconexión manual,
       // programar reconexión automática
@@ -159,12 +159,12 @@ export class RedisConnection {
     });
 
     this._client.on('reconnecting', (delay) => {
-      clusterLogger.info('Redis', `ioredis reconectando en ${delay}ms...`);
+      clusterLogger.info('[Redis] ' + `ioredis reconectando en ${delay}ms...`);
     });
 
     this._client.on('end', () => {
       this._connected = false;
-      clusterLogger.info('Redis', 'Conexión terminada');
+      clusterLogger.info('[Redis] ' + 'Conexión terminada');
     });
   }
 
@@ -227,7 +227,7 @@ export class RedisConnection {
     
     this._connected = false;
     this._connecting = false;
-    clusterLogger.info('Redis', 'Desconectado de Redis');
+    clusterLogger.info('[Redis] ' + 'Desconectado de Redis');
   }
 
   /**
@@ -492,7 +492,7 @@ export class RedisConnection {
    * @returns {Promise<void>}
    */
   async reconnect() {
-    clusterLogger.info('Redis', 'Iniciando reconexión manual...');
+    clusterLogger.info('[Redis] ' + 'Iniciando reconexión manual...');
     
     if (this._client) {
       try {
@@ -521,21 +521,21 @@ export class RedisConnection {
 
     const delay = this._calculateBackoff(this._reconnectAttempts + 1);
     
-    clusterLogger.info('Redis', `Programando reconexión en ${Math.round(delay)}ms...`);
+    clusterLogger.info('[Redis] ' + `Programando reconexión en ${Math.round(delay)}ms...`);
     
     this._reconnectTimer = setTimeout(async () => {
       this._reconnectTimer = null;
       this._reconnectAttempts++;
       
       if (this._reconnectAttempts > this._config.maxRetries) {
-        clusterLogger.error('Redis', 'Máximo de reintentos alcanzado, abandonando reconexión');
+        clusterLogger.error('[Redis] ' + 'Máximo de reintentos alcanzado, abandonando reconexión');
         return;
       }
       
       try {
         await this.reconnect();
       } catch (error) {
-        clusterLogger.error('Redis', `Reconexión fallida: ${error.message}`);
+        clusterLogger.error('[Redis] ' + `Reconexión fallida: ${error.message}`);
         this._scheduleReconnect();
       }
     }, delay);

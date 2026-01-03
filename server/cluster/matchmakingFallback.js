@@ -91,7 +91,7 @@ export class MatchmakingFallback {
     if (this._mode !== newMode) {
       const oldMode = this._mode;
       this._mode = newMode;
-      clusterLogger.info('MatchmakingFallback', `Modo cambiado: ${oldMode} -> ${newMode}`);
+      clusterLogger.info('[MatchmakingFallback] ' + `Modo cambiado: ${oldMode} -> ${newMode}`);
       
       if (this._onModeChange) {
         this._onModeChange(newMode, oldMode);
@@ -115,7 +115,7 @@ export class MatchmakingFallback {
     }
     
     if (!this._redisConnection) {
-      clusterLogger.warn('MatchmakingFallback', 'No hay conexión Redis configurada, usando modo local');
+      clusterLogger.warn('[MatchmakingFallback] ' + 'No hay conexión Redis configurada, usando modo local');
       this._setMode(MatchmakingMode.LOCAL);
       return;
     }
@@ -131,10 +131,10 @@ export class MatchmakingFallback {
       this._setMode(MatchmakingMode.REDIS);
       this._reconnectAttempts = 0;
       
-      clusterLogger.info('MatchmakingFallback', 'Inicializado en modo Redis');
+      clusterLogger.info('[MatchmakingFallback] ' + 'Inicializado en modo Redis');
       
     } catch (error) {
-      clusterLogger.error('MatchmakingFallback', `Error conectando a Redis: ${error.message}`);
+      clusterLogger.error('[MatchmakingFallback] ' + `Error conectando a Redis: ${error.message}`);
       this._lastRedisError = error;
       this._setMode(MatchmakingMode.LOCAL);
       
@@ -153,14 +153,14 @@ export class MatchmakingFallback {
     }
     
     if (this._reconnectAttempts >= this._maxReconnectAttempts) {
-      clusterLogger.warn('MatchmakingFallback', 'Máximo de reintentos alcanzado, permaneciendo en modo local');
+      clusterLogger.warn('[MatchmakingFallback] ' + 'Máximo de reintentos alcanzado, permaneciendo en modo local');
       return;
     }
     
     const delay = 5000; // 5 segundos entre intentos
     this._reconnectAttempts++;
     
-    clusterLogger.info('MatchmakingFallback', 
+    clusterLogger.info('[MatchmakingFallback] ' + 
       `Programando reconexión a Redis en ${delay}ms (intento ${this._reconnectAttempts}/${this._maxReconnectAttempts})`
     );
     
@@ -192,10 +192,10 @@ export class MatchmakingFallback {
         this._reconnectAttempts = 0;
         this._lastRedisError = null;
         
-        clusterLogger.info('MatchmakingFallback', 'Reconexión exitosa a Redis');
+        clusterLogger.info('[MatchmakingFallback] ' + 'Reconexión exitosa a Redis');
       }
     } catch (error) {
-      clusterLogger.error('MatchmakingFallback', `Reconexión fallida: ${error.message}`);
+      clusterLogger.error('[MatchmakingFallback] ' + `Reconexión fallida: ${error.message}`);
       this._lastRedisError = error;
       this._scheduleReconnect();
     }
@@ -212,7 +212,7 @@ export class MatchmakingFallback {
    */
   async _syncLocalRoomsToRedis() {
     if (this._syncInProgress) {
-      clusterLogger.warn('MatchmakingFallback', 'Sincronización ya en progreso');
+      clusterLogger.warn('[MatchmakingFallback] ' + 'Sincronización ya en progreso');
       return 0;
     }
     
@@ -222,7 +222,7 @@ export class MatchmakingFallback {
     try {
       const localRooms = this._localRoomManager.obtenerTodasLasSalas();
       
-      clusterLogger.info('MatchmakingFallback', `Sincronizando ${localRooms.length} salas locales a Redis`);
+      clusterLogger.info('[MatchmakingFallback] ' + `Sincronizando ${localRooms.length} salas locales a Redis`);
       
       for (const room of localRooms) {
         try {
@@ -242,13 +242,13 @@ export class MatchmakingFallback {
           syncedCount++;
           
         } catch (roomError) {
-          clusterLogger.error('MatchmakingFallback', 
+          clusterLogger.error('[MatchmakingFallback] ' + 
             `Error sincronizando sala ${room.id}: ${roomError.message}`
           );
         }
       }
       
-      clusterLogger.info('MatchmakingFallback', `Sincronización completada: ${syncedCount}/${localRooms.length} salas`);
+      clusterLogger.info('[MatchmakingFallback] ' + `Sincronización completada: ${syncedCount}/${localRooms.length} salas`);
       
     } finally {
       this._syncInProgress = false;
@@ -286,7 +286,7 @@ export class MatchmakingFallback {
     } catch (error) {
       // Registrar el error
       this._lastRedisError = error;
-      clusterLogger.error('MatchmakingFallback', `Error en operación Redis: ${error.message}`);
+      clusterLogger.error('[MatchmakingFallback] ' + `Error en operación Redis: ${error.message}`);
       
       // Determinar si es un error de conexión o timeout
       if (error instanceof RedisConnectionError || error instanceof RedisTimeoutError) {
@@ -303,7 +303,7 @@ export class MatchmakingFallback {
       }
       
       // Usar fallback local
-      clusterLogger.info('MatchmakingFallback', 'Usando fallback local');
+      clusterLogger.info('[MatchmakingFallback] ' + 'Usando fallback local');
       return localFallback();
     }
   }
@@ -495,7 +495,7 @@ export class MatchmakingFallback {
     try {
       return await this._redisMatchmaking.sendHeartbeat(roomId);
     } catch (error) {
-      clusterLogger.error('MatchmakingFallback', `Error enviando heartbeat: ${error.message}`);
+      clusterLogger.error('[MatchmakingFallback] ' + `Error enviando heartbeat: ${error.message}`);
       return false;
     }
   }
@@ -640,12 +640,12 @@ export class MatchmakingFallback {
       try {
         await this._redisConnection.disconnect();
       } catch (error) {
-        clusterLogger.error('MatchmakingFallback', `Error desconectando Redis: ${error.message}`);
+        clusterLogger.error('[MatchmakingFallback] ' + `Error desconectando Redis: ${error.message}`);
       }
     }
     
     this._setMode(MatchmakingMode.LOCAL);
-    clusterLogger.info('MatchmakingFallback', 'Shutdown completado');
+    clusterLogger.info('[MatchmakingFallback] ' + 'Shutdown completado');
   }
 }
 

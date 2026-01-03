@@ -192,7 +192,7 @@ export class WorkerServer {
       
       // Configurar callback para cambios de modo
       this.matchmakingFallback.onModeChange((newMode, oldMode) => {
-        clusterLogger.info('WorkerServer', 
+        clusterLogger.info('[WorkerServer] ' + 
           `[Worker ${this.workerId}] Matchmaking mode changed: ${oldMode} -> ${newMode}`
         );
       });
@@ -204,7 +204,7 @@ export class WorkerServer {
       console.log(`[Worker ${this.workerId}] Matchmaking initialized in ${mode} mode`);
       
     } catch (error) {
-      clusterLogger.error('WorkerServer', 
+      clusterLogger.error('[WorkerServer] ' + 
         `[Worker ${this.workerId}] Error initializing Redis matchmaking: ${error.message}`
       );
       console.log(`[Worker ${this.workerId}] Continuing with local matchmaking only`);
@@ -268,7 +268,7 @@ export class WorkerServer {
       try {
         await this.matchmakingFallback.shutdown();
       } catch (e) {
-        clusterLogger.error('WorkerServer', `Error shutting down matchmaking: ${e.message}`);
+        clusterLogger.error('[WorkerServer] ' + `Error shutting down matchmaking: ${e.message}`);
       }
     }
     
@@ -650,7 +650,7 @@ export class WorkerServer {
         }));
       }
     } catch (error) {
-      clusterLogger.error('WorkerServer', `Error en matchmaking: ${error.message}`);
+      clusterLogger.error('[WorkerServer] ' + `Error en matchmaking: ${error.message}`);
       
       // Fallback a matchmaking local en caso de error
       const sala = encontrarMejorSala(this.roomManager);
@@ -837,7 +837,7 @@ export class WorkerServer {
         data: { rooms: roomList }
       }));
     } catch (error) {
-      clusterLogger.error('WorkerServer', `Error listando salas: ${error.message}`);
+      clusterLogger.error('[WorkerServer] ' + `Error listando salas: ${error.message}`);
       
       // Fallback local
       const salasDisponibles = this.roomManager.obtenerSalasPublicasDisponibles();
@@ -879,7 +879,7 @@ export class WorkerServer {
       
       await this.matchmakingFallback.registerRoom(roomInfo);
     } catch (error) {
-      clusterLogger.error('WorkerServer', `Error registrando sala en Redis: ${error.message}`);
+      clusterLogger.error('[WorkerServer] ' + `Error registrando sala en Redis: ${error.message}`);
     }
   }
 
@@ -898,7 +898,7 @@ export class WorkerServer {
     try {
       await this.matchmakingFallback.updateRoomPlayers(roomId, delta);
     } catch (error) {
-      clusterLogger.error('WorkerServer', `Error actualizando jugadores en Redis: ${error.message}`);
+      clusterLogger.error('[WorkerServer] ' + `Error actualizando jugadores en Redis: ${error.message}`);
     }
   }
 
@@ -1060,9 +1060,9 @@ export class WorkerServer {
       if (sala.getPlayerCount() > 0) {
         try {
           await this.matchmakingFallback.sendHeartbeat(sala.id);
-          clusterLogger.debug('WorkerServer', `Heartbeat enviado para sala ${sala.id}`);
+          clusterLogger.debug('[WorkerServer] ' + `Heartbeat enviado para sala ${sala.id}`);
         } catch (error) {
-          clusterLogger.error('WorkerServer', `Error enviando heartbeat para sala ${sala.id}: ${error.message}`);
+          clusterLogger.error('[WorkerServer] ' + `Error enviando heartbeat para sala ${sala.id}: ${error.message}`);
         }
       }
     }

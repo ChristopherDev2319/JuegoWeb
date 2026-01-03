@@ -87,10 +87,10 @@ export class RedisMatchmaking {
         await this._redis.zadd(this._keys.roomsPublic, roomInfo.jugadores, roomInfo.id);
       }
       
-      clusterLogger.info('RedisMatchmaking', `Sala ${roomInfo.id} registrada (${roomInfo.tipo})`);
+      clusterLogger.info(`[RedisMatchmaking] Sala ${roomInfo.id} registrada (${roomInfo.tipo})`);
       return true;
     } catch (error) {
-      clusterLogger.error('RedisMatchmaking', `Error registrando sala ${roomInfo.id}: ${error.message}`);
+      clusterLogger.error(`[RedisMatchmaking] Error registrando sala ${roomInfo.id}: ${error.message}`);
       throw error;
     }
   }
@@ -113,10 +113,10 @@ export class RedisMatchmaking {
       // Remover del índice de salas públicas
       await this._redis.zrem(this._keys.roomsPublic, roomId);
       
-      clusterLogger.info('RedisMatchmaking', `Sala ${roomId} eliminada`);
+      clusterLogger.info(`[RedisMatchmaking] Sala ${roomId} eliminada`);
       return true;
     } catch (error) {
-      clusterLogger.error('RedisMatchmaking', `Error eliminando sala ${roomId}: ${error.message}`);
+      clusterLogger.error(`[RedisMatchmaking] Error eliminando sala ${roomId}: ${error.message}`);
       throw error;
     }
   }
@@ -155,10 +155,10 @@ export class RedisMatchmaking {
         await this._redis.zadd(this._keys.roomsPublic, newCount, roomId);
       }
       
-      clusterLogger.debug('RedisMatchmaking', `Sala ${roomId} actualizada: ${newCount} jugadores`);
+      clusterLogger.debug(`[RedisMatchmaking] Sala ${roomId} actualizada: ${newCount} jugadores`);
       return newCount;
     } catch (error) {
-      clusterLogger.error('RedisMatchmaking', `Error actualizando jugadores de sala ${roomId}: ${error.message}`);
+      clusterLogger.error(`[RedisMatchmaking] Error actualizando jugadores de sala ${roomId}: ${error.message}`);
       throw error;
     }
   }
@@ -180,7 +180,7 @@ export class RedisMatchmaking {
       
       return deserializeRoom(roomJson);
     } catch (error) {
-      clusterLogger.error('RedisMatchmaking', `Error obteniendo sala ${roomId}: ${error.message}`);
+      clusterLogger.error(`[RedisMatchmaking] Error obteniendo sala ${roomId}: ${error.message}`);
       throw error;
     }
   }
@@ -220,10 +220,10 @@ export class RedisMatchmaking {
         }
       }
       
-      clusterLogger.debug('RedisMatchmaking', `Encontradas ${availableRooms.length} salas disponibles`);
+      clusterLogger.debug(`[RedisMatchmaking] Encontradas ${availableRooms.length} salas disponibles`);
       return availableRooms;
     } catch (error) {
-      clusterLogger.error('RedisMatchmaking', `Error buscando salas disponibles: ${error.message}`);
+      clusterLogger.error(`[RedisMatchmaking] Error buscando salas disponibles: ${error.message}`);
       throw error;
     }
   }
@@ -240,7 +240,7 @@ export class RedisMatchmaking {
       const availableRooms = await this.findAvailableRooms();
       
       if (availableRooms.length === 0) {
-        clusterLogger.debug('RedisMatchmaking', 'No hay salas disponibles');
+        clusterLogger.debug(`[RedisMatchmaking] No hay salas disponibles`);
         return null;
       }
       
@@ -248,10 +248,10 @@ export class RedisMatchmaking {
       // La primera es la que tiene más jugadores
       const bestRoom = availableRooms[0];
       
-      clusterLogger.debug('RedisMatchmaking', `Mejor sala: ${bestRoom.id} con ${bestRoom.jugadores} jugadores`);
+      clusterLogger.debug(`[RedisMatchmaking] Mejor sala: ${bestRoom.id} con ${bestRoom.jugadores} jugadores`);
       return bestRoom;
     } catch (error) {
-      clusterLogger.error('RedisMatchmaking', `Error buscando mejor sala: ${error.message}`);
+      clusterLogger.error(`[RedisMatchmaking] Error buscando mejor sala: ${error.message}`);
       throw error;
     }
   }
@@ -317,24 +317,24 @@ export class RedisMatchmaking {
         const result = await this._redis.set(lockKey, lockId, { NX: true, EX: lockTTL });
         
         if (result === 'OK') {
-          clusterLogger.debug('RedisMatchmaking', `Lock adquirido para sala ${roomId} (intento ${attempt})`);
+          clusterLogger.debug(`[RedisMatchmaking] Lock adquirido para sala ${roomId} (intento ${attempt})`);
           return lockId;
         }
         
         // Lock no adquirido, esperar con backoff exponencial
         if (attempt < maxAttempts) {
           const delay = baseDelay * Math.pow(2, attempt - 1); // 100ms, 200ms, 400ms
-          clusterLogger.debug('RedisMatchmaking', `Lock ocupado para sala ${roomId}, reintentando en ${delay}ms (intento ${attempt}/${maxAttempts})`);
+          clusterLogger.debug(`[RedisMatchmaking] Lock ocupado para sala ${roomId}, reintentando en ${delay}ms (intento ${attempt}/${maxAttempts})`);
           await this._sleep(delay);
         }
       } catch (error) {
-        clusterLogger.error('RedisMatchmaking', `Error adquiriendo lock para sala ${roomId}: ${error.message}`);
+        clusterLogger.error(`[RedisMatchmaking] Error adquiriendo lock para sala ${roomId}: ${error.message}`);
         throw error;
       }
     }
     
     // No se pudo adquirir el lock después de todos los intentos
-    clusterLogger.warn('RedisMatchmaking', `No se pudo adquirir lock para sala ${roomId} después de ${maxAttempts} intentos`);
+    clusterLogger.warn(`[RedisMatchmaking] No se pudo adquirir lock para sala ${roomId} después de ${maxAttempts} intentos`);
     throw new RedisMatchmaking.LockAcquisitionError(roomId, maxAttempts);
   }
 
@@ -375,14 +375,14 @@ export class RedisMatchmaking {
       const result = await this._redis.eval(luaScript, 1, lockKey, lockId);
       
       if (result === 1) {
-        clusterLogger.debug('RedisMatchmaking', `Lock liberado para sala ${roomId}`);
+        clusterLogger.debug(`[RedisMatchmaking] Lock liberado para sala ${roomId}`);
         return true;
       } else {
-        clusterLogger.warn('RedisMatchmaking', `No se pudo liberar lock para sala ${roomId}: no era owner`);
+        clusterLogger.warn(`[RedisMatchmaking] No se pudo liberar lock para sala ${roomId}: no era owner`);
         return false;
       }
     } catch (error) {
-      clusterLogger.error('RedisMatchmaking', `Error liberando lock para sala ${roomId}: ${error.message}`);
+      clusterLogger.error(`[RedisMatchmaking] Error liberando lock para sala ${roomId}: ${error.message}`);
       throw error;
     }
   }
@@ -416,7 +416,7 @@ export class RedisMatchmaking {
       
       // Verificar espacio disponible
       if (roomInfo.jugadores >= roomInfo.maxJugadores) {
-        clusterLogger.debug('RedisMatchmaking', `Sala ${roomId} está llena (${roomInfo.jugadores}/${roomInfo.maxJugadores})`);
+        clusterLogger.debug(`[RedisMatchmaking] Sala ${roomId} está llena (${roomInfo.jugadores}/${roomInfo.maxJugadores})`);
         return {
           success: false,
           newCount: null,
@@ -427,7 +427,7 @@ export class RedisMatchmaking {
       // Actualizar contador de jugadores
       const newCount = await this.updateRoomPlayers(roomId, 1);
       
-      clusterLogger.info('RedisMatchmaking', `Jugador asignado a sala ${roomId} (${newCount}/${roomInfo.maxJugadores})`);
+      clusterLogger.info(`[RedisMatchmaking] Jugador asignado a sala ${roomId} (${newCount}/${roomInfo.maxJugadores})`);
       return {
         success: true,
         newCount: newCount,
@@ -448,7 +448,7 @@ export class RedisMatchmaking {
         try {
           await this.releaseLock(roomId, lockId);
         } catch (releaseError) {
-          clusterLogger.error('RedisMatchmaking', `Error liberando lock en finally: ${releaseError.message}`);
+          clusterLogger.error(`[RedisMatchmaking] Error liberando lock en finally: ${releaseError.message}`);
         }
       }
     }
@@ -472,7 +472,7 @@ export class RedisMatchmaking {
       const bestRoom = await this.findBestRoom();
       
       if (bestRoom) {
-        clusterLogger.info('RedisMatchmaking', `Matchmaking: jugador asignado a sala existente ${bestRoom.id}`);
+        clusterLogger.info(`[RedisMatchmaking] Matchmaking: jugador asignado a sala existente ${bestRoom.id}`);
         return {
           room: bestRoom,
           created: false
@@ -494,13 +494,13 @@ export class RedisMatchmaking {
       // Registrar la nueva sala en Redis
       await this.registerRoom(newRoom);
       
-      clusterLogger.info('RedisMatchmaking', `Matchmaking: nueva sala creada ${newRoom.id} en worker ${workerId}`);
+      clusterLogger.info(`[RedisMatchmaking] Matchmaking: nueva sala creada ${newRoom.id} en worker ${workerId}`);
       return {
         room: newRoom,
         created: true
       };
     } catch (error) {
-      clusterLogger.error('RedisMatchmaking', `Error en findOrCreateRoom: ${error.message}`);
+      clusterLogger.error(`[RedisMatchmaking] Error en findOrCreateRoom: ${error.message}`);
       throw error;
     }
   }
@@ -522,7 +522,7 @@ export class RedisMatchmaking {
       // Obtener sala actual
       const roomJson = await this._redis.get(roomKey);
       if (!roomJson) {
-        clusterLogger.warn('RedisMatchmaking', `Heartbeat fallido: sala ${roomId} no encontrada`);
+        clusterLogger.warn(`[RedisMatchmaking] Heartbeat fallido: sala ${roomId} no encontrada`);
         return false;
       }
       
@@ -534,10 +534,10 @@ export class RedisMatchmaking {
       // Guardar sala con TTL renovado (5 minutos)
       await this._redis.set(roomKey, serializeRoom(room), { EX: this._config.roomTTL });
       
-      clusterLogger.debug('RedisMatchmaking', `Heartbeat enviado para sala ${roomId}`);
+      clusterLogger.debug(`[RedisMatchmaking] Heartbeat enviado para sala ${roomId}`);
       return true;
     } catch (error) {
-      clusterLogger.error('RedisMatchmaking', `Error enviando heartbeat para sala ${roomId}: ${error.message}`);
+      clusterLogger.error(`[RedisMatchmaking] Error enviando heartbeat para sala ${roomId}: ${error.message}`);
       throw error;
     }
   }
@@ -555,7 +555,7 @@ export class RedisMatchmaking {
       const roomIds = await this._redis.zrange(this._keys.roomsPublic, 0, -1);
       
       if (!roomIds || roomIds.length === 0) {
-        clusterLogger.debug('RedisMatchmaking', 'No hay salas para limpiar');
+        clusterLogger.debug(`[RedisMatchmaking] No hay salas para limpiar`);
         return [];
       }
       
@@ -570,17 +570,17 @@ export class RedisMatchmaking {
         if (!roomInfo || roomInfo.lastHeartbeat < heartbeatThreshold) {
           await this.unregisterRoom(roomId);
           removedRooms.push(roomId);
-          clusterLogger.info('RedisMatchmaking', `Sala ${roomId} eliminada por heartbeat inválido`);
+          clusterLogger.info(`[RedisMatchmaking] Sala ${roomId} eliminada por heartbeat inválido`);
         }
       }
       
       if (removedRooms.length > 0) {
-        clusterLogger.info('RedisMatchmaking', `Limpieza completada: ${removedRooms.length} salas eliminadas`);
+        clusterLogger.info(`[RedisMatchmaking] Limpieza completada: ${removedRooms.length} salas eliminadas`);
       }
       
       return removedRooms;
     } catch (error) {
-      clusterLogger.error('RedisMatchmaking', `Error en limpieza de salas: ${error.message}`);
+      clusterLogger.error(`[RedisMatchmaking] Error en limpieza de salas: ${error.message}`);
       throw error;
     }
   }
