@@ -260,6 +260,36 @@ export class GameManager {
     };
   }
 
+  /**
+   * Process respawn request from client
+   * Requirements: 4.1, 4.2 - Reaparecer con arma seleccionada
+   * @param {PlayerState} player - Player state
+   * @param {Object} data - Respawn data with weaponType
+   * @returns {Object} - Result
+   */
+  processRespawnInput(player, data) {
+    // Verificar que el jugador puede reaparecer (está muerto y pasó el tiempo)
+    if (!player.canRespawn()) {
+      return { 
+        success: false, 
+        reason: player.isAlive ? 'already_alive' : 'respawn_cooldown' 
+      };
+    }
+
+    // Obtener el arma seleccionada (o usar la actual si no se especifica)
+    const weaponType = data && data.weaponType ? data.weaponType : player.currentWeapon;
+
+    // Hacer respawn con el arma seleccionada
+    player.respawnWithWeapon(weaponType);
+
+    console.log(`[RESPAWN] ${player.id} respawned with weapon: ${weaponType}`);
+
+    return { 
+      success: true, 
+      weaponType: weaponType 
+    };
+  }
+
 
   /**
    * Update game state - main game loop logic
@@ -294,11 +324,9 @@ export class GameManager {
       // Recharge dash
       player.rechargeDash();
 
-      // Check respawn
-      if (!player.isAlive && player.canRespawn()) {
-        player.respawn();
-        events.respawns.push({ playerId });
-      }
+      // NOTA: El respawn ya NO es automático
+      // El jugador debe presionar el botón "Reaparecer" en el cliente
+      // que envía un mensaje 'respawn' al servidor
     }
 
     // Update bullets and check collisions

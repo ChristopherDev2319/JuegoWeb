@@ -3,6 +3,8 @@
  * Gestiona el manejo de teclado y mouse
  */
 
+import { estadoSeleccion, cambioArmaPermitido } from './seleccionArmas.js';
+
 // Referencia al estado del menú (se establece después de inicializar)
 let verificarMenuActivo = null;
 
@@ -98,11 +100,15 @@ function manejarTeclaPresionada(evento) {
   }
 
   // Cambio de armas con Q
+  // Requirements: 2.3 - Verificar si el cambio de arma está permitido
   if (evento.code === 'KeyQ' && callbacks.onSiguienteArma) {
-    callbacks.onSiguienteArma();
+    if (cambioArmaPermitido()) {
+      callbacks.onSiguienteArma();
+    }
   }
 
   // Selección directa de armas con números 1-8
+  // Requirements: 2.3 - Verificar si el cambio de arma está permitido
   if (callbacks.onSeleccionarArma) {
     const numeroArma = {
       'Digit1': 0,
@@ -115,7 +121,7 @@ function manejarTeclaPresionada(evento) {
       'Digit8': 7
     }[evento.code];
 
-    if (numeroArma !== undefined) {
+    if (numeroArma !== undefined && cambioArmaPermitido()) {
       callbacks.onSeleccionarArma(numeroArma);
     }
   }
@@ -142,6 +148,35 @@ function manejarClickBody(evento) {
     return;
   }
   
+  // No activar pointer lock si el menú de selección de armas está visible
+  // Requirements: 1.3, 5.1, 5.2 - Mantener pointer lock desactivado durante menús
+  if (estadoSeleccion.menuVisible) {
+    return;
+  }
+  
+  // No activar pointer lock si estamos en pantalla de muerte
+  // Requirements: 3.2 - Mantener pointer lock desactivado en pantalla de muerte
+  if (estadoSeleccion.enPantallaMuerte) {
+    return;
+  }
+  
+  // No activar pointer lock si la pantalla de muerte está visible
+  const deathScreen = document.getElementById('death-screen');
+  if (deathScreen && !deathScreen.classList.contains('hidden')) {
+    return;
+  }
+  
+  // No activar pointer lock si el click fue dentro del menú de selección de armas
+  const menuSeleccion = document.getElementById('menu-seleccion-armas');
+  if (menuSeleccion && menuSeleccion.contains(evento.target)) {
+    return;
+  }
+  
+  // No activar pointer lock si el click fue dentro de la pantalla de muerte
+  if (deathScreen && deathScreen.contains(evento.target)) {
+    return;
+  }
+  
   if (!pointerLockActivo) {
     document.body.requestPointerLock();
   }
@@ -164,6 +199,24 @@ function manejarCambioPointerLock() {
   if (anteriorEstado && !pointerLockActivo) {
     // No abrir menú si ya está activo
     if (verificarMenuActivo && verificarMenuActivo()) {
+      return;
+    }
+    
+    // No abrir menú de pausa si el menú de selección de armas está visible
+    // Requirements: 1.3, 5.1, 5.2 - El menú de selección maneja su propio estado
+    if (estadoSeleccion.menuVisible) {
+      return;
+    }
+    
+    // No abrir menú de pausa si estamos en pantalla de muerte
+    // Requirements: 3.2 - La pantalla de muerte maneja su propio estado
+    if (estadoSeleccion.enPantallaMuerte) {
+      return;
+    }
+    
+    // No abrir menú de pausa si la pantalla de muerte está visible
+    const deathScreen = document.getElementById('death-screen');
+    if (deathScreen && !deathScreen.classList.contains('hidden')) {
       return;
     }
     
@@ -248,6 +301,11 @@ function manejarRuedaMouse(evento) {
   if (!pointerLockActivo) return;
 
   evento.preventDefault();
+
+  // Requirements: 2.3 - Verificar si el cambio de arma está permitido
+  if (!cambioArmaPermitido()) {
+    return;
+  }
 
   if (evento.deltaY < 0 && callbacks.onSiguienteArma) {
     // Rueda hacia arriba - siguiente arma

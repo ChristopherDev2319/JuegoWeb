@@ -46,7 +46,8 @@ import {
   alternarApuntado,
   estaApuntando,
   obtenerDispersionRetroceso,
-  actualizarRetroceso
+  actualizarRetroceso,
+  establecerArmaUnica
 } from './sistemas/armas.js';
 
 import { Bala } from './entidades/Bala.js';
@@ -104,13 +105,57 @@ import {
 } from './sistemas/crosshair.js';
 
 // Sistema de menú de pausa
-import { inicializarMenuPausa, alternarMenuPausa } from './sistemas/menuPausa.js';
+import { inicializarMenuPausa, alternarMenuPausa, estaMenuActivo } from './sistemas/menuPausa.js';
 
 // Sistema de sonidos
 import { inicializarSonidos, reproducirSonidoDisparo } from './sistemas/sonidos.js';
 
 // Sistema de colisiones
 import { inicializarColisiones, toggleDebugVisual } from './sistemas/colisiones.js';
+
+// Sistema de bots de entrenamiento
+// Requirements: 1.1, 2.1, 3.1, 4.4
+import { BotManager } from './sistemas/botManager.js';
+
+// UI de estadísticas de entrenamiento
+// Requirements: 6.1, 6.2, 4.4
+import {
+  inicializarEntrenamientoUI,
+  actualizarEstadisticasUI,
+  mostrarIndicadorZona,
+  ocultarIndicadorZona,
+  destruirEntrenamientoUI
+} from './ui/entrenamientoUI.js';
+
+// Sistema de selección de armas
+// Requirements: 1.1, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2, 4.3
+import { 
+  estadoSeleccion,
+  seleccionarArma as seleccionarArmaEstado,
+  obtenerArmaSeleccionada,
+  iniciarPartida as iniciarPartidaSeleccion,
+  mostrarMenuSeleccion,
+  ocultarMenuSeleccion,
+  marcarMuerte,
+  habilitarReaparecer,
+  puedeReaparecer,
+  obtenerArmaPrevia,
+  reaparecer as reaparecerConArma,
+  estaEnPantallaMuerte
+} from './sistemas/seleccionArmas.js';
+
+import {
+  inicializarSeleccionArmasUI,
+  mostrarMenuArmas,
+  ocultarMenuArmas,
+  generarGridArmasMuerte,
+  limpiarGridArmasMuerte,
+  obtenerArmaSeleccionadaUI
+} from './lobby/seleccionArmasUI.js';
+
+// Sistema de scoreboard
+// Requirements: 1.1, 2.1, 3.1, 5.2
+import { actualizarScoreboard } from './ui/scoreboardUI.js';
 
 // Importar módulos del lobby
 // Requirements: 1.1, 2.1, 2.2, 2.3
@@ -204,7 +249,7 @@ function leerConfiguracionGuardada() {
  * @param {string} nombreJugador - Nombre del jugador
  */
 async function onIniciarJuego(modo, salaId = null, nombreJugador = '') {
-  console.log(`🎮 Iniciando juego en modo: ${modo}`);
+  console.log(`🎮 Preparando juego en modo: ${modo}`);
   
   modoJuegoActual = modo;
   salaActualId = salaId;
@@ -225,12 +270,181 @@ async function onIniciarJuego(modo, salaId = null, nombreJugador = '') {
     console.log('🌐 Modo online: Multijugador habilitado');
   }
   
-  // Ocultar lobby y mostrar pantalla de carga
+  // Ocultar lobby
   ocultarLobby();
   
-  // Iniciar el juego
+  // Mostrar menú de selección de armas en lugar de iniciar directamente
+  // Requirements: 1.1 - Mostrar menú de selección de armas al entrar a partida
+  mostrarMenuSeleccionArmas();
+}
+
+/**
+ * Muestra el menú de selección de armas antes de iniciar la partida
+ * Requirements: 1.1, 1.2, 1.3, 1.4
+ */
+function mostrarMenuSeleccionArmas() {
+  console.log('🔫 Mostrando menú de selección de armas...');
+  
+  // Inicializar UI de selección de armas con callback
+  inicializarSeleccionArmasUI({
+    onJugar: (tipoArma) => {
+      console.log(`🎮 Arma seleccionada para jugar: ${tipoArma}`);
+      iniciarJuegoConArma(tipoArma);
+    },
+    onSeleccionar: (tipoArma) => {
+      console.log(`🔫 Arma preseleccionada: ${tipoArma}`);
+    }
+  });
+  
+  // Mostrar el menú
+  mostrarMenuArmas({
+    esMuerte: false,
+    armaPrevia: null,
+    textoBoton: 'Jugar'
+  });
+  
+  // Actualizar estado
+  mostrarMenuSeleccion(false);
+}
+
+/**
+ * Muestra la pantalla de muerte con el menú de selección de armas integrado
+ * Requirements: 3.1, 3.2, 3.4 - Pantalla de muerte con menú de selección de armas
+ * @param {string} killerId - ID del jugador que eliminó al jugador local
+ * @param {string} armaActual - Arma que tenía equipada al morir
+ */
+function mostrarPantallaMuerteConSeleccion(killerId, armaActual) {
+  console.log(`💀 Mostrando pantalla de muerte - Arma previa: ${armaActual}`);
+  
+  // Mostrar pantalla de muerte con opciones
+  mostrarPantallaMuerte(killerId, 5000, {
+    armaActual: armaActual,
+    onReaparecer: () => {
+      // Obtener arma seleccionada (puede haber cambiado)
+      const armaParaRespawn = obtenerArmaSeleccionadaUI() || armaActual;
+      console.log(`🔄 Reapareciendo con arma: ${armaParaRespawn}`);
+      
+      // Actualizar arma seleccionada para el respawn
+      armaSeleccionadaParaPartida = armaParaRespawn;
+      
+      // Limpiar grid de armas de muerte
+      limpiarGridArmasMuerte();
+      
+      // Solicitar respawn al servidor
+      if (isMultiplayerConnected && inputSender) {
+        inputSender.sendRespawn(armaParaRespawn);
+      }
+      
+      // Activar pointer lock
+      document.body.requestPointerLock();
+    },
+    onSeleccionarArma: (tipoArma) => {
+      console.log(`🔫 Arma seleccionada para respawn: ${tipoArma}`);
+      armaSeleccionadaParaPartida = tipoArma;
+    }
+  });
+  
+  // Generar grid de armas en la pantalla de muerte
+  // Requirements: 3.1 - Mostrar menú de selección de armas en pantalla de muerte
+  // Requirements: 4.3 - Mantener arma previa como selección por defecto
+  generarGridArmasMuerte(armaActual, (tipoArma) => {
+    console.log(`🔫 Arma seleccionada en muerte: ${tipoArma}`);
+    armaSeleccionadaParaPartida = tipoArma;
+  });
+  
+  // Configurar el botón de reaparecer
+  configurarBotonReaparecer(armaActual);
+}
+
+/**
+ * Configura el botón de reaparecer en la pantalla de muerte
+ * Requirements: 4.1, 4.2 - Reaparecer con arma seleccionada
+ * @param {string} armaActual - Arma por defecto para reaparecer
+ */
+function configurarBotonReaparecer(armaActual) {
+  // El botón se configura en mostrarPantallaMuerte de ui.js
+  // Solo necesitamos agregar el listener para el click
+  
+  // Esperar un poco para que el DOM se actualice
+  setTimeout(() => {
+    const botonReaparecer = document.getElementById('btn-reaparecer');
+    if (!botonReaparecer) return;
+    
+    // Remover listeners anteriores clonando el botón
+    const nuevoBoton = botonReaparecer.cloneNode(true);
+    
+    // Mantener el estado disabled del botón original
+    nuevoBoton.disabled = botonReaparecer.disabled;
+    if (botonReaparecer.classList.contains('disabled')) {
+      nuevoBoton.classList.add('disabled');
+    }
+    
+    botonReaparecer.parentNode.replaceChild(nuevoBoton, botonReaparecer);
+    
+    // Agregar nuevo listener
+    nuevoBoton.addEventListener('click', () => {
+      if (nuevoBoton.disabled) return;
+      
+      // Obtener arma seleccionada (puede haber cambiado)
+      const armaParaRespawn = obtenerArmaSeleccionadaUI() || armaActual;
+      console.log(`🔄 Reapareciendo con arma: ${armaParaRespawn}`);
+      
+      // Actualizar arma seleccionada para el respawn
+      armaSeleccionadaParaPartida = armaParaRespawn;
+      
+      // Ocultar pantalla de muerte
+      ocultarPantallaMuerte();
+      limpiarGridArmasMuerte();
+      
+      // Solicitar respawn al servidor
+      // Requirements: 4.1, 4.2 - Reaparecer con arma seleccionada
+      if (isMultiplayerConnected && inputSender) {
+        inputSender.sendRespawn(armaParaRespawn);
+      }
+      
+      // Activar pointer lock
+      // Requirements: 5.3 - Activar pointer lock al reaparecer
+      document.body.requestPointerLock();
+      
+      // Marcar inicio de partida nuevamente
+      iniciarPartidaSeleccion();
+    });
+    
+    // Configurar el timer para habilitar el botón después de 5 segundos
+    // El timer ya está corriendo en mostrarPantallaMuerte, pero necesitamos
+    // actualizar la referencia al nuevo botón
+    const timerInterval = setInterval(() => {
+      const timer = document.getElementById('respawn-timer');
+      if (timer && parseInt(timer.textContent) <= 0) {
+        nuevoBoton.disabled = false;
+        nuevoBoton.classList.remove('disabled');
+        clearInterval(timerInterval);
+      }
+    }, 500);
+  }, 100);
+}
+
+/**
+ * Inicia el juego con el arma seleccionada
+ * Requirements: 2.1, 2.2
+ * @param {string} tipoArma - Tipo de arma seleccionada
+ */
+async function iniciarJuegoConArma(tipoArma) {
+  console.log(`🎮 Iniciando juego con arma: ${tipoArma}`);
+  
+  // Ocultar menú de selección
+  ocultarMenuArmas();
+  ocultarMenuSeleccion();
+  
+  // Guardar el arma seleccionada para usarla después de cargar
+  armaSeleccionadaParaPartida = tipoArma;
+  
+  // Iniciar el juego completo
   await inicializarJuegoCompleto();
 }
+
+// Variable para almacenar el arma seleccionada antes de iniciar
+let armaSeleccionadaParaPartida = 'M4A1';
 
 /**
  * Muestra el indicador de modo local en la UI
@@ -261,12 +475,68 @@ function ocultarIndicadorModoLocal() {
   }
 }
 
+/**
+ * Inicializa el sistema de bots de entrenamiento para modo local
+ * Requirements: 1.1, 2.1, 3.1, 4.4, 6.1, 6.2
+ */
+function inicializarBotManager() {
+  if (botManager) {
+    console.warn('BotManager ya está inicializado');
+    return;
+  }
+
+  console.log('🤖 Inicializando sistema de bots de entrenamiento...');
+
+  // Inicializar UI de entrenamiento
+  // Requirements: 6.1, 6.2, 4.4
+  inicializarEntrenamientoUI();
+
+  // Crear instancia del BotManager con callbacks de UI
+  botManager = new BotManager(scene, {
+    onDisparoBot: (posicion, direccion, daño) => {
+      // Callback cuando un bot tirador dispara al jugador
+      console.log('🔫 Bot tirador disparó al jugador');
+      // El daño se aplica directamente en el BotTirador
+    },
+    // Requirement 6.2: Actualizar UI cuando se elimina un bot
+    onEliminacion: (tipoBot, estadisticas) => {
+      console.log(`📊 Bot ${tipoBot} eliminado - Actualizando UI`);
+      actualizarEstadisticasUI(estadisticas);
+    },
+    // Requirement 4.4: Mostrar nombre de zona cuando el jugador entra
+    onEntrarZona: (nombreZona, tipoZona) => {
+      console.log(`📍 Entrando en zona: ${nombreZona}`);
+      mostrarIndicadorZona(nombreZona, tipoZona);
+    },
+    onSalirZona: (nombreZona, tipoZona) => {
+      console.log(`📍 Saliendo de zona: ${nombreZona}`);
+      ocultarIndicadorZona();
+    },
+    // Actualizar estadísticas en UI
+    onEstadisticasActualizadas: (estadisticas) => {
+      actualizarEstadisticasUI(estadisticas);
+    }
+  });
+
+  // Inicializar el sistema de bots
+  botManager.inicializar();
+
+  // Mostrar estadísticas iniciales
+  actualizarEstadisticasUI(botManager.obtenerEstadisticas());
+
+  console.log('✅ Sistema de bots de entrenamiento inicializado');
+}
+
 // Network state
 let connection = null;
 let inputSender = null;
 let remotePlayerManager = null;
 let isMultiplayerConnected = false;
 let localPlayerId = null;
+
+// Bot Manager para modo local
+// Requirements: 1.1, 2.1, 3.1, 4.4
+let botManager = null;
 
 // Input sending rate control (20Hz to match server tick rate)
 const INPUT_SEND_RATE = 1000 / 20; // 50ms
@@ -720,6 +990,10 @@ async function inicializarJuegoCompleto() {
     // Modo local - mostrar indicador
     mostrarIndicadorModoLocal();
     console.log('🎮 Modo local iniciado - Sin conexión al servidor');
+    
+    // Inicializar sistema de bots de entrenamiento
+    // Requirements: 1.1, 2.1, 3.1, 4.4
+    inicializarBotManager();
   }
 
   actualizarCarga(100, '¡Listo!');
@@ -759,6 +1033,15 @@ function volverAlLobby() {
   
   // Ocultar indicador de modo local
   ocultarIndicadorModoLocal();
+  
+  // Destruir sistema de bots si existe
+  if (botManager) {
+    botManager.destruir();
+    botManager = null;
+  }
+  
+  // Destruir UI de entrenamiento
+  destruirEntrenamientoUI();
   
   // Limpiar jugadores remotos
   if (remotePlayerManager) {
@@ -1004,9 +1287,31 @@ function configurarCallbacksRed() {
   });
   
   // Death notification (Requirement 3.5, 5.4)
+  // Requirements: 3.1, 3.2, 3.4 - Mostrar pantalla de muerte con menú de selección de armas
+  // Requirements: 4.1, 4.2, 4.3, 5.2 - Usar nombres de lobby y actualizar scoreboard
   connection.onDeath((data) => {
+    // Extraer nombres de lobby y scoreboard del mensaje
+    const killerName = data.killerName || data.killerId;
+    const victimName = data.victimName || data.playerId;
+    const scoreboard = data.scoreboard;
+    
+    // Actualizar scoreboard si viene en el mensaje
+    if (scoreboard && Array.isArray(scoreboard)) {
+      actualizarScoreboard(scoreboard);
+    }
+    
     if (data.playerId === localPlayerId) {
-      mostrarPantallaMuerte(data.killerId, 5000);
+      // Obtener arma actual antes de morir
+      const estadoArma = obtenerEstado();
+      const armaActual = estadoArma.tipoActual || armaSeleccionadaParaPartida;
+      
+      // Marcar muerte en el sistema de selección
+      marcarMuerte(armaActual);
+      
+      // Mostrar pantalla de muerte con nombre de lobby del asesino
+      // Requirements: 4.2 - Mostrar nombre de lobby del asesino en pantalla de muerte
+      mostrarPantallaMuerteConSeleccion(killerName, armaActual);
+      
       actualizarBarraVida(0, 200);
       // Registrar muerte para estadísticas
       registrarDeath();
@@ -1014,14 +1319,38 @@ function configurarCallbacksRed() {
       // El jugador local eliminó a alguien
       registrarKill();
     }
-    agregarEntradaKillFeed(data.killerId, data.playerId, localPlayerId);
+    
+    // Usar nombres de lobby en el kill feed
+    // Requirements: 4.1, 4.3 - Usar nombres de lobby en kill feed
+    agregarEntradaKillFeed(killerName, victimName, nombreJugadorActual);
   });
   
   // Respawn notification (Requirement 5.5)
+  // Requirements: 4.1, 4.2 - Reaparecer con arma seleccionada
   connection.onRespawn((data) => {
     if (data.playerId === localPlayerId) {
       ocultarPantallaMuerte();
+      limpiarGridArmasMuerte();
       actualizarBarraVida(200, 200);
+      
+      // Actualizar el arma si el servidor envió el tipo de arma
+      if (data.weaponType) {
+        armaSeleccionadaParaPartida = data.weaponType;
+        // Cambiar al arma seleccionada
+        establecerArmaUnica(data.weaponType, weaponContainer);
+        
+        // Actualizar UI
+        const estadoArma = obtenerEstado();
+        actualizarInfoArma(estadoArma);
+        
+        // Actualizar crosshair según el tipo de arma
+        establecerTipoArma(CONFIG.armas[data.weaponType].tipo);
+        
+        console.log(`🔫 Reaparecido con arma: ${data.weaponType}`);
+      }
+      
+      // Marcar inicio de partida nuevamente
+      iniciarPartidaSeleccion();
     }
   });
   
@@ -1075,6 +1404,12 @@ function procesarEstadoJuego(gameState) {
   // Update remote players
   remotePlayerManager.updatePlayers(gameState);
   
+  // Actualizar scoreboard si viene en el estado
+  // Requirements: 5.1, 5.2 - Procesar scoreboard al recibir estado
+  if (gameState.scoreboard && Array.isArray(gameState.scoreboard)) {
+    actualizarScoreboard(gameState.scoreboard);
+  }
+  
   // Find and apply local player state
   const localPlayerState = gameState.players.find(p => p.id === localPlayerId);
   if (localPlayerState) {
@@ -1097,39 +1432,44 @@ function procesarEstadoJuego(gameState) {
 }
 
 /**
- * Inicializa SOLO el arma inicial (M4A1)
+ * Inicializa el arma seleccionada por el jugador
+ * Requirements: 2.1, 2.2 - Equipar arma seleccionada y establecerla como única en inventario
  */
 async function inicializarArmaInicial() {
-  console.log('🔫 Cargando arma inicial...');
+  const armaSeleccionada = armaSeleccionadaParaPartida || 'M4A1';
+  console.log(`🔫 Cargando arma seleccionada: ${armaSeleccionada}...`);
   
-  // Agregar todas las armas al inventario (pero NO cargar sus modelos aún)
-  agregarArma('PISTOLA');
-  agregarArma('AK47');
-  agregarArma('SNIPER');
-  agregarArma('ESCOPETA');
-  agregarArma('MP5');
-  agregarArma('SCAR');
-  
-  // Cargar SOLO el modelo inicial (M4A1)
+  // Establecer el arma seleccionada como única en el inventario
+  // Requirements: 2.2 - El inventario solo contiene el arma seleccionada
   try {
-    await cambiarModeloArma('M4A1', weaponContainer);
-    console.log('✅ Arma inicial cargada');
+    establecerArmaUnica(armaSeleccionada, weaponContainer);
+    console.log(`✅ Arma ${armaSeleccionada} equipada como única en inventario`);
   } catch (error) {
-    console.error('❌ Error cargando arma inicial:', error);
+    console.error('❌ Error equipando arma seleccionada:', error);
+    // Fallback a M4A1 si hay error
+    establecerArmaUnica('M4A1', weaponContainer);
   }
+  
+  // Marcar que la partida ha iniciado (deshabilita cambio de arma)
+  // Requirements: 2.3 - Deshabilitar cambio de arma durante partida
+  iniciarPartidaSeleccion();
   
   // Actualizar UI inicial
   const estadoInicial = obtenerEstado();
   actualizarInfoArma(estadoInicial);
+  
+  // Actualizar crosshair según el tipo de arma
+  establecerTipoArma(CONFIG.armas[armaSeleccionada].tipo);
 }
 
 /**
  * Carga las demás armas en background (lazy loading)
+ * Nota: Con el nuevo sistema de arma única, esto solo cachea modelos para futuros respawns
  */
 async function cargarArmasEnBackground() {
   console.log('🔄 Cargando armas adicionales en background...');
   
-  const armasACargar = ['PISTOLA', 'AK47', 'SNIPER', 'ESCOPETA', 'MP5', 'SCAR'];
+  const armasACargar = ['M4A1', 'PISTOLA', 'AK47', 'SNIPER', 'ESCOPETA', 'MP5', 'SCAR'];
   
   for (const tipoArma of armasACargar) {
     try {
@@ -1366,6 +1706,41 @@ function calcularDireccionDash() {
 }
 
 /**
+ * Verifica si una bala impacta algún bot de entrenamiento
+ * Requirement 1.4: Registrar impacto y actualizar barra de vida del bot
+ * 
+ * @param {Bala} bala - La bala a verificar
+ * @param {Array<BotBase>} bots - Array de bots vivos
+ * @returns {BotBase|null} - El bot impactado o null si no hubo impacto
+ */
+function verificarImpactoBots(bala, bots) {
+  if (bala.haImpactado) return null;
+
+  const raycaster = new THREE.Raycaster();
+  raycaster.set(bala.mesh.position, bala.direccion);
+
+  for (const bot of bots) {
+    if (!bot.estaVivo()) continue;
+
+    const intersecciones = raycaster.intersectObject(bot.mesh);
+
+    if (intersecciones.length > 0 && intersecciones[0].distance < 0.5) {
+      bala.haImpactado = true;
+      
+      // Aplicar daño al bot
+      bot.recibirDaño(bala.dañoBala);
+      
+      // Crear efecto de impacto
+      bala.crearEfectoImpacto(bala.mesh.position);
+      
+      return bot;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Maneja el evento de disparo
  * Requirement 5.1: Send shoot input to server
  */
@@ -1479,6 +1854,11 @@ function manejarDisparo() {
       
       reproducirSonidoDisparo(estadoArma.tipoActual, configArma);
       actualizarDisplayMunicion();
+      
+      // Registrar disparo para estadísticas de entrenamiento
+      if (botManager) {
+        botManager.registrarDisparo();
+      }
     }
   }
 }
@@ -1642,10 +2022,38 @@ function bucleJuego() {
 
     // Update local bullets (for visual feedback)
     for (let i = balas.length - 1; i >= 0; i--) {
-      if (!balas[i].actualizar(deltaTime)) {
-        balas[i].destruir();
+      const bala = balas[i];
+      
+      // Verificar colisión con bots de entrenamiento (solo en modo local)
+      // Requirement 1.4: Registrar impacto y actualizar barra de vida del bot
+      if (botManager && modoJuegoActual === 'local' && !bala.haImpactado) {
+        const botsVivos = botManager.obtenerBotsVivos();
+        const botImpactado = verificarImpactoBots(bala, botsVivos);
+        if (botImpactado) {
+          // Registrar acierto
+          botManager.registrarAcierto();
+          
+          // Verificar si el bot murió
+          if (!botImpactado.estaVivo()) {
+            botManager.registrarEliminacion(botImpactado.obtenerTipo());
+          }
+          
+          bala.destruir();
+          balas.splice(i, 1);
+          continue;
+        }
+      }
+      
+      if (!bala.actualizar(deltaTime)) {
+        bala.destruir();
         balas.splice(i, 1);
       }
+    }
+
+    // Actualizar sistema de bots de entrenamiento (solo en modo local)
+    // Requirements: 1.1, 2.1, 3.1, 4.4
+    if (botManager && modoJuegoActual === 'local') {
+      botManager.actualizar(deltaTime * 1000, jugador.posicion);
     }
 
     // Sincronizar cámara con jugador

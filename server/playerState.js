@@ -132,6 +132,33 @@ export class PlayerState {
   }
 
   /**
+   * Respawn player with a specific weapon
+   * Requirements: 4.1, 4.2 - Reaparecer con arma seleccionada
+   * @param {string} weaponType - Type of weapon to spawn with
+   */
+  respawnWithWeapon(weaponType) {
+    const spawn = getRandomSpawnPoint();
+    this.position = { x: spawn.x, y: spawn.y, z: spawn.z };
+    this.velocity = { x: 0, y: 0, z: 0 };
+    this.health = PLAYER_CONFIG.maxHealth;
+    this.isAlive = true;
+    this.deathTime = null;
+    this.isReloading = false;
+    this.reloadStartTime = null;
+    
+    // Cambiar al arma seleccionada
+    if (weaponType && WEAPON_CONFIG[weaponType]) {
+      this.currentWeapon = weaponType;
+    }
+    
+    // Recargar munición del arma actual
+    const config = this.getWeaponConfig();
+    this.ammo = config.magazineSize;
+    this.maxAmmo = config.magazineSize;
+    this.totalAmmo = config.totalAmmo;
+  }
+
+  /**
    * Check if player can respawn
    */
   canRespawn() {

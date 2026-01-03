@@ -124,6 +124,21 @@ export class InputSender {
       }
     });
   }
+
+  /**
+   * Send respawn request to server
+   * Requirements: 4.1, 4.2 - Reaparecer con arma seleccionada
+   * @param {string} weaponType - Type of weapon to spawn with
+   */
+  sendRespawn(weaponType = 'M4A1') {
+    if (!this.connection.isConnected()) {
+      return;
+    }
+    
+    this.connection.send('respawn', {
+      weaponType: weaponType
+    });
+  }
 }
 
 // Singleton instance for easy access
