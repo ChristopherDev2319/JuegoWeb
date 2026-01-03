@@ -56,7 +56,10 @@ import {
   sistemaDash, 
   actualizarRecargaDash,
   actualizarDesdeServidor as actualizarDashDesdeServidor,
-  ejecutarDash
+  ejecutarDash,
+  ejecutarDashInterpolado,
+  actualizarDashInterpolacion,
+  calcularPosicionFinalDash
 } from './sistemas/dash.js';
 
 import { 
@@ -1631,36 +1634,54 @@ function manejarRecarga() {
 /**
  * Maneja el evento de dash
  * Requirement 7.1: Send dash input to server
+ * Requirements: 1.1, 1.4, 5.1 - Dash interpolado con envío de posición final
  */
 function manejarDash() {
   if (isMultiplayerConnected) {
     // Verificar si hay cargas disponibles localmente antes de enviar al servidor
-    if (sistemaDash.cargasActuales <= 0) {
+    if (sistemaDash.cargasActuales <= 0 || sistemaDash.dashEnProgreso) {
       return;
     }
     
     // Calculate dash direction
     const direccion = calcularDireccionDash();
     
-    // Consumir carga localmente para feedback inmediato
-    sistemaDash.cargasActuales--;
+    // Guardar posición inicial antes del dash
+    const posicionInicial = {
+      x: jugador.posicion.x,
+      y: jugador.posicion.y,
+      z: jugador.posicion.z
+    };
+    
+    // Calcular posición final usando el sistema de dash interpolado
+    // Requirements: 2.1, 2.2, 3.1 - Ignorar colisiones internas, respetar límites
+    const distanciaDash = CONFIG.dash.poder;
+    const posicionFinal = calcularPosicionFinalDash(
+      jugador.posicion,
+      { x: direccion.x, y: direccion.y, z: direccion.z },
+      distanciaDash
+    );
+    
+    // Ejecutar dash interpolado localmente para predicción suave
+    // Requirements: 1.1, 1.4 - Interpolación suave del dash
+    ejecutarDashInterpolado(jugador, teclas, (dir, posFin) => {
+      crearEfectoDash(jugador.posicion, scene);
+    });
     
     // Marcar inicio de dash para evitar reconciliación brusca
     marcarInicioDash();
     
-    // Aplicar dash localmente para predicción inmediata
-    const dashPower = CONFIG.dash.poder;
-    jugador.posicion.x += direccion.x * dashPower;
-    jugador.posicion.z += direccion.z * dashPower;
-    
-    // Send dash input to server
-    inputSender.sendDash(direccion);
-    
-    // Local visual effect
-    crearEfectoDash(jugador.posicion, scene);
+    // Send dash input to server con posiciones
+    // Requirements: 5.1 - Enviar posición final calculada al servidor
+    inputSender.sendDash(direccion, posicionInicial, {
+      x: posicionFinal.x,
+      y: posicionFinal.y,
+      z: posicionFinal.z
+    });
   } else {
-    // Fallback to local processing
-    ejecutarDash(jugador, teclas, (direccion) => {
+    // Modo local - usar dash interpolado
+    // Requirements: 1.1, 1.4 - Interpolación suave del dash
+    ejecutarDashInterpolado(jugador, teclas, (direccion, posFin) => {
       crearEfectoDash(jugador.posicion, scene);
     });
   }
@@ -1991,6 +2012,10 @@ function bucleJuego() {
       actualizarRecargaDash();
     }
     actualizarDisplayDash();
+    
+    // Actualizar interpolación del dash si está en progreso
+    // Requirements: 1.2 - Actualizar posición del jugador en cada frame durante dash
+    actualizarDashInterpolacion(jugador, deltaTime * 1000);
     
     // Actualizar retroceso acumulado (se reduce con el tiempo)
     actualizarRetroceso();

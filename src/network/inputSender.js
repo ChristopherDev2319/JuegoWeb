@@ -109,20 +109,44 @@ export class InputSender {
 
   /**
    * Send dash input to server (Requirement 7.1)
+   * Requirements: 5.1 - Enviar posición final calculada al servidor
    * @param {Object} direction - Dash direction { x, y, z }
+   * @param {Object} startPosition - Starting position { x, y, z }
+   * @param {Object} endPosition - Client-calculated end position { x, y, z }
    */
-  sendDash(direction) {
+  sendDash(direction, startPosition = null, endPosition = null) {
     if (!this.connection.isConnected()) {
       return;
     }
     
-    this.connection.send('dash', {
+    const data = {
       direction: {
         x: direction.x || 0,
         y: direction.y || 0,
         z: direction.z || 0
       }
-    });
+    };
+    
+    // Incluir posición inicial si se proporciona
+    if (startPosition) {
+      data.startPosition = {
+        x: startPosition.x || 0,
+        y: startPosition.y || 0,
+        z: startPosition.z || 0
+      };
+    }
+    
+    // Incluir posición final calculada por el cliente
+    // Requirements: 5.1 - El cliente envía la posición final calculada
+    if (endPosition) {
+      data.endPosition = {
+        x: endPosition.x || 0,
+        y: endPosition.y || 0,
+        z: endPosition.z || 0
+      };
+    }
+    
+    this.connection.send('dash', data);
   }
 
   /**

@@ -161,7 +161,18 @@ export const DASH_CONFIG = {
   maxCharges: 3,             // Cargas máximas de dash disponibles
   rechargeTime: 3000,        // Tiempo de recarga por carga: 3 segundos
   power: 5,                  // Potencia/distancia del dash
-  duration: 200              // Duración del dash en milisegundos
+  duration: 200,             // Duración del dash en milisegundos
+  maxDistance: 5.5           // Distancia máxima permitida (5 + 10% margen)
+};
+
+// Configuración de límites del mapa (paredes exteriores)
+// Sincronizado con cliente - Requirements: 5.2, 5.3
+export const MAP_LIMITS = {
+  minX: -122,                // Límite mínimo en X
+  maxX: 122,                 // Límite máximo en X
+  minZ: -122,                // Límite mínimo en Z
+  maxZ: 122,                 // Límite máximo en Z
+  margenSeguridad: 0.5       // Margen de separación del límite
 };
 
 // Configuración de balas/proyectiles

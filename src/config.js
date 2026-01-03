@@ -269,7 +269,9 @@ export const CONFIG = {
     cargasMaximas: 3,
     tiempoRecarga: 3000,
     poder: 5,
-    duracion: 200
+    duracion: 200,
+    extensionMaxima: 3,        // Multiplicador máximo de extensión (3x distancia base)
+    margenSalida: 0.5          // Margen después de salir de estructura (unidades)
   },
 
   enemigo: {
@@ -297,6 +299,16 @@ export const CONFIG = {
     puertoServidor: 3000,
     reintentos: 3,
     tiempoEspera: 5000
+  },
+
+  // Configuración de límites del mapa (paredes exteriores)
+  // Requirements: 3.1, 3.2, 3.3
+  limitesMapa: {
+    minX: -122,              // Límite mínimo en X
+    maxX: 122,               // Límite máximo en X
+    minZ: -122,              // Límite mínimo en Z
+    maxZ: 122,               // Límite máximo en Z
+    margenSeguridad: 0.5     // Margen de separación del límite
   },
 
   // Configuración del sistema de física Rapier3D

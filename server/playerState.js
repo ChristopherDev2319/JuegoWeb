@@ -5,7 +5,7 @@
  * Requirements: 1.2, 5.3, 5.4, 5.5, 6.2, 6.4, 7.2, 7.3
  */
 
-import { PLAYER_CONFIG, WEAPON_CONFIG, DASH_CONFIG, getWeaponConfig } from './config.js';
+import { PLAYER_CONFIG, WEAPON_CONFIG, DASH_CONFIG, MAP_LIMITS, getWeaponConfig } from './config.js';
 
 /**
  * PlayerState class representing a player's complete state
@@ -230,12 +230,16 @@ export class PlayerState {
 
   /**
    * Execute dash in direction (Requirement 7.2, 7.3)
+   * Mejorado para aceptar posición del cliente y validar distancia
+   * Requirements: 1.3, 5.2, 5.3, 5.4
+   * 
    * @param {Object} direction - Direction vector {x, y, z}
-   * @returns {boolean} - True if dash executed successfully
+   * @param {Object|null} clientPosition - Optional client-calculated end position {x, y, z}
+   * @returns {Object} - Result object with success status and final position
    */
-  dash(direction) {
-    if (!this.isAlive) return false;
-    if (this.dashCharges <= 0) return false;
+  dash(direction, clientPosition = null) {
+    if (!this.isAlive) return { success: false, reason: 'player_dead' };
+    if (this.dashCharges <= 0) return { success: false, reason: 'no_charges' };
     
     // Normalize direction
     const length = Math.sqrt(
@@ -244,7 +248,7 @@ export class PlayerState {
       direction.z * direction.z
     );
     
-    if (length === 0) return false;
+    if (length === 0) return { success: false, reason: 'invalid_direction' };
     
     const normalizedDir = {
       x: direction.x / length,
@@ -252,19 +256,77 @@ export class PlayerState {
       z: direction.z / length
     };
     
-    // Apply dash movement
-    this.position.x += normalizedDir.x * DASH_CONFIG.power;
-    this.position.y += normalizedDir.y * DASH_CONFIG.power;
-    this.position.z += normalizedDir.z * DASH_CONFIG.power;
+    // Calculate server's expected end position
+    const serverEndPosition = {
+      x: this.position.x + normalizedDir.x * DASH_CONFIG.power,
+      y: this.position.y + normalizedDir.y * DASH_CONFIG.power,
+      z: this.position.z + normalizedDir.z * DASH_CONFIG.power
+    };
     
-    // Clamp to bounds
+    // Apply map limits to server position
+    serverEndPosition.x = clamp(serverEndPosition.x, MAP_LIMITS.minX, MAP_LIMITS.maxX);
+    serverEndPosition.z = clamp(serverEndPosition.z, MAP_LIMITS.minZ, MAP_LIMITS.maxZ);
+    
+    let finalPosition = serverEndPosition;
+    let usedClientPosition = false;
+    
+    // If client provided a position, validate and potentially use it
+    if (clientPosition) {
+      // Validate client position is within map limits (Requirement 5.3)
+      const clientWithinLimits = 
+        clientPosition.x >= MAP_LIMITS.minX && clientPosition.x <= MAP_LIMITS.maxX &&
+        clientPosition.z >= MAP_LIMITS.minZ && clientPosition.z <= MAP_LIMITS.maxZ;
+      
+      if (clientWithinLimits) {
+        // Calculate distance of client's dash (Requirement 5.2)
+        const clientDashDistance = Math.sqrt(
+          Math.pow(clientPosition.x - this.position.x, 2) +
+          Math.pow(clientPosition.z - this.position.z, 2)
+        );
+        
+        // Validate dash distance doesn't exceed maximum (5 + 10% margin = 5.5)
+        if (clientDashDistance <= DASH_CONFIG.maxDistance) {
+          // Calculate discrepancy between client and server positions
+          const discrepancy = Math.sqrt(
+            Math.pow(clientPosition.x - serverEndPosition.x, 2) +
+            Math.pow(clientPosition.z - serverEndPosition.z, 2)
+          );
+          
+          // Requirement 5.4: Accept client position if discrepancy < 1 unit
+          // This allows for client-side collision handling (dash fantasma)
+          if (discrepancy < 1) {
+            finalPosition = {
+              x: clientPosition.x,
+              y: clientPosition.y !== undefined ? clientPosition.y : serverEndPosition.y,
+              z: clientPosition.z
+            };
+            usedClientPosition = true;
+          }
+          // If discrepancy >= 1 unit, use server position (corrección)
+        }
+        // If distance exceeds max, use server position (anti-cheat)
+      }
+      // If outside limits, use server position
+    }
+    
+    // Apply final position
+    this.position.x = finalPosition.x;
+    this.position.y = finalPosition.y;
+    this.position.z = finalPosition.z;
+    
+    // Ensure within bounds (final safety check)
     this.position.x = clamp(this.position.x, PLAYER_CONFIG.bounds.min, PLAYER_CONFIG.bounds.max);
     this.position.z = clamp(this.position.z, PLAYER_CONFIG.bounds.min, PLAYER_CONFIG.bounds.max);
     
     // Consume charge
     this.dashCharges--;
     
-    return true;
+    return { 
+      success: true, 
+      position: { ...this.position },
+      usedClientPosition,
+      serverCalculatedPosition: serverEndPosition
+    };
   }
 
   /**
