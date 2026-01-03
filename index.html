@@ -457,9 +457,90 @@
       </div>
     </div>
 
-    <!-- FPS Counter -->
-    <div id="fps-counter" class="hidden">
-      <span id="fps-value">60</span> FPS
+    <!-- Auth UI Overlay - Opcional -->
+    <div id="auth-overlay" class="auth-overlay hidden">
+      <div class="auth-container">
+        <div class="auth-header">
+          <h2 id="auth-title">Iniciar Sesión</h2>
+          <button id="auth-close" class="auth-close">&times;</button>
+        </div>
+        
+        <!-- Login Form -->
+        <form id="login-form" class="auth-form">
+          <div class="form-group">
+            <label for="login-username">Usuario o Email</label>
+            <input type="text" id="login-username" required>
+          </div>
+          <div class="form-group">
+            <label for="login-password">Contraseña</label>
+            <input type="password" id="login-password" required>
+          </div>
+          <button type="submit" class="auth-btn primary">Iniciar Sesión</button>
+          <p class="auth-switch">
+            ¿No tienes cuenta? <a href="#" id="show-register">Regístrate</a>
+          </p>
+        </form>
+        
+        <!-- Register Form -->
+        <form id="register-form" class="auth-form hidden">
+          <div class="form-group">
+            <label for="register-username">Nombre de Usuario</label>
+            <input type="text" id="register-username" required>
+          </div>
+          <div class="form-group">
+            <label for="register-email">Email</label>
+            <input type="email" id="register-email" required>
+          </div>
+          <div class="form-group">
+            <label for="register-password">Contraseña</label>
+            <input type="password" id="register-password" required>
+          </div>
+          <div class="form-group">
+            <label for="register-confirm">Confirmar Contraseña</label>
+            <input type="password" id="register-confirm" required>
+          </div>
+          <button type="submit" class="auth-btn primary">Registrarse</button>
+          <p class="auth-switch">
+            ¿Ya tienes cuenta? <a href="#" id="show-login">Inicia Sesión</a>
+          </p>
+        </form>
+        
+        <div id="auth-error" class="auth-error hidden"></div>
+        <div id="auth-loading" class="auth-loading hidden">Cargando...</div>
+      </div>
+    </div>
+
+    <!-- User Menu Overlay -->
+    <div id="user-menu-overlay" class="user-menu-overlay hidden">
+      <div id="user-menu-container" class="user-menu-container">
+        <!-- Header -->
+        <div class="user-menu-header">
+          <h2>Mi Personaje</h2>
+          <button id="user-menu-close" class="user-menu-close">&times;</button>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="user-menu-content">
+          <!-- 3D Character Display -->
+          <div id="user-menu-canvas" class="user-menu-canvas"></div>
+          
+          <!-- Weapon Info -->
+          <div id="user-menu-weapon-info" class="user-menu-weapon-info">
+            <h3 id="user-menu-weapon-name">M4A1</h3>
+            <p id="user-menu-weapon-desc">Rifle de asalto versátil con buen equilibrio entre daño y precisión</p>
+          </div>
+          
+          <!-- User Stats -->
+          <div id="user-menu-stats" class="user-menu-stats">
+            <!-- Stats se llenan dinámicamente -->
+          </div>
+        </div>
+        
+        <!-- Weapon Selector -->
+        <div id="user-menu-weapon-selector" class="user-menu-weapon-selector">
+          <!-- Botones de armas se crean dinámicamente -->
+        </div>
+      </div>
     </div>
 
     <!-- Librerías externas de Three.js -->
