@@ -31,6 +31,10 @@ import {
   createIPCMessage, 
   IPCMessageType 
 } from './ipcHandler.js';
+import { RedisConnection } from './redisConnection.js';
+import { MatchmakingFallback, MatchmakingMode } from './matchmakingFallback.js';
+import { REDIS_CONFIG } from './redisConfig.js';
+import { clusterLogger } from './clusterLogger.js';
 
 // ES module dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -87,18 +91,31 @@ export class WorkerServer {
     
     /** @type {Object} IPC Handler */
     this.ipcHandler = getIPCHandler();
+    
+    /** @type {RedisConnection} Conexión a Redis */
+    this.redisConnection = null;
+    
+    /** @type {MatchmakingFallback} Sistema de matchmaking con fallback */
+    this.matchmakingFallback = null;
+    
+    /** @type {NodeJS.Timeout} Intervalo de heartbeat de salas en Redis */
+    this.heartbeatInterval = null;
   }
 
   /**
    * Inicia el servidor worker
    * Requirement 3.1: Worker ejecuta instancia independiente del servidor
+   * Requirement 1.1, 1.2, 1.3: Inicializar RedisMatchmaking para matchmaking centralizado
    */
-  start() {
+  async start() {
     console.log(`[Worker ${this.workerId}] Starting server...`);
     
     // Inicializar IPC
     this.ipcHandler.initialize();
     this._setupIPCListeners();
+    
+    // Inicializar Redis y matchmaking centralizado
+    await this._initializeRedisMatchmaking();
     
     // Crear servidor Express y HTTP
     const app = express();
@@ -128,6 +145,13 @@ export class WorkerServer {
       CLUSTER_CONFIG.metricsInterval
     );
     
+    // Iniciar heartbeat periódico de salas en Redis
+    // Requirement 2.2: Enviar heartbeat cada 30 segundos para salas activas
+    this.heartbeatInterval = setInterval(
+      () => this._sendRoomHeartbeats(),
+      REDIS_CONFIG.heartbeatInterval
+    );
+    
     // Obtener puerto
     const PORT = process.env.PORT || SERVER_CONFIG.port;
     
@@ -142,6 +166,47 @@ export class WorkerServer {
     
     // Configurar shutdown graceful
     this._setupShutdownHandlers();
+  }
+
+  /**
+   * Inicializa la conexión a Redis y el sistema de matchmaking centralizado
+   * 
+   * Requirement 1.1, 1.2, 1.3: Matchmaking centralizado con Redis
+   * Requirement 4.1, 4.2: Reconexión automática y fallback local
+   * 
+   * @private
+   */
+  async _initializeRedisMatchmaking() {
+    try {
+      // Crear conexión a Redis
+      this.redisConnection = new RedisConnection(REDIS_CONFIG);
+      
+      // Crear sistema de matchmaking con fallback
+      this.matchmakingFallback = new MatchmakingFallback({
+        workerId: this.workerId,
+        redisConnection: this.redisConnection,
+        localRoomManager: this.roomManager
+      });
+      
+      // Configurar callback para cambios de modo
+      this.matchmakingFallback.onModeChange((newMode, oldMode) => {
+        clusterLogger.info('WorkerServer', 
+          `[Worker ${this.workerId}] Matchmaking mode changed: ${oldMode} -> ${newMode}`
+        );
+      });
+      
+      // Inicializar (intentará conectar a Redis)
+      await this.matchmakingFallback.initialize();
+      
+      const mode = this.matchmakingFallback.getMode();
+      console.log(`[Worker ${this.workerId}] Matchmaking initialized in ${mode} mode`);
+      
+    } catch (error) {
+      clusterLogger.error('WorkerServer', 
+        `[Worker ${this.workerId}] Error initializing Redis matchmaking: ${error.message}`
+      );
+      console.log(`[Worker ${this.workerId}] Continuing with local matchmaking only`);
+    }
   }
 
   /**
@@ -194,6 +259,16 @@ export class WorkerServer {
     if (this.tickInterval) clearInterval(this.tickInterval);
     if (this.cleanupInterval) clearInterval(this.cleanupInterval);
     if (this.metricsInterval) clearInterval(this.metricsInterval);
+    if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+    
+    // Cerrar matchmaking y Redis
+    if (this.matchmakingFallback) {
+      try {
+        await this.matchmakingFallback.shutdown();
+      } catch (e) {
+        clusterLogger.error('WorkerServer', `Error shutting down matchmaking: ${e.message}`);
+      }
+    }
     
     // Cerrar todas las conexiones WebSocket
     for (const [playerId, ws] of this.connections) {
@@ -436,139 +511,114 @@ export class WorkerServer {
 
   /**
    * Maneja mensajes de lobby
+   * 
+   * Requirement 1.1, 1.2, 1.3: Matchmaking centralizado con Redis
+   * 
    * @private
    */
-  _handleLobbyMessage(ws, message) {
+  async _handleLobbyMessage(ws, message) {
     const playerId = ws.playerId;
     const action = message.data.action;
     const data = message.data;
     
     switch (action) {
       case 'matchmaking': {
-        const sala = encontrarMejorSala(this.roomManager);
-        const playerName = data.playerName || `Jugador_${Math.floor(Math.random() * 10000)}`;
-        
-        const jugadoresActuales = [];
-        for (const [id, jugador] of sala.jugadores) {
-          jugadoresActuales.push({ id: jugador.id, nombre: jugador.nombre });
-        }
-        
-        const added = sala.agregarJugador(playerId, playerName);
-        
-        if (added) {
-          this.playerRooms.set(playerId, sala.id);
-          ws.inLobby = false;
-          ws.roomId = sala.id;
-          
-          ws.send(serializeMessage('lobbyResponse', {
-            action: 'matchmaking',
-            success: true,
-            data: {
-              roomId: sala.id,
-              roomCode: sala.codigo,
-              players: sala.getPlayerCount(),
-              maxPlayers: sala.maxJugadores,
-              playerList: jugadoresActuales
-            }
-          }));
-          
-          this._broadcastToRoom(sala.id, serializeMessage('playerJoined', {
-            player: { id: playerId, nombre: playerName }
-          }), playerId);
-          
-          ws.send(serializeMessage('welcome', {
-            playerId,
-            gameState: sala.gameManager.getState()
-          }));
-          
-          // Notificar al master sobre nueva sala si es necesario
-          this._notifyRoomCreated(sala);
-        } else {
-          ws.send(serializeMessage('lobbyResponse', {
-            action: 'matchmaking',
-            success: false,
-            data: { error: ERROR_MESSAGES.ROOM_FULL }
-          }));
-        }
+        await this._handleMatchmaking(ws, playerId, data);
         break;
       }
       
       case 'createPrivate': {
-        const password = data.password || '';
-        const playerName = data.playerName || `Jugador_${Math.floor(Math.random() * 10000)}`;
-        
-        const sala = this.roomManager.crearSala({ tipo: 'privada', password });
-        sala.agregarJugador(playerId, playerName);
-        this.playerRooms.set(playerId, sala.id);
-        ws.inLobby = false;
-        ws.roomId = sala.id;
-        
-        ws.send(serializeMessage('lobbyResponse', {
-          action: 'createPrivate',
-          success: true,
-          data: {
-            roomId: sala.id,
-            roomCode: sala.codigo,
-            players: sala.getPlayerCount(),
-            maxPlayers: sala.maxJugadores
-          }
-        }));
-        
-        ws.send(serializeMessage('welcome', {
-          playerId,
-          gameState: sala.gameManager.getState()
-        }));
-        
-        this._notifyRoomCreated(sala);
+        await this._handleCreatePrivate(ws, playerId, data);
         break;
       }
       
       case 'joinPrivate': {
-        const roomCode = data.roomCode;
-        const password = data.password || '';
-        const playerName = data.playerName || `Jugador_${Math.floor(Math.random() * 10000)}`;
+        await this._handleJoinPrivate(ws, playerId, data);
+        break;
+      }
+      
+      case 'listRooms': {
+        await this._handleListRooms(ws);
+        break;
+      }
+      
+      default:
+        ws.send(serializeMessage('lobbyResponse', {
+          action,
+          success: false,
+          data: { error: ERROR_MESSAGES.UNKNOWN_ACTION }
+        }));
+    }
+  }
+
+  /**
+   * Maneja solicitud de matchmaking usando Redis centralizado
+   * 
+   * Requirement 1.1: Consultar Redis para obtener salas públicas disponibles
+   * Requirement 1.2: Seleccionar sala con más jugadores activos
+   * Requirement 1.3: Crear nueva sala si no hay disponibles
+   * 
+   * @private
+   */
+  async _handleMatchmaking(ws, playerId, data) {
+    const playerName = data.playerName || `Jugador_${Math.floor(Math.random() * 10000)}`;
+    
+    try {
+      let sala;
+      let roomInfo;
+      
+      // Usar matchmaking centralizado si está disponible
+      if (this.matchmakingFallback && this.matchmakingFallback.getMode() !== MatchmakingMode.LOCAL) {
+        // Buscar o crear sala usando Redis
+        const result = await this.matchmakingFallback.findOrCreateRoom();
+        roomInfo = result.room;
         
-        const sala = this.roomManager.obtenerSalaPorCodigo(roomCode);
+        // Si la sala fue creada en este worker o ya existe localmente, usarla
+        sala = this.roomManager.obtenerSala(roomInfo.id);
         
         if (!sala) {
-          ws.send(serializeMessage('lobbyResponse', {
-            action: 'joinPrivate',
-            success: false,
-            data: { error: ERROR_MESSAGES.ROOM_NOT_FOUND }
-          }));
-          return;
+          // La sala existe en otro worker o necesitamos crearla localmente
+          if (result.created || roomInfo.workerId === this.workerId) {
+            // Crear sala local con el mismo ID
+            sala = this.roomManager.crearSala({
+              tipo: 'publica',
+              id: roomInfo.id,
+              codigo: roomInfo.codigo
+            });
+            
+            // Registrar en Redis si fue creada localmente
+            if (result.created) {
+              await this._registerRoomInRedis(sala);
+            }
+          } else {
+            // La sala está en otro worker, crear una nueva local
+            sala = this.roomManager.crearSala({ tipo: 'publica' });
+            await this._registerRoomInRedis(sala);
+          }
         }
-        
-        if (!sala.verificarPassword(password)) {
-          ws.send(serializeMessage('lobbyResponse', {
-            action: 'joinPrivate',
-            success: false,
-            data: { error: ERROR_MESSAGES.WRONG_PASSWORD }
-          }));
-          return;
-        }
-        
-        if (!sala.tieneEspacio()) {
-          ws.send(serializeMessage('lobbyResponse', {
-            action: 'joinPrivate',
-            success: false,
-            data: { error: ERROR_MESSAGES.ROOM_FULL }
-          }));
-          return;
-        }
-        
-        const jugadoresActuales = [];
-        for (const [id, jugador] of sala.jugadores) {
-          jugadoresActuales.push({ id: jugador.id, nombre: jugador.nombre });
-        }
-        
-        sala.agregarJugador(playerId, playerName);
+      } else {
+        // Fallback: usar matchmaking local
+        sala = encontrarMejorSala(this.roomManager);
+      }
+      
+      // Obtener lista de jugadores actuales antes de agregar
+      const jugadoresActuales = [];
+      for (const [id, jugador] of sala.jugadores) {
+        jugadoresActuales.push({ id: jugador.id, nombre: jugador.nombre });
+      }
+      
+      const added = sala.agregarJugador(playerId, playerName);
+      
+      if (added) {
         this.playerRooms.set(playerId, sala.id);
         ws.inLobby = false;
         ws.roomId = sala.id;
         
+        // Actualizar contador en Redis
+        await this._updateRoomPlayersInRedis(sala.id, 1);
+        
         ws.send(serializeMessage('lobbyResponse', {
-          action: 'joinPrivate',
+          action: 'matchmaking',
           success: true,
           data: {
             roomId: sala.id,
@@ -587,40 +637,277 @@ export class WorkerServer {
           playerId,
           gameState: sala.gameManager.getState()
         }));
-        break;
+        
+        // Notificar al master sobre nueva sala si es necesario
+        this._notifyRoomCreated(sala);
+      } else {
+        ws.send(serializeMessage('lobbyResponse', {
+          action: 'matchmaking',
+          success: false,
+          data: { error: ERROR_MESSAGES.ROOM_FULL }
+        }));
+      }
+    } catch (error) {
+      clusterLogger.error('WorkerServer', `Error en matchmaking: ${error.message}`);
+      
+      // Fallback a matchmaking local en caso de error
+      const sala = encontrarMejorSala(this.roomManager);
+      const playerName = data.playerName || `Jugador_${Math.floor(Math.random() * 10000)}`;
+      
+      const jugadoresActuales = [];
+      for (const [id, jugador] of sala.jugadores) {
+        jugadoresActuales.push({ id: jugador.id, nombre: jugador.nombre });
       }
       
-      case 'listRooms': {
+      const added = sala.agregarJugador(playerId, playerName);
+      
+      if (added) {
+        this.playerRooms.set(playerId, sala.id);
+        ws.inLobby = false;
+        ws.roomId = sala.id;
+        
+        ws.send(serializeMessage('lobbyResponse', {
+          action: 'matchmaking',
+          success: true,
+          data: {
+            roomId: sala.id,
+            roomCode: sala.codigo,
+            players: sala.getPlayerCount(),
+            maxPlayers: sala.maxJugadores,
+            playerList: jugadoresActuales
+          }
+        }));
+        
+        this._broadcastToRoom(sala.id, serializeMessage('playerJoined', {
+          player: { id: playerId, nombre: playerName }
+        }), playerId);
+        
+        ws.send(serializeMessage('welcome', {
+          playerId,
+          gameState: sala.gameManager.getState()
+        }));
+        
+        this._notifyRoomCreated(sala);
+      } else {
+        ws.send(serializeMessage('lobbyResponse', {
+          action: 'matchmaking',
+          success: false,
+          data: { error: ERROR_MESSAGES.MATCHMAKING_FAILED }
+        }));
+      }
+    }
+  }
+
+  /**
+   * Maneja creación de sala privada
+   * @private
+   */
+  async _handleCreatePrivate(ws, playerId, data) {
+    const password = data.password || '';
+    const playerName = data.playerName || `Jugador_${Math.floor(Math.random() * 10000)}`;
+    
+    const sala = this.roomManager.crearSala({ tipo: 'privada', password });
+    sala.agregarJugador(playerId, playerName);
+    this.playerRooms.set(playerId, sala.id);
+    ws.inLobby = false;
+    ws.roomId = sala.id;
+    
+    ws.send(serializeMessage('lobbyResponse', {
+      action: 'createPrivate',
+      success: true,
+      data: {
+        roomId: sala.id,
+        roomCode: sala.codigo,
+        players: sala.getPlayerCount(),
+        maxPlayers: sala.maxJugadores
+      }
+    }));
+    
+    ws.send(serializeMessage('welcome', {
+      playerId,
+      gameState: sala.gameManager.getState()
+    }));
+    
+    this._notifyRoomCreated(sala);
+  }
+
+  /**
+   * Maneja unirse a sala privada
+   * @private
+   */
+  async _handleJoinPrivate(ws, playerId, data) {
+    const roomCode = data.roomCode;
+    const password = data.password || '';
+    const playerName = data.playerName || `Jugador_${Math.floor(Math.random() * 10000)}`;
+    
+    const sala = this.roomManager.obtenerSalaPorCodigo(roomCode);
+    
+    if (!sala) {
+      ws.send(serializeMessage('lobbyResponse', {
+        action: 'joinPrivate',
+        success: false,
+        data: { error: ERROR_MESSAGES.ROOM_NOT_FOUND }
+      }));
+      return;
+    }
+    
+    if (!sala.verificarPassword(password)) {
+      ws.send(serializeMessage('lobbyResponse', {
+        action: 'joinPrivate',
+        success: false,
+        data: { error: ERROR_MESSAGES.WRONG_PASSWORD }
+      }));
+      return;
+    }
+    
+    if (!sala.tieneEspacio()) {
+      ws.send(serializeMessage('lobbyResponse', {
+        action: 'joinPrivate',
+        success: false,
+        data: { error: ERROR_MESSAGES.ROOM_FULL }
+      }));
+      return;
+    }
+    
+    const jugadoresActuales = [];
+    for (const [id, jugador] of sala.jugadores) {
+      jugadoresActuales.push({ id: jugador.id, nombre: jugador.nombre });
+    }
+    
+    sala.agregarJugador(playerId, playerName);
+    this.playerRooms.set(playerId, sala.id);
+    ws.inLobby = false;
+    ws.roomId = sala.id;
+    
+    ws.send(serializeMessage('lobbyResponse', {
+      action: 'joinPrivate',
+      success: true,
+      data: {
+        roomId: sala.id,
+        roomCode: sala.codigo,
+        players: sala.getPlayerCount(),
+        maxPlayers: sala.maxJugadores,
+        playerList: jugadoresActuales
+      }
+    }));
+    
+    this._broadcastToRoom(sala.id, serializeMessage('playerJoined', {
+      player: { id: playerId, nombre: playerName }
+    }), playerId);
+    
+    ws.send(serializeMessage('welcome', {
+      playerId,
+      gameState: sala.gameManager.getState()
+    }));
+  }
+
+  /**
+   * Maneja listado de salas
+   * @private
+   */
+  async _handleListRooms(ws) {
+    try {
+      let roomList;
+      
+      // Usar Redis si está disponible
+      if (this.matchmakingFallback && this.matchmakingFallback.getMode() !== MatchmakingMode.LOCAL) {
+        const rooms = await this.matchmakingFallback.findAvailableRooms();
+        roomList = rooms.map(room => ({
+          id: room.id,
+          codigo: room.codigo,
+          jugadores: room.jugadores,
+          maxJugadores: room.maxJugadores
+        }));
+      } else {
+        // Fallback local
         const salasDisponibles = this.roomManager.obtenerSalasPublicasDisponibles();
-        const roomList = salasDisponibles.map(sala => ({
+        roomList = salasDisponibles.map(sala => ({
           id: sala.id,
           codigo: sala.codigo,
           jugadores: sala.getPlayerCount(),
           maxJugadores: sala.maxJugadores
         }));
-        
-        ws.send(serializeMessage('lobbyResponse', {
-          action: 'listRooms',
-          success: true,
-          data: { rooms: roomList }
-        }));
-        break;
       }
       
-      default:
-        ws.send(serializeMessage('lobbyResponse', {
-          action,
-          success: false,
-          data: { error: ERROR_MESSAGES.UNKNOWN_ACTION }
-        }));
+      ws.send(serializeMessage('lobbyResponse', {
+        action: 'listRooms',
+        success: true,
+        data: { rooms: roomList }
+      }));
+    } catch (error) {
+      clusterLogger.error('WorkerServer', `Error listando salas: ${error.message}`);
+      
+      // Fallback local
+      const salasDisponibles = this.roomManager.obtenerSalasPublicasDisponibles();
+      const roomList = salasDisponibles.map(sala => ({
+        id: sala.id,
+        codigo: sala.codigo,
+        jugadores: sala.getPlayerCount(),
+        maxJugadores: sala.maxJugadores
+      }));
+      
+      ws.send(serializeMessage('lobbyResponse', {
+        action: 'listRooms',
+        success: true,
+        data: { rooms: roomList }
+      }));
+    }
+  }
+
+  /**
+   * Registra una sala en Redis
+   * @private
+   */
+  async _registerRoomInRedis(sala) {
+    if (!this.matchmakingFallback || this.matchmakingFallback.getMode() === MatchmakingMode.LOCAL) {
+      return;
+    }
+    
+    try {
+      const roomInfo = {
+        id: sala.id,
+        codigo: sala.codigo,
+        tipo: sala.tipo,
+        workerId: this.workerId,
+        jugadores: sala.getPlayerCount(),
+        maxJugadores: sala.maxJugadores,
+        createdAt: sala.creadaEn.getTime(),
+        lastHeartbeat: Date.now()
+      };
+      
+      await this.matchmakingFallback.registerRoom(roomInfo);
+    } catch (error) {
+      clusterLogger.error('WorkerServer', `Error registrando sala en Redis: ${error.message}`);
+    }
+  }
+
+  /**
+   * Actualiza el contador de jugadores en Redis
+   * 
+   * Requirement 1.4: Actualizar contador atómicamente
+   * 
+   * @private
+   */
+  async _updateRoomPlayersInRedis(roomId, delta) {
+    if (!this.matchmakingFallback || this.matchmakingFallback.getMode() === MatchmakingMode.LOCAL) {
+      return;
+    }
+    
+    try {
+      await this.matchmakingFallback.updateRoomPlayers(roomId, delta);
+    } catch (error) {
+      clusterLogger.error('WorkerServer', `Error actualizando jugadores en Redis: ${error.message}`);
     }
   }
 
   /**
    * Maneja desconexión de cliente
+   * 
+   * Requirement 1.4: Actualizar contador de jugadores en Redis al salir
+   * 
    * @private
    */
-  _handleDisconnection(ws) {
+  async _handleDisconnection(ws) {
     const playerId = ws.playerId;
     if (!playerId) return;
     
@@ -635,6 +922,9 @@ export class WorkerServer {
         const playerName = jugador ? jugador.nombre : 'Jugador';
         
         sala.removerJugador(playerId);
+        
+        // Actualizar contador en Redis
+        await this._updateRoomPlayersInRedis(roomId, -1);
         
         this._broadcastToRoom(roomId, serializeMessage('playerLeft', {
           playerId,
@@ -750,6 +1040,33 @@ export class WorkerServer {
   }
 
   /**
+   * Envía heartbeat para todas las salas activas en Redis
+   * 
+   * Requirement 2.2: Enviar heartbeat cada 30 segundos para salas activas
+   * 
+   * @private
+   */
+  async _sendRoomHeartbeats() {
+    if (!this.matchmakingFallback || this.matchmakingFallback.getMode() === MatchmakingMode.LOCAL) {
+      return;
+    }
+    
+    const salas = this.roomManager.obtenerTodasLasSalas();
+    
+    for (const sala of salas) {
+      // Solo enviar heartbeat para salas con jugadores activos
+      if (sala.getPlayerCount() > 0) {
+        try {
+          await this.matchmakingFallback.sendHeartbeat(sala.id);
+          clusterLogger.debug('WorkerServer', `Heartbeat enviado para sala ${sala.id}`);
+        } catch (error) {
+          clusterLogger.error('WorkerServer', `Error enviando heartbeat para sala ${sala.id}: ${error.message}`);
+        }
+      }
+    }
+  }
+
+  /**
    * Notifica al master sobre una nueva sala
    * @private
    */
@@ -855,10 +1172,10 @@ export function getWorkerServer() {
 /**
  * Inicia el WorkerServer si estamos en un proceso worker
  */
-export function startWorkerIfNeeded() {
+export async function startWorkerIfNeeded() {
   if (cluster.isWorker) {
     const server = getWorkerServer();
-    server.start();
+    await server.start();
     return server;
   }
   return null;
