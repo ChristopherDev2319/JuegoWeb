@@ -98,6 +98,20 @@ import { inicializarSonidos, reproducirSonidoDisparo } from './sistemas/sonidos.
 // Sistema de colisiones
 import { inicializarColisiones, toggleDebugVisual } from './sistemas/colisiones.js';
 
+// Sistema de bots de entrenamiento
+// Requirements: 1.1, 2.1, 3.1, 4.4
+import { BotManager } from './sistemas/botManager.js';
+
+// UI de estadísticas de entrenamiento
+// Requirements: 6.1, 6.2, 4.4
+import {
+  inicializarEntrenamientoUI,
+  actualizarEstadisticasUI,
+  mostrarIndicadorZona,
+  ocultarIndicadorZona,
+  destruirEntrenamientoUI
+} from './ui/entrenamientoUI.js';
+
 // Sistema de selección de armas
 // Requirements: 1.1, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2, 4.3
 import { 
@@ -123,6 +137,10 @@ import {
   limpiarGridArmasMuerte,
   obtenerArmaSeleccionadaUI
 } from './lobby/seleccionArmasUI.js';
+
+// Sistema de scoreboard
+// Requirements: 1.1, 2.1, 3.1, 5.2
+import { actualizarScoreboard } from './ui/scoreboardUI.js';
 
 // Importar módulos del lobby
 // Requirements: 1.1, 2.1, 2.2, 2.3
@@ -435,12 +453,68 @@ function ocultarIndicadorModoLocal() {
   }
 }
 
+/**
+ * Inicializa el sistema de bots de entrenamiento para modo local
+ * Requirements: 1.1, 2.1, 3.1, 4.4, 6.1, 6.2
+ */
+function inicializarBotManager() {
+  if (botManager) {
+    console.warn('BotManager ya está inicializado');
+    return;
+  }
+
+  console.log('🤖 Inicializando sistema de bots de entrenamiento...');
+
+  // Inicializar UI de entrenamiento
+  // Requirements: 6.1, 6.2, 4.4
+  inicializarEntrenamientoUI();
+
+  // Crear instancia del BotManager con callbacks de UI
+  botManager = new BotManager(scene, {
+    onDisparoBot: (posicion, direccion, daño) => {
+      // Callback cuando un bot tirador dispara al jugador
+      console.log('🔫 Bot tirador disparó al jugador');
+      // El daño se aplica directamente en el BotTirador
+    },
+    // Requirement 6.2: Actualizar UI cuando se elimina un bot
+    onEliminacion: (tipoBot, estadisticas) => {
+      console.log(`📊 Bot ${tipoBot} eliminado - Actualizando UI`);
+      actualizarEstadisticasUI(estadisticas);
+    },
+    // Requirement 4.4: Mostrar nombre de zona cuando el jugador entra
+    onEntrarZona: (nombreZona, tipoZona) => {
+      console.log(`📍 Entrando en zona: ${nombreZona}`);
+      mostrarIndicadorZona(nombreZona, tipoZona);
+    },
+    onSalirZona: (nombreZona, tipoZona) => {
+      console.log(`📍 Saliendo de zona: ${nombreZona}`);
+      ocultarIndicadorZona();
+    },
+    // Actualizar estadísticas en UI
+    onEstadisticasActualizadas: (estadisticas) => {
+      actualizarEstadisticasUI(estadisticas);
+    }
+  });
+
+  // Inicializar el sistema de bots
+  botManager.inicializar();
+
+  // Mostrar estadísticas iniciales
+  actualizarEstadisticasUI(botManager.obtenerEstadisticas());
+
+  console.log('✅ Sistema de bots de entrenamiento inicializado');
+}
+
 // Network state
 let connection = null;
 let inputSender = null;
 let remotePlayerManager = null;
 let isMultiplayerConnected = false;
 let localPlayerId = null;
+
+// Bot Manager para modo local
+// Requirements: 1.1, 2.1, 3.1, 4.4
+let botManager = null;
 
 // Input sending rate control (20Hz to match server tick rate)
 const INPUT_SEND_RATE = 1000 / 20; // 50ms
@@ -860,6 +934,10 @@ async function inicializarJuegoCompleto() {
     // Modo local - mostrar indicador
     mostrarIndicadorModoLocal();
     console.log('🎮 Modo local iniciado - Sin conexión al servidor');
+    
+    // Inicializar sistema de bots de entrenamiento
+    // Requirements: 1.1, 2.1, 3.1, 4.4
+    inicializarBotManager();
   }
 
   actualizarCarga(100, '¡Listo!');
@@ -899,6 +977,15 @@ function volverAlLobby() {
   
   // Ocultar indicador de modo local
   ocultarIndicadorModoLocal();
+  
+  // Destruir sistema de bots si existe
+  if (botManager) {
+    botManager.destruir();
+    botManager = null;
+  }
+  
+  // Destruir UI de entrenamiento
+  destruirEntrenamientoUI();
   
   // Limpiar jugadores remotos
   if (remotePlayerManager) {
@@ -1103,7 +1190,18 @@ function configurarCallbacksRed() {
   
   // Death notification (Requirement 3.5, 5.4)
   // Requirements: 3.1, 3.2, 3.4 - Mostrar pantalla de muerte con menú de selección de armas
+  // Requirements: 4.1, 4.2, 4.3, 5.2 - Usar nombres de lobby y actualizar scoreboard
   connection.onDeath((data) => {
+    // Extraer nombres de lobby y scoreboard del mensaje
+    const killerName = data.killerName || data.killerId;
+    const victimName = data.victimName || data.playerId;
+    const scoreboard = data.scoreboard;
+    
+    // Actualizar scoreboard si viene en el mensaje
+    if (scoreboard && Array.isArray(scoreboard)) {
+      actualizarScoreboard(scoreboard);
+    }
+    
     if (data.playerId === localPlayerId) {
       // Obtener arma actual antes de morir
       const estadoArma = obtenerEstado();
@@ -1112,8 +1210,9 @@ function configurarCallbacksRed() {
       // Marcar muerte en el sistema de selección
       marcarMuerte(armaActual);
       
-      // Mostrar pantalla de muerte con opciones
-      mostrarPantallaMuerteConSeleccion(data.killerId, armaActual);
+      // Mostrar pantalla de muerte con nombre de lobby del asesino
+      // Requirements: 4.2 - Mostrar nombre de lobby del asesino en pantalla de muerte
+      mostrarPantallaMuerteConSeleccion(killerName, armaActual);
       
       actualizarBarraVida(0, 200);
       // Registrar muerte para estadísticas
@@ -1122,7 +1221,10 @@ function configurarCallbacksRed() {
       // El jugador local eliminó a alguien
       registrarKill();
     }
-    agregarEntradaKillFeed(data.killerId, data.playerId, localPlayerId);
+    
+    // Usar nombres de lobby en el kill feed
+    // Requirements: 4.1, 4.3 - Usar nombres de lobby en kill feed
+    agregarEntradaKillFeed(killerName, victimName, nombreJugadorActual);
   });
   
   // Respawn notification (Requirement 5.5)
@@ -1203,6 +1305,12 @@ function procesarEstadoJuego(gameState) {
   
   // Update remote players
   remotePlayerManager.updatePlayers(gameState);
+  
+  // Actualizar scoreboard si viene en el estado
+  // Requirements: 5.1, 5.2 - Procesar scoreboard al recibir estado
+  if (gameState.scoreboard && Array.isArray(gameState.scoreboard)) {
+    actualizarScoreboard(gameState.scoreboard);
+  }
   
   // Find and apply local player state
   const localPlayerState = gameState.players.find(p => p.id === localPlayerId);
@@ -1500,6 +1608,41 @@ function calcularDireccionDash() {
 }
 
 /**
+ * Verifica si una bala impacta algún bot de entrenamiento
+ * Requirement 1.4: Registrar impacto y actualizar barra de vida del bot
+ * 
+ * @param {Bala} bala - La bala a verificar
+ * @param {Array<BotBase>} bots - Array de bots vivos
+ * @returns {BotBase|null} - El bot impactado o null si no hubo impacto
+ */
+function verificarImpactoBots(bala, bots) {
+  if (bala.haImpactado) return null;
+
+  const raycaster = new THREE.Raycaster();
+  raycaster.set(bala.mesh.position, bala.direccion);
+
+  for (const bot of bots) {
+    if (!bot.estaVivo()) continue;
+
+    const intersecciones = raycaster.intersectObject(bot.mesh);
+
+    if (intersecciones.length > 0 && intersecciones[0].distance < 0.5) {
+      bala.haImpactado = true;
+      
+      // Aplicar daño al bot
+      bot.recibirDaño(bala.dañoBala);
+      
+      // Crear efecto de impacto
+      bala.crearEfectoImpacto(bala.mesh.position);
+      
+      return bot;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Maneja el evento de disparo
  * Requirement 5.1: Send shoot input to server
  */
@@ -1601,6 +1744,11 @@ function manejarDisparo() {
     if (disparo) {
       reproducirSonidoDisparo(estadoArma.tipoActual, configArma);
       actualizarDisplayMunicion();
+      
+      // Registrar disparo para estadísticas de entrenamiento
+      if (botManager) {
+        botManager.registrarDisparo();
+      }
     }
   }
 }
@@ -1748,10 +1896,38 @@ function bucleJuego() {
 
     // Update local bullets (for visual feedback)
     for (let i = balas.length - 1; i >= 0; i--) {
-      if (!balas[i].actualizar(deltaTime)) {
-        balas[i].destruir();
+      const bala = balas[i];
+      
+      // Verificar colisión con bots de entrenamiento (solo en modo local)
+      // Requirement 1.4: Registrar impacto y actualizar barra de vida del bot
+      if (botManager && modoJuegoActual === 'local' && !bala.haImpactado) {
+        const botsVivos = botManager.obtenerBotsVivos();
+        const botImpactado = verificarImpactoBots(bala, botsVivos);
+        if (botImpactado) {
+          // Registrar acierto
+          botManager.registrarAcierto();
+          
+          // Verificar si el bot murió
+          if (!botImpactado.estaVivo()) {
+            botManager.registrarEliminacion(botImpactado.obtenerTipo());
+          }
+          
+          bala.destruir();
+          balas.splice(i, 1);
+          continue;
+        }
+      }
+      
+      if (!bala.actualizar(deltaTime)) {
+        bala.destruir();
         balas.splice(i, 1);
       }
+    }
+
+    // Actualizar sistema de bots de entrenamiento (solo en modo local)
+    // Requirements: 1.1, 2.1, 3.1, 4.4
+    if (botManager && modoJuegoActual === 'local') {
+      botManager.actualizar(deltaTime * 1000, jugador.posicion);
     }
 
     // Sincronizar cámara con jugador

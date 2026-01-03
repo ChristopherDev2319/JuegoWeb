@@ -517,6 +517,7 @@ function broadcastToRoom(roomId, message, excludePlayerId = null) {
 /**
  * Game loop - runs at 60Hz (Requirement 1.4)
  * Updated to handle multiple rooms
+ * Requirements: 5.1, 5.2 - Incluir scoreboard en estado periódico
  */
 function gameLoop() {
   // Update all active rooms
@@ -527,13 +528,30 @@ function gameLoop() {
     const events = sala.gameManager.update();
     
     // Broadcast game state to all clients in the room (Requirement 1.5)
-    const stateMessage = serializeMessage('state', sala.gameManager.getState());
+    // Requirements: 5.1, 5.2 - Incluir scoreboard en el estado
+    const gameState = sala.gameManager.getState();
+    gameState.scoreboard = sala.obtenerScoreboard();
+    const stateMessage = serializeMessage('state', gameState);
     broadcastToRoom(roomId, stateMessage);
     
     // Broadcast specific events
+    // Requirements: 4.1, 4.2, 4.3, 5.1 - Incluir nombres de lobby y scoreboard en eventos de muerte
     if (events.deaths.length > 0) {
       for (const death of events.deaths) {
-        broadcastToRoom(roomId, serializeMessage('death', death));
+        // Registrar kill para el asesino
+        sala.registrarKill(death.killerId);
+        
+        // Obtener nombres de lobby de killer y victim
+        const killer = sala.jugadores.get(death.killerId);
+        const victim = sala.jugadores.get(death.playerId);
+        
+        // Incluir killerName, victimName y scoreboard en el mensaje de muerte
+        broadcastToRoom(roomId, serializeMessage('death', {
+          ...death,
+          killerName: killer?.nombre || death.killerId,
+          victimName: victim?.nombre || death.playerId,
+          scoreboard: sala.obtenerScoreboard()
+        }));
       }
     }
     

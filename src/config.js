@@ -272,5 +272,58 @@ export const CONFIG = {
     radioJugador: 0.4,         // Radio de la cápsula del jugador
     alturaJugador: 1.7,        // Altura de la cápsula del jugador (igual a alturaOjos)
     margenColision: 0.02       // Margen de separación de superficies
+  },
+
+  // Configuración del sistema de bots de entrenamiento
+  // Requirements: 1.1, 2.1, 3.1, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3
+  botsEntrenamiento: {
+    // Bot estático: para práctica de puntería básica
+    // Requirements: 1.1, 5.1
+    estatico: {
+      vida: 100,
+      tiempoRespawn: 3000,      // ms antes de reaparecer
+      color: 0xff0000,          // Rojo distintivo
+      cantidad: 5               // Bots por zona
+    },
+    // Bot móvil: para práctica de tracking
+    // Requirements: 2.1, 5.2
+    movil: {
+      vida: 100,
+      tiempoRespawn: 3000,
+      color: 0x0088ff,          // Azul distintivo
+      velocidad: 2,             // Unidades por segundo
+      rangoMovimiento: 8,       // Distancia máxima desde posición inicial
+      cantidad: 4
+    },
+    // Bot tirador: para práctica de reacción
+    // Requirements: 3.1, 5.3
+    tirador: {
+      vida: 150,
+      tiempoRespawn: 5000,
+      color: 0xff8800,          // Naranja distintivo
+      cadenciaDisparo: 1500,    // ms entre disparos
+      dañoReducido: 10,         // Daño de entrenamiento (menor que armas normales)
+      rangoVision: 30,          // Distancia máxima de detección del jugador
+      cantidad: 3
+    },
+    // Zonas de entrenamiento separadas
+    // Requirements: 4.1, 4.2, 4.3
+    zonas: {
+      estaticos: { 
+        centro: { x: -20, y: 1, z: 0 }, 
+        radio: 15,
+        nombre: 'Zona de Puntería'
+      },
+      moviles: { 
+        centro: { x: 20, y: 1, z: 0 }, 
+        radio: 15,
+        nombre: 'Zona de Tracking'
+      },
+      tiradores: { 
+        centro: { x: 0, y: 1, z: -30 }, 
+        radio: 15,
+        nombre: 'Zona de Reacción'
+      }
+    }
   }
 };

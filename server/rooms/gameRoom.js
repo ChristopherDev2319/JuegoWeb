@@ -63,6 +63,9 @@ export class GameRoom {
     /** @type {Map<string, {id: string, nombre: string, listo: boolean}>} - Players in room */
     this.jugadores = new Map();
     
+    /** @type {Map<string, number>} - Kills por jugador en esta sala */
+    this.killsPorJugador = new Map();
+    
     /** @type {GameManager} - Game manager instance for this room */
     this.gameManager = new GameManager();
     
@@ -101,6 +104,9 @@ export class GameRoom {
       listo: false
     });
     
+    // Inicializar kills a 0 para el nuevo jugador (Requirement 2.3)
+    this.killsPorJugador.set(playerId, 0);
+    
     // Add player to game manager
     this.gameManager.addPlayer(playerId);
     
@@ -122,6 +128,9 @@ export class GameRoom {
     
     // Remove from room
     this.jugadores.delete(playerId);
+    
+    // Remover kills del jugador
+    this.killsPorJugador.delete(playerId);
     
     // Remove from game manager
     this.gameManager.removePlayer(playerId);
@@ -159,6 +168,7 @@ export class GameRoom {
 
   /**
    * Get room state for broadcasting
+   * Requirements: 5.1, 5.2 - Incluir scoreboard en estado para sincronización
    * @returns {Object} - Room state object
    */
   obtenerEstado() {
@@ -178,7 +188,8 @@ export class GameRoom {
       jugadores: jugadoresArray,
       maxJugadores: this.maxJugadores,
       estado: this.estado,
-      creadaEn: this.creadaEn.toISOString()
+      creadaEn: this.creadaEn.toISOString(),
+      scoreboard: this.obtenerScoreboard()
     };
   }
 
@@ -266,6 +277,44 @@ export class GameRoom {
     for (const [id, jugador] of this.jugadores) {
       jugador.listo = false;
     }
+  }
+
+  /**
+   * Registra una kill para un jugador
+   * Requirement 2.2: Incrementar contador de kills del jugador que realizó la eliminación
+   * @param {string} killerId - ID del jugador que realizó la kill
+   */
+  registrarKill(killerId) {
+    if (!this.jugadores.has(killerId)) {
+      console.warn(`[GameRoom] Intento de registrar kill para jugador no existente: ${killerId}`);
+      return;
+    }
+    const killsActuales = this.killsPorJugador.get(killerId) || 0;
+    this.killsPorJugador.set(killerId, killsActuales + 1);
+    this.ultimaActividad = new Date();
+  }
+
+  /**
+   * Obtiene el estado del scoreboard ordenado
+   * Requirement 2.4: Mantener contadores persistentes durante la sesión
+   * Requirement 6.1: Ordenar de mayor a menor kills
+   * Requirement 6.2: Orden alfabético como criterio secundario
+   * @returns {Array<{id: string, nombre: string, kills: number}>}
+   */
+  obtenerScoreboard() {
+    const scoreboard = [];
+    for (const [id, jugador] of this.jugadores) {
+      scoreboard.push({
+        id: jugador.id,
+        nombre: jugador.nombre,
+        kills: this.killsPorJugador.get(id) || 0
+      });
+    }
+    // Ordenar por kills desc, luego por nombre asc
+    return scoreboard.sort((a, b) => {
+      if (b.kills !== a.kills) return b.kills - a.kills;
+      return a.nombre.localeCompare(b.nombre);
+    });
   }
 }
 

@@ -4395,3 +4395,350 @@ canvas {
 }
 
 /* ==================== FIN PANTALLA DE MUERTE ==================== */
+
+/* ==================== SCOREBOARD STYLES ==================== */
+
+/* Panel principal del scoreboard */
+.scoreboard-panel {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 12px;
+  padding: 15px;
+  min-width: 200px;
+  max-width: 280px;
+  z-index: 500;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Header del scoreboard */
+.scoreboard-header {
+  color: #7EC8E3;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-align: center;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Entrada de cada jugador */
+.scoreboard-entry {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  margin: 4px 0;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.scoreboard-entry:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Corona del líder */
+.scoreboard-crown {
+  font-size: 16px;
+  margin-right: 8px;
+  animation: crownPulse 2s ease-in-out infinite;
+}
+
+@keyframes crownPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.5));
+  }
+  50% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.8));
+  }
+}
+
+/* Nombre del jugador */
+.scoreboard-nombre {
+  flex: 1;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Contador de kills */
+.scoreboard-kills {
+  color: #7EC8E3;
+  font-size: 16px;
+  font-weight: 700;
+  min-width: 30px;
+  text-align: right;
+}
+
+/* Mensaje cuando no hay jugadores */
+.scoreboard-empty {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  text-align: center;
+  padding: 15px;
+  font-style: italic;
+}
+
+/* Responsive para scoreboard */
+@media (max-width: 600px) {
+  .scoreboard-panel {
+    top: 10px;
+    left: 10px;
+    min-width: 160px;
+    max-width: 220px;
+    padding: 10px;
+  }
+  
+  .scoreboard-header {
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  
+  .scoreboard-entry {
+    padding: 6px 8px;
+  }
+  
+  .scoreboard-nombre {
+    font-size: 12px;
+  }
+  
+  .scoreboard-kills {
+    font-size: 14px;
+  }
+  
+  .scoreboard-crown {
+    font-size: 14px;
+    margin-right: 6px;
+  }
+}
+
+/* ==================== FIN SCOREBOARD STYLES ==================== */
+
+
+/* ==================== TRAINING STATS UI STYLES ==================== */
+/* Requirements: 6.1, 6.2, 4.4 - UI de estadísticas de entrenamiento */
+
+/* Panel de estadísticas de entrenamiento */
+.training-stats-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.85);
+  border-radius: 12px;
+  padding: 0;
+  min-width: 180px;
+  z-index: 500;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(126, 200, 227, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.training-stats-panel.hidden {
+  opacity: 0;
+  transform: translateX(20px);
+  pointer-events: none;
+}
+
+/* Header del panel */
+.training-stats-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 15px;
+  background: linear-gradient(135deg, rgba(126, 200, 227, 0.2) 0%, rgba(91, 163, 192, 0.2) 100%);
+  border-radius: 12px 12px 0 0;
+  border-bottom: 1px solid rgba(126, 200, 227, 0.2);
+}
+
+.training-stats-icon {
+  font-size: 18px;
+}
+
+.training-stats-title {
+  color: #7EC8E3;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Contenido del panel */
+.training-stats-content {
+  padding: 12px 15px;
+}
+
+/* Fila de estadística */
+.training-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.training-stat-row .stat-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.training-stat-row .stat-value {
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  min-width: 30px;
+  text-align: right;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+/* Animación cuando se actualiza el valor */
+.training-stat-row .stat-value.stat-updated {
+  transform: scale(1.3);
+  color: #7EC8E3;
+}
+
+/* Divisor */
+.training-stat-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 8px 0;
+}
+
+/* Fila de total */
+.training-stat-row.total .stat-label {
+  color: #7EC8E3;
+  font-weight: 600;
+}
+
+.training-stat-row.total .stat-value {
+  color: #7EC8E3;
+  font-size: 18px;
+}
+
+/* Fila de precisión */
+.training-stat-row.precision .stat-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+}
+
+.training-stat-row.precision .stat-value {
+  color: #48bb78;
+  font-size: 14px;
+}
+
+/* ==================== ZONE INDICATOR STYLES ==================== */
+/* Requirement 4.4: Indicador de zona actual */
+
+.zone-indicator {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 16px;
+  padding: 20px 40px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  z-index: 600;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(126, 200, 227, 0.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  pointer-events: none;
+}
+
+.zone-indicator.visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.zone-indicator.hidden {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
+}
+
+.zone-indicator .zone-icon {
+  font-size: 32px;
+  animation: zoneIconPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes zoneIconPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.zone-indicator .zone-name {
+  color: white;
+  font-size: 24px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Responsive para training stats */
+@media (max-width: 600px) {
+  .training-stats-panel {
+    top: 10px;
+    right: 10px;
+    min-width: 150px;
+  }
+  
+  .training-stats-header {
+    padding: 10px 12px;
+  }
+  
+  .training-stats-icon {
+    font-size: 16px;
+  }
+  
+  .training-stats-title {
+    font-size: 12px;
+  }
+  
+  .training-stats-content {
+    padding: 10px 12px;
+  }
+  
+  .training-stat-row .stat-label {
+    font-size: 12px;
+  }
+  
+  .training-stat-row .stat-value {
+    font-size: 14px;
+  }
+  
+  .zone-indicator {
+    padding: 15px 25px;
+  }
+  
+  .zone-indicator .zone-icon {
+    font-size: 24px;
+  }
+  
+  .zone-indicator .zone-name {
+    font-size: 18px;
+    letter-spacing: 1px;
+  }
+}
+
+/* ==================== FIN TRAINING STATS UI STYLES ==================== */

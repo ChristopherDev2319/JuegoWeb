@@ -271,14 +271,15 @@ let callbackSeleccionarArma = null;
 /**
  * Show death screen with killer info, weapon selection, and respawn countdown
  * Requirements: 3.1, 3.2, 3.4 - Mostrar pantalla de muerte con menú de selección de armas
- * @param {string} killerId - ID of the player who killed the local player
+ * Requirements: 4.2 - Mostrar nombre de lobby del asesino en pantalla de muerte
+ * @param {string} killerName - Nombre de lobby del jugador que eliminó al jugador local
  * @param {number} respawnTime - Time until respawn in milliseconds (default 5000)
  * @param {Object} opciones - Opciones adicionales
  * @param {string} opciones.armaActual - Arma actualmente equipada (para preseleccionar)
  * @param {Function} opciones.onReaparecer - Callback cuando el jugador reaparece
  * @param {Function} opciones.onSeleccionarArma - Callback cuando se selecciona un arma
  */
-export function mostrarPantallaMuerte(killerId, respawnTime = 5000, opciones = {}) {
+export function mostrarPantallaMuerte(killerName, respawnTime = 5000, opciones = {}) {
   const { armaActual = null, onReaparecer = null, onSeleccionarArma = null } = opciones;
   
   // Guardar callbacks
@@ -292,15 +293,16 @@ export function mostrarPantallaMuerte(killerId, respawnTime = 5000, opciones = {
   }
   
   const deathScreen = document.getElementById('death-screen');
-  const killerName = document.getElementById('killer-name');
+  const killerNameElement = document.getElementById('killer-name');
   const respawnTimer = document.getElementById('respawn-timer');
   const botonReaparecer = document.getElementById('btn-reaparecer');
   
   if (!deathScreen) return;
   
-  // Set killer name
-  if (killerName) {
-    killerName.textContent = killerId || 'Desconocido';
+  // Set killer name - usar nombre de lobby
+  // Requirements: 4.2 - Mostrar nombre de lobby del asesino en pantalla de muerte
+  if (killerNameElement) {
+    killerNameElement.textContent = killerName || 'Desconocido';
   }
   
   // Reset respawn button state
@@ -409,25 +411,26 @@ export function setCallbackSeleccionarArma(callback) {
 
 /**
  * Add entry to kill feed
- * Requirements: 5.3, 5.4
- * @param {string} killerId - ID of the killer
- * @param {string} victimId - ID of the victim
- * @param {string} localPlayerId - ID of the local player (to highlight)
+ * Requirements: 4.1, 4.3, 5.3, 5.4
+ * @param {string} killerName - Nombre de lobby del asesino
+ * @param {string} victimName - Nombre de lobby de la víctima
+ * @param {string} localPlayerName - Nombre del jugador local (para resaltar)
  */
-export function agregarEntradaKillFeed(killerId, victimId, localPlayerId = null) {
+export function agregarEntradaKillFeed(killerName, victimName, localPlayerName = null) {
   const killFeed = document.getElementById('kill-feed');
   if (!killFeed) return;
   
   const entry = document.createElement('div');
   entry.className = 'kill-entry';
   
-  // Format killer name
-  const killerDisplay = killerId === localPlayerId ? 'Tú' : killerId;
-  const victimDisplay = victimId === localPlayerId ? 'Tú' : victimId;
+  // Usar nombres de lobby directamente
+  // Requirements: 4.1, 4.3 - Usar nombres de lobby en kill feed
+  const killerDisplay = killerName === localPlayerName ? 'Tú' : killerName;
+  const victimDisplay = victimName === localPlayerName ? 'Tú' : victimName;
   
   // Highlight if local player is involved
-  const killerClass = killerId === localPlayerId ? 'killer you' : 'killer';
-  const victimClass = victimId === localPlayerId ? 'victim you' : 'victim';
+  const killerClass = killerName === localPlayerName ? 'killer you' : 'killer';
+  const victimClass = victimName === localPlayerName ? 'victim you' : 'victim';
   
   entry.innerHTML = `
     <span class="${killerClass}">${killerDisplay}</span>
