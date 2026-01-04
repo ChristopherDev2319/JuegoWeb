@@ -2509,8 +2509,8 @@ function bucleJuego() {
     if (estaCurando()) {
       const resultadoCuracion = actualizarCuracion(jugador);
       if (resultadoCuracion.completada) {
-        // Actualizar barra de vida con la nueva vida
-        actualizarBarraVida(jugador.vida || jugador.vidaActual, jugador.vidaMaxima || 200);
+        // Actualizar barra de vida con la nueva vida (jugador usa health/maxHealth)
+        actualizarBarraVida(jugador.health || jugador.vida || jugador.vidaActual, jugador.maxHealth || jugador.vidaMaxima || 200);
         
         // Emitir evento de curación completada al servidor si está conectado
         if (isMultiplayerConnected && inputSender) {

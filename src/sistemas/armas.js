@@ -465,13 +465,16 @@ export function actualizarCuracion(jugador = null) {
     
     // Aplicar curación al jugador si se proporciona
     if (jugador) {
-      const vidaMaxima = jugador.vidaMaxima || 100;
-      const vidaActual = jugador.vida || jugador.vidaActual || 0;
+      // El objeto jugador usa 'health' y 'maxHealth', no 'vida' y 'vidaMaxima'
+      const vidaMaxima = jugador.maxHealth || jugador.vidaMaxima || 200;
+      const vidaActual = jugador.health || jugador.vida || jugador.vidaActual || 0;
       const nuevaVida = Math.min(vidaActual + vidaCurada, vidaMaxima);
       const vidaRealCurada = nuevaVida - vidaActual;
       
-      // Actualizar vida del jugador
-      if (typeof jugador.vida !== 'undefined') {
+      // Actualizar vida del jugador (soportar ambas nomenclaturas)
+      if (typeof jugador.health !== 'undefined') {
+        jugador.health = nuevaVida;
+      } else if (typeof jugador.vida !== 'undefined') {
         jugador.vida = nuevaVida;
       } else if (typeof jugador.vidaActual !== 'undefined') {
         jugador.vidaActual = nuevaVida;
@@ -854,6 +857,11 @@ export async function cambiarModeloArma(tipoArma, weaponContainer) {
     
     // Agregar al contenedor
     weaponContainer.add(modeloArma);
+    
+    // Asegurar que el modelo sea visible (puede estar oculto si viene del cache)
+    if (modeloArma) {
+      modeloArma.visible = true;
+    }
     
     // Guardar posición original para apuntado
     if (modeloArma) {

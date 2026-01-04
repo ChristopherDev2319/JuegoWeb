@@ -454,6 +454,20 @@ export class WorkerServer {
         playerId: playerId,
         healing: false
       };
+      
+      // Si es healComplete, aplicar la curación al jugador
+      if (message.type === 'healComplete') {
+        const player = currentGameManager.getPlayer(playerId);
+        if (player) {
+          // inputData contiene los datos del mensaje (message.data)
+          const healAmount = (inputData && inputData.healedAmount) || 50;
+          const actualHealed = player.heal(healAmount);
+          healingData.newHealth = player.health;
+          healingData.healedAmount = actualHealed;
+          console.log(`[Worker ${this.workerId}] [HEAL] Player ${playerId} completed healing - ${actualHealed} HP restored (now ${player.health}/${player.maxHealth})`);
+        }
+      }
+      
       if (roomId) {
         this._broadcastToRoom(roomId, serializeMessage('playerHealing', healingData), playerId);
       } else {

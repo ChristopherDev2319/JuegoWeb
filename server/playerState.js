@@ -115,6 +115,23 @@ export class PlayerState {
   }
 
   /**
+   * Apply healing to player
+   * Requirements: 3.2, 3.5 - Curación restaura vida
+   * @param {number} amount - Amount of health to restore (default 50)
+   * @returns {number} - Actual amount healed
+   */
+  heal(amount = 50) {
+    if (!this.isAlive) return 0;
+    
+    const previousHealth = this.health;
+    this.health = Math.min(this.maxHealth, this.health + amount);
+    const actualHealed = this.health - previousHealth;
+    
+    console.log(`[HEAL] Player healed ${actualHealed} HP (${previousHealth} -> ${this.health})`);
+    return actualHealed;
+  }
+
+  /**
    * Mark player as dead (Requirement 5.4)
    */
   die() {
