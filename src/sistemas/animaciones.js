@@ -10,7 +10,8 @@ const ANIMACIONES = {
   idle: 'modelos/animaciones/idle_tps.glb',
   walk: 'modelos/animaciones/walk_tps.glb',
   aim: 'modelos/animaciones/aim_position.glb',
-  knife_attack: 'modelos/animaciones/knife_attack_tps.glb'
+  knife_attack: 'modelos/animaciones/knife_attack_tps.glb',
+  healt: 'modelos/animaciones/healt_tps.glb'  // Animación de curación (Requirements: 6.1, 6.2)
 };
 
 // Cache de clips de animación cargados

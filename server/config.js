@@ -161,6 +161,21 @@ export const WEAPON_CONFIG = {
     headshotMultiplier: 1.0, // Sin multiplicador de headshot
     type: 'melee',           // Tipo de arma
     attackRange: 3           // Rango de ataque: 3 unidades (aumentado)
+  },
+
+  // JUICEBOX: Item de curación (no es un arma, pero necesita estar en la config)
+  // Se usa para sincronizar el estado de curación entre jugadores
+  JUICEBOX: {
+    damage: 0,               // Sin daño
+    fireRate: 0,             // Sin cadencia
+    magazineSize: 0,         // Sin cargador
+    totalAmmo: 0,            // Sin munición
+    reloadTime: 0,           // Sin recarga
+    bulletSpeed: 0,          // Sin proyectil
+    headshotMultiplier: 0,   // Sin multiplicador
+    type: 'healing',         // Tipo de item
+    healAmount: 50,          // Cantidad de vida que restaura
+    healTime: 2000           // Tiempo de curación en ms
   }
 };
 

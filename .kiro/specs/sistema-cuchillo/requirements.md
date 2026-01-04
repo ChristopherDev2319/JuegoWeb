@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Este documento especifica los requisitos para mejorar el sistema de cuchillo en el juego FPS. El cuchillo es un arma cuerpo a cuerpo que el jugador siempre tiene disponible y puede equipar/desequipar con la tecla Q. Las mejoras incluyen: visualización del cuchillo en TPS (parentado al hueso de la mano), animación de ataque TPS, intercambio rápido con Q, UI mejorada con indicadores de arma secundaria, y ajustes de posición/escala en FPS.
+Este documento especifica los requisitos para corregir los bugs del sistema de cuchillo en el juego FPS. El cuchillo es un arma cuerpo a cuerpo que el jugador siempre tiene disponible y puede equipar/desequipar con la tecla Q. Los bugs a corregir incluyen: daño excesivo (mata de un golpe cuando debería hacer 30 de daño), crashes ocasionales, falta de animación TPS visible para otros jugadores, indicador de daño no visible, y la capacidad de apuntar cuando no debería ser posible con el cuchillo.
 
 ## Glossary
 
@@ -13,61 +13,73 @@ Este documento especifica los requisitos para mejorar el sistema de cuchillo en 
 - **Arma_Principal**: El arma de fuego seleccionada por el jugador (rifle, pistola, etc.)
 - **Arma_Secundaria**: El cuchillo, siempre disponible como alternativa
 - **UI_Municion**: Interfaz que muestra información del arma equipada y munición
-- **Slot_Superior**: Cuadro superior en la UI que muestra el arma no equipada
-- **Slot_Inferior**: Cuadro inferior en la UI que muestra el arma equipada actualmente
+- **Indicador_Daño**: Elemento visual que muestra el daño causado al enemigo
+- **Apuntado_ADS**: Sistema de apuntado (Aim Down Sights) que no aplica al cuchillo
 
 ## Requirements
 
-### Requirement 1
+### Requirement 1: Corrección de Daño
 
-**User Story:** As a player, I want to see the knife attached to my character's hand in TPS view, so that other players can see what weapon I have equipped.
-
-#### Acceptance Criteria
-
-1. WHEN the game loads the player model THEN the Sistema_Cuchillo SHALL parent the knife model to the Hueso_Mano bone of the character skeleton
-2. WHEN the player has the knife NOT selected THEN the Sistema_Cuchillo SHALL hide the knife model in TPS view
-3. WHEN the player selects the knife THEN the Sistema_Cuchillo SHALL show the knife model in TPS view
-4. WHILE the player performs any TPS animation THEN the knife model SHALL follow the hand bone position and rotation
-
-### Requirement 2
-
-**User Story:** As a player, I want to quickly switch between my main weapon and the knife by pressing Q, so that I can engage in melee combat when needed.
+**User Story:** As a player, I want the knife to deal 30 damage per hit instead of killing in one hit, so that combat is balanced and fair.
 
 #### Acceptance Criteria
 
-1. WHEN the player presses Q while holding the Arma_Principal THEN the Sistema_Cuchillo SHALL unequip the Arma_Principal and equip the knife
-2. WHEN the player presses Q while holding the knife THEN the Sistema_Cuchillo SHALL unequip the knife and equip the previously held Arma_Principal
-3. WHEN the player switches weapons with Q THEN the Sistema_Cuchillo SHALL remember the Arma_Principal for subsequent switches
-4. WHEN the game starts THEN the Sistema_Cuchillo SHALL NOT include the knife in weapon selection screens or lobby
+1. WHEN the player attacks with the knife THEN the Sistema_Cuchillo SHALL apply exactly 30 points of damage to the target
+2. WHEN the knife damage is configured THEN the server config SHALL use 30 as the damage value
+3. WHEN the knife damage is configured THEN the client config SHALL use 30 as the damage value
+4. WHEN a player has 100 health and is hit by the knife THEN the player SHALL have 70 health remaining
 
-### Requirement 3
+### Requirement 2: Prevención de Crashes
 
-**User Story:** As a player, I want to see a knife attack animation in TPS when I attack, so that other players can see my melee attacks.
-
-#### Acceptance Criteria
-
-1. WHEN the player attacks with the knife THEN the Sistema_Cuchillo SHALL play the knife_attack_tps animation from modelos/animaciones/knife_attack_tps.glb
-2. WHEN the knife attack animation plays THEN the animation SHALL complete before allowing another attack
-3. WHEN the knife attack animation is not loaded THEN the Sistema_Cuchillo SHALL use a fallback procedural animation
-
-### Requirement 4
-
-**User Story:** As a player, I want the ammo UI to show relevant information when I have the knife equipped, so that I understand my current weapon state.
+**User Story:** As a player, I want the knife system to be stable and not crash, so that I can play without interruptions.
 
 #### Acceptance Criteria
 
-1. WHEN the player has the knife equipped THEN the UI_Municion SHALL hide the ammo counter (not show 0/0)
-2. WHEN the player has the knife equipped THEN the UI_Municion SHALL display only the knife name
-3. WHEN the player has the Arma_Principal equipped THEN the Slot_Superior SHALL display "Cuchillo [Q]"
-4. WHEN the player has the knife equipped THEN the Slot_Superior SHALL display the Arma_Principal name and "[Q]"
-5. WHEN the player switches weapons THEN the UI_Municion SHALL swap the content between Slot_Superior and Slot_Inferior
+1. WHEN the knife attack function is called with null enemies array THEN the Sistema_Cuchillo SHALL handle it gracefully without crashing
+2. WHEN the knife attack function encounters an enemy without valid position THEN the Sistema_Cuchillo SHALL skip that enemy and continue processing
+3. WHEN the knife model fails to load THEN the Sistema_Cuchillo SHALL log a warning and continue without the visual model
+4. WHEN the knife animation fails to load THEN the Sistema_Cuchillo SHALL use a fallback animation without crashing
 
-### Requirement 5
+### Requirement 3: Animación TPS Visible
 
-**User Story:** As a player, I want the knife to look properly positioned and sized in FPS view, so that it feels natural to use.
+**User Story:** As a player, I want to see other players' knife attack animations in TPS view, so that I can react to their attacks.
 
 #### Acceptance Criteria
 
-1. WHEN the knife is equipped in FPS view THEN the Sistema_Cuchillo SHALL position the knife at an angled grip position (not pointing straight forward)
-2. WHEN the knife is equipped in FPS view THEN the Sistema_Cuchillo SHALL scale the knife model to an appropriate size relative to the screen
-3. WHEN the knife configuration is updated THEN the Sistema_Cuchillo SHALL use the new position, rotation, and scale values from CONFIG.armas.KNIFE
+1. WHEN a remote player attacks with the knife THEN the Sistema_Cuchillo SHALL broadcast the attack event to all other players
+2. WHEN a melee attack event is received THEN the JugadorRemoto SHALL play the knife_attack_tps animation
+3. WHEN the knife_attack_tps animation is not loaded THEN the JugadorRemoto SHALL use a fallback procedural animation
+4. WHILE the knife attack animation plays THEN the animation SHALL be visible to all players in the room
+
+### Requirement 4: Indicador de Daño Visible
+
+**User Story:** As a player, I want to see visual feedback when my knife hits an enemy, so that I know my attack was successful.
+
+#### Acceptance Criteria
+
+1. WHEN the knife hits an enemy THEN the Sistema_Cuchillo SHALL display a damage indicator showing the damage dealt
+2. WHEN the knife hits an enemy in multiplayer THEN the server SHALL send a damage confirmation to the attacker
+3. WHEN damage confirmation is received THEN the UI SHALL display the damage amount visually
+4. WHEN the knife misses all enemies THEN the Sistema_Cuchillo SHALL NOT display any damage indicator
+
+### Requirement 5: Bloqueo de Apuntado
+
+**User Story:** As a player, I want the knife to not allow aiming (ADS), so that the weapon behaves realistically as a melee weapon.
+
+#### Acceptance Criteria
+
+1. WHEN the player has the knife equipped THEN the Sistema_Cuchillo SHALL block all aiming attempts
+2. WHEN the player presses the aim button with knife equipped THEN the Sistema_Cuchillo SHALL ignore the input
+3. WHEN the player switches from knife to main weapon THEN the Sistema_Cuchillo SHALL restore normal aiming functionality
+4. WHILE the knife is equipped THEN the camera zoom SHALL remain at default FOV
+
+### Requirement 6: Sincronización de Estado
+
+**User Story:** As a player, I want the knife state to be properly synchronized between client and server, so that attacks are processed correctly.
+
+#### Acceptance Criteria
+
+1. WHEN the player equips the knife THEN the client SHALL send a weapon change event to the server
+2. WHEN the server receives a melee attack THEN the server SHALL verify the player has KNIFE equipped
+3. WHEN the player switches weapons THEN the server state SHALL match the client state
+4. WHEN a melee attack is processed THEN the server SHALL broadcast the result to all players in the room

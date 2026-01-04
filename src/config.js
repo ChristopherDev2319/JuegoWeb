@@ -366,6 +366,25 @@ export const CONFIG = {
     }
   },
 
+  // Configuración del sistema de curación (JuiceBox)
+  // Requirements: 6.1, 6.2
+  curacion: {
+    modelo: "modelos/stylized_juicebox.glb",
+    vidaCurada: 50,              // HP restaurados al completar curación
+    tiempoCuracion: 2000,        // 2 segundos en ms
+    // Posición FPS (primera persona)
+    posicion: { x: 0.25, y: -0.35, z: -0.4 },
+    rotacion: { x: 0, y: Math.PI * 0.3, z: 0.1 },
+    escala: { x: 0.15, y: 0.15, z: 0.15 },
+    // Configuración TPS (tercera persona para jugadores remotos)
+    tps: {
+      escala: 0.15,
+      posicionOffset: { x: 0.02, y: 0.01, z: 0.03 },
+      rotacionOffset: { x: 0, y: Math.PI * 0.5, z: 0 },
+      nombresHuesoMano: ['hand_r', 'Hand_R', 'RightHand', 'mixamorigRightHand', 'hand.R']
+    }
+  },
+
   // Configuración del sistema de spawns de munición
   // Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
   spawnsAmmo: {

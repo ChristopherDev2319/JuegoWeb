@@ -5297,3 +5297,58 @@ canvas {
 }
 
 /* ==================== FIN TRAINING STATS UI STYLES ==================== */
+
+
+/* ==================== HEALING BAR STYLES ==================== */
+/* Requirements: 3.1 - Barra de progreso de curación */
+
+#healing-bar-container {
+  position: fixed;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid rgba(0, 255, 100, 0.5);
+  border-radius: 6px;
+  overflow: hidden;
+  z-index: 900;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+#healing-bar-progress {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #00ff66 0%, #00cc55 50%, #00aa44 100%);
+  border-radius: 4px;
+  transition: width 0.1s ease;
+  box-shadow: 0 0 10px rgba(0, 255, 100, 0.5);
+}
+
+#healing-bar-text {
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #00ff66;
+  font-size: 14px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+}
+
+/* Animación de pulso para la barra de curación */
+@keyframes healingPulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(0, 255, 100, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 255, 100, 0.8);
+  }
+}
+
+#healing-bar-container.active #healing-bar-progress {
+  animation: healingPulse 1s ease-in-out infinite;
+}

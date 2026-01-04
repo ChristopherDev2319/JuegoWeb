@@ -655,3 +655,101 @@ export function mostrarContadorMunicion() {
     ammoDiv.classList.remove('hidden');
   }
 }
+
+
+// Estado de la barra de curación
+let barraCuracionVisible = false;
+
+/**
+ * Actualiza la barra de progreso de curación
+ * Requirements: 3.1 - Mostrar barra de progreso o indicador visual durante curación
+ * @param {number} progreso - Progreso de curación de 0 a 1
+ */
+export function actualizarBarraCuracion(progreso) {
+  let container = document.getElementById('healing-bar-container');
+  
+  // Crear contenedor si no existe
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'healing-bar-container';
+    container.style.cssText = `
+      position: fixed;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      height: 12px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 2px solid rgba(0, 255, 100, 0.5);
+      border-radius: 6px;
+      overflow: hidden;
+      z-index: 900;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    `;
+    
+    const barraProgreso = document.createElement('div');
+    barraProgreso.id = 'healing-bar-progress';
+    barraProgreso.style.cssText = `
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #00ff66 0%, #00cc55 50%, #00aa44 100%);
+      border-radius: 4px;
+      transition: width 0.1s ease;
+      box-shadow: 0 0 10px rgba(0, 255, 100, 0.5);
+    `;
+    
+    const textoProgreso = document.createElement('div');
+    textoProgreso.id = 'healing-bar-text';
+    textoProgreso.style.cssText = `
+      position: absolute;
+      top: -25px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #00ff66;
+      font-size: 14px;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+      white-space: nowrap;
+    `;
+    textoProgreso.textContent = '🧃 Curando...';
+    
+    container.appendChild(barraProgreso);
+    container.appendChild(textoProgreso);
+    document.body.appendChild(container);
+  }
+  
+  // Mostrar contenedor
+  if (!barraCuracionVisible) {
+    container.style.opacity = '1';
+    barraCuracionVisible = true;
+  }
+  
+  // Actualizar progreso
+  const barraProgreso = document.getElementById('healing-bar-progress');
+  if (barraProgreso) {
+    const porcentaje = Math.min(100, Math.max(0, progreso * 100));
+    barraProgreso.style.width = `${porcentaje}%`;
+  }
+  
+  // Actualizar texto con porcentaje
+  const textoProgreso = document.getElementById('healing-bar-text');
+  if (textoProgreso) {
+    const porcentaje = Math.round(progreso * 100);
+    textoProgreso.textContent = `🧃 Curando... ${porcentaje}%`;
+  }
+}
+
+/**
+ * Oculta la barra de progreso de curación
+ * Requirements: 3.1 - Ocultar indicador cuando no está curando
+ */
+export function ocultarBarraCuracion() {
+  if (!barraCuracionVisible) return;
+  
+  const container = document.getElementById('healing-bar-container');
+  if (container) {
+    container.style.opacity = '0';
+  }
+  barraCuracionVisible = false;
+}

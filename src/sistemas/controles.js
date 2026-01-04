@@ -40,7 +40,8 @@ let callbacks = {
   onSeleccionarArma: null,
   onApuntar: null,
   onPausar: null,
-  onAlternarCuchillo: null  // Nuevo callback para tecla Q
+  onAlternarCuchillo: null,  // Callback para tecla Q
+  onAlternarJuiceBox: null   // Callback para tecla C - Sistema de curación
 };
 
 /**
@@ -57,6 +58,7 @@ let callbacks = {
  * @param {Function} eventCallbacks.onApuntar - Callback para apuntar (clic derecho)
  * @param {Function} eventCallbacks.onPausar - Callback para pausar el juego (ESC)
  * @param {Function} eventCallbacks.onAlternarCuchillo - Callback para alternar cuchillo (tecla Q)
+ * @param {Function} eventCallbacks.onAlternarJuiceBox - Callback para alternar JuiceBox (tecla C) - Sistema de curación
  */
 export function inicializarControles(eventCallbacks = {}) {
   callbacks = { ...callbacks, ...eventCallbacks };
@@ -107,6 +109,12 @@ function manejarTeclaPresionada(evento) {
   // porque esa función bloquea cambios de arma del menú de selección, no el intercambio rápido
   if (evento.code === 'KeyQ' && callbacks.onAlternarCuchillo) {
     callbacks.onAlternarCuchillo();
+  }
+
+  // Alternar JuiceBox con C - Sistema de curación
+  // Requirements: 1.1 - Equipar JuiceBox presionando tecla C
+  if (evento.code === 'KeyC' && callbacks.onAlternarJuiceBox) {
+    callbacks.onAlternarJuiceBox();
   }
 
   // Selección directa de armas con números 1-8

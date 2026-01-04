@@ -52,7 +52,14 @@ import {
   esCuchilloEquipado,
   obtenerArmaPrincipalPrevia,
   atacarConCuchillo,
-  actualizarAnimacionesCuchillo
+  actualizarAnimacionesCuchillo,
+  alternarJuiceBox,
+  esJuiceBoxEquipado,
+  iniciarCuracion,
+  cancelarCuracion,
+  estaCurando,
+  actualizarCuracion,
+  obtenerProgresoCuracion
 } from './sistemas/armas.js';
 
 import { Bala } from './entidades/Bala.js';
@@ -75,7 +82,7 @@ import {
 } from './sistemas/controles.js';
 
 import { crearEfectoDash } from './utils/efectos.js';
-import { mostrarIndicadorDaño, mostrarMensajeConexion, ocultarMensajeConexion, mostrarPantallaMuerte, ocultarPantallaMuerte, agregarEntradaKillFeed, actualizarBarraVida, mostrarEfectoDaño, mostrarDañoCausado, actualizarInfoArma, mostrarCambioArma } from './utils/ui.js';
+import { mostrarIndicadorDaño, mostrarMensajeConexion, ocultarMensajeConexion, mostrarPantallaMuerte, ocultarPantallaMuerte, agregarEntradaKillFeed, actualizarBarraVida, mostrarEfectoDaño, mostrarDañoCausado, actualizarInfoArma, mostrarCambioArma, actualizarBarraCuracion, ocultarBarraCuracion } from './utils/ui.js';
 
 // Network imports
 import { getConnection } from './network/connection.js';
@@ -1075,7 +1082,8 @@ async function inicializarJuegoCompleto() {
     onSeleccionarArma: manejarSeleccionarArma,
     onApuntar: manejarApuntado,
     onPausar: manejarPausar,
-    onAlternarCuchillo: manejarAlternarCuchillo
+    onAlternarCuchillo: manejarAlternarCuchillo,
+    onAlternarJuiceBox: manejarAlternarJuiceBox
   });
 
   // Establecer referencia de cámara para el sistema de apuntado
@@ -1602,6 +1610,34 @@ function configurarCallbacksRed() {
     mostrarDañoCausado(data.damage);
   });
   
+  // Player healing notification (when another player heals)
+  // Requirements: 5.1, 5.2 - Show JuiceBox and healing animation on remote players
+  connection.onPlayerHealing((data) => {
+    console.log(`🧃 [main.js] Evento playerHealing recibido:`, data);
+    
+    if (!data || !data.playerId) {
+      console.warn('🧃 [main.js] Datos de curación inválidos');
+      return;
+    }
+    
+    // No procesar si es el jugador local
+    if (data.playerId === localPlayerId) {
+      return;
+    }
+    
+    // Buscar el jugador remoto
+    const remotePlayer = remotePlayerManager.getPlayer(data.playerId);
+    if (!remotePlayer) {
+      console.warn(`🧃 [main.js] Jugador remoto no encontrado: ${data.playerId}`);
+      return;
+    }
+    
+    // Llamar a procesarCuracion en el jugador remoto
+    // Requirements: 5.1, 5.2, 5.3 - Mostrar JuiceBox y animación healt
+    remotePlayer.procesarCuracion(data.healing);
+    console.log(`🧃 [main.js] Curación ${data.healing ? 'iniciada' : 'terminada'} para jugador ${data.playerId}`);
+  });
+  
   // Connection error (Requirement 2.3)
   connection.onError((error) => {
     console.error('Connection error:', error);
@@ -1771,6 +1807,9 @@ async function manejarAlternarCuchillo() {
     return;
   }
 
+  // Check if healing was in progress before weapon change
+  const wasHealing = estaCurando();
+
   // Usar alternarCuchillo para intercambiar entre cuchillo y arma principal
   const exito = await alternarCuchillo(weaponContainer);
   
@@ -1788,6 +1827,11 @@ async function manejarAlternarCuchillo() {
     
     // Notificar al servidor del cambio de arma
     if (isMultiplayerConnected) {
+      // If healing was cancelled by weapon change, notify server
+      // Requirements: 5.1 - Notify server when healing is cancelled
+      if (wasHealing) {
+        inputSender.sendHealCancel();
+      }
       inputSender.sendWeaponChange(estado.tipoActual);
     }
     console.log(`🔄 Cambiado a: ${estado.nombre}`);
@@ -1795,9 +1839,62 @@ async function manejarAlternarCuchillo() {
 }
 
 /**
+ * Maneja el equipamiento del JuiceBox con tecla C
+ * Requirements: 1.1 - Equipar JuiceBox presionando tecla C
+ */
+async function manejarAlternarJuiceBox() {
+  // No permitir cambio durante recarga
+  if (arma.estaRecargando) {
+    console.log('🧃 No se puede cambiar durante recarga');
+    return;
+  }
+
+  // Check if healing was in progress before toggling JuiceBox
+  const wasHealing = estaCurando();
+
+  // Usar alternarJuiceBox para intercambiar entre JuiceBox y arma/cuchillo
+  const exito = await alternarJuiceBox(weaponContainer);
+  
+  if (exito) {
+    const estado = obtenerEstado();
+    
+    // Si el JuiceBox está equipado, mostrar mensaje especial
+    if (esJuiceBoxEquipado()) {
+      mostrarCambioArma('JuiceBox');
+      // Actualizar crosshair para JuiceBox (sin crosshair o crosshair especial)
+      establecerTipoArma('melee'); // Usar tipo melee para ocultar crosshair de disparo
+    } else {
+      mostrarCambioArma(estado.nombre);
+      // Actualizar crosshair dinámico
+      const configArma = CONFIG.armas[estado.tipoActual];
+      if (configArma) {
+        establecerTipoArma(configArma.tipo);
+      }
+    }
+    
+    actualizarInfoArma(estado);
+    actualizarDisplayMunicion();
+    
+    // Notificar al servidor del cambio de equipamiento
+    if (isMultiplayerConnected) {
+      // If healing was cancelled by toggling JuiceBox off, notify server
+      // Requirements: 5.1 - Notify server when healing is cancelled
+      if (wasHealing && !esJuiceBoxEquipado()) {
+        inputSender.sendHealCancel();
+      }
+      inputSender.sendWeaponChange(esJuiceBoxEquipado() ? 'JUICEBOX' : estado.tipoActual);
+    }
+    console.log(`🔄 Cambiado a: ${esJuiceBoxEquipado() ? 'JuiceBox' : estado.nombre}`);
+  }
+}
+
+/**
  * Maneja el cambio a la siguiente arma con rueda del mouse
  */
 function manejarSiguienteArmaRueda() {
+  // Check if healing was in progress before weapon change
+  const wasHealing = estaCurando();
+  
   siguienteArma(weaponContainer);
   const estado = obtenerEstado();
   mostrarCambioArma(estado.nombre);
@@ -1812,6 +1909,11 @@ function manejarSiguienteArmaRueda() {
   
   // Notificar al servidor del cambio de arma
   if (isMultiplayerConnected) {
+    // If healing was cancelled by weapon change, notify server
+    // Requirements: 5.1 - Notify server when healing is cancelled
+    if (wasHealing) {
+      inputSender.sendHealCancel();
+    }
     inputSender.sendWeaponChange(estado.tipoActual);
   }
   console.log(`🔄 Cambiado a: ${estado.nombre}`);
@@ -1821,6 +1923,9 @@ function manejarSiguienteArmaRueda() {
  * Maneja el cambio a la arma anterior
  */
 function manejarArmaAnterior() {
+  // Check if healing was in progress before weapon change
+  const wasHealing = estaCurando();
+  
   armaAnterior(weaponContainer);
   const estado = obtenerEstado();
   mostrarCambioArma(estado.nombre);
@@ -1832,6 +1937,11 @@ function manejarArmaAnterior() {
   
   // Notificar al servidor del cambio de arma
   if (isMultiplayerConnected) {
+    // If healing was cancelled by weapon change, notify server
+    // Requirements: 5.1 - Notify server when healing is cancelled
+    if (wasHealing) {
+      inputSender.sendHealCancel();
+    }
     inputSender.sendWeaponChange(estado.tipoActual);
   }
   console.log(`🔄 Cambiado a: ${estado.nombre}`);
@@ -1842,6 +1952,9 @@ function manejarArmaAnterior() {
  * @param {number} indice - Índice del arma a seleccionar
  */
 function manejarSeleccionarArma(indice) {
+  // Check if healing was in progress before weapon change
+  const wasHealing = estaCurando();
+  
   const estado = obtenerEstado();
   if (indice < estado.armasDisponibles.length) {
     const tipoArma = estado.armasDisponibles[indice];
@@ -1853,6 +1966,11 @@ function manejarSeleccionarArma(indice) {
       
       // Notificar al servidor del cambio de arma
       if (isMultiplayerConnected) {
+        // If healing was cancelled by weapon change, notify server
+        // Requirements: 5.1 - Notify server when healing is cancelled
+        if (wasHealing) {
+          inputSender.sendHealCancel();
+        }
         inputSender.sendWeaponChange(nuevoEstado.tipoActual);
       }
       console.log(`🎯 Seleccionado: ${nuevoEstado.nombre}`);
@@ -2040,6 +2158,7 @@ function verificarImpactoBots(bala, bots) {
 /**
  * Maneja el evento de disparo
  * Requirement 5.1: Send shoot input to server
+ * Requirement 3.1: Si JuiceBox equipado, iniciar curación en lugar de disparar
  */
 function manejarDisparo() {
   console.log('🔫 manejarDisparo llamado');
@@ -2047,6 +2166,21 @@ function manejarDisparo() {
   // No disparar si hay overlay de conexión visible
   const connectionOverlay = document.getElementById('connection-overlay');
   if (connectionOverlay && connectionOverlay.style.display !== 'none') {
+    return;
+  }
+
+  // Verificar si el JuiceBox está equipado - iniciar curación
+  // Requirements: 3.1 - Iniciar curación al hacer clic con JuiceBox equipado
+  if (esJuiceBoxEquipado()) {
+    console.log('🧃 JuiceBox equipado - Iniciando curación');
+    const curacionIniciada = iniciarCuracion();
+    if (curacionIniciada) {
+      console.log('🧃 Curación iniciada correctamente');
+      // Notificar al servidor del inicio de curación
+      if (isMultiplayerConnected && inputSender) {
+        inputSender.sendHealStart();
+      }
+    }
     return;
   }
 
@@ -2369,6 +2503,26 @@ function bucleJuego() {
     
     // Actualizar retroceso acumulado (se reduce con el tiempo)
     actualizarRetroceso();
+
+    // Actualizar sistema de curación
+    // Requirements: 3.2 - Actualizar curación cada frame y aplicar cuando se complete
+    if (estaCurando()) {
+      const resultadoCuracion = actualizarCuracion(jugador);
+      if (resultadoCuracion.completada) {
+        // Actualizar barra de vida con la nueva vida
+        actualizarBarraVida(jugador.vida || jugador.vidaActual, jugador.vidaMaxima || 200);
+        
+        // Emitir evento de curación completada al servidor si está conectado
+        if (isMultiplayerConnected && inputSender) {
+          inputSender.sendHealComplete(resultadoCuracion.vidaCurada);
+        }
+      }
+      // Actualizar UI de progreso de curación
+      actualizarBarraCuracion(obtenerProgresoCuracion());
+    } else {
+      // Ocultar barra de curación si no está curando
+      ocultarBarraCuracion();
+    }
 
     // Disparo automático si el mouse está presionado (solo para armas automáticas)
     if (estaMousePresionado() && estaPointerLockActivo()) {

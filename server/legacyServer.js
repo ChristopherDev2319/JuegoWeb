@@ -335,6 +335,36 @@ function handleMessage(ws, data) {
     }
   }
   
+  // Handle healing events - broadcast to other players for TPS animation
+  // Requirements: 5.1 - Show JuiceBox and healing animation on remote players
+  if (message.type === 'healStart') {
+    const healingData = {
+      playerId: playerId,
+      healing: true
+    };
+    if (roomId) {
+      broadcastToRoom(roomId, serializeMessage('playerHealing', healingData), playerId);
+    } else {
+      broadcast(serializeMessage('playerHealing', healingData));
+    }
+    console.log(`[HEAL] Player ${playerId} started healing`);
+    return;
+  }
+  
+  if (message.type === 'healCancel' || message.type === 'healComplete') {
+    const healingData = {
+      playerId: playerId,
+      healing: false
+    };
+    if (roomId) {
+      broadcastToRoom(roomId, serializeMessage('playerHealing', healingData), playerId);
+    } else {
+      broadcast(serializeMessage('playerHealing', healingData));
+    }
+    console.log(`[HEAL] Player ${playerId} ${message.type === 'healCancel' ? 'cancelled' : 'completed'} healing`);
+    return;
+  }
+  
   const input = { type: inputType, data: inputData };
   const result = currentGameManager.processInput(playerId, input);
   

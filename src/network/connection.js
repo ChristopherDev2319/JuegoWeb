@@ -25,6 +25,7 @@ export class NetworkConnection {
     this._onBulletCreated = null;
     this._onMeleeAttack = null;
     this._onDamageDealt = null;
+    this._onPlayerHealing = null;
     this._onError = null;
     this._onDisconnect = null;
     this._onLobbyResponse = null;
@@ -221,6 +222,13 @@ export class NetworkConnection {
         }
         break;
         
+      case 'playerHealing':
+        // Requirements: 5.1, 5.2 - Handle healing events from other players
+        if (this._onPlayerHealing) {
+          this._onPlayerHealing(message.data);
+        }
+        break;
+        
       case 'lobbyResponse':
         // Lobby response from server
         if (this._onLobbyResponse) {
@@ -321,6 +329,15 @@ export class NetworkConnection {
    */
   onDamageDealt(callback) {
     this._onDamageDealt = callback;
+  }
+
+  /**
+   * Register callback for player healing events (when other players heal)
+   * Requirements: 5.1, 5.2 - Show healing animation on remote players
+   * @param {Function} callback - Function to call with healing data { playerId, healing }
+   */
+  onPlayerHealing(callback) {
+    this._onPlayerHealing = callback;
   }
 
   /**
