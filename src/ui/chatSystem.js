@@ -1,0 +1,403 @@
+/**
+ * Sistema de Chat Universal
+ * Funciona tanto en modo local como online
+ */
+
+export class ChatSystem {
+  constructor(options = {}) {
+    this.isOnline = options.isOnline || false;
+    this.playerName = options.playerName || 'Jugador';
+    this.maxMessages = 50;
+    this.messages = [];
+    this.chatActivo = false; // Para controlar si el chat está activo
+    this.onChatStateChange = options.onChatStateChange || null; // Callback para notificar cambios
+    
+    this.createChatUI();
+    this.setupEventListeners();
+    
+    // Mensaje de bienvenida
+    if (this.isOnline) {
+      this.addSystemMessage('Chat multijugador activado');
+    } else {
+      this.addSystemMessage('Chat de batalla - Escribe notas o comandos');
+      this.addSystemMessage('Tip: Escribe "help" para ver comandos');
+    }
+  }
+  
+  createChatUI() {
+    // Contenedor principal del chat
+    this.chatContainer = document.createElement('div');
+    this.chatContainer.id = 'chat-container';
+    this.chatContainer.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      width: 350px;
+      height: 200px;
+      background: rgba(0, 0, 0, 0.8);
+      border: 2px solid #333;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      z-index: 1000;
+      transition: opacity 0.3s ease;
+    `;
+    
+    // Header del chat
+    this.chatHeader = document.createElement('div');
+    this.chatHeader.style.cssText = `
+      background: #333;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 6px 6px 0 0;
+      font-weight: bold;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    `;
+    
+    const title = document.createElement('span');
+    title.textContent = this.isOnline ? 'Chat Multijugador' : 'Chat de Batalla';
+    
+    const toggleBtn = document.createElement('button');
+    toggleBtn.textContent = '−';
+    toggleBtn.style.cssText = `
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0;
+      width: 20px;
+      height: 20px;
+    `;
+    toggleBtn.onclick = () => this.toggleChat();
+    
+    this.chatHeader.appendChild(title);
+    this.chatHeader.appendChild(toggleBtn);
+    
+    // Área de mensajes
+    this.messagesArea = document.createElement('div');
+    this.messagesArea.style.cssText = `
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      color: white;
+      line-height: 1.4;
+    `;
+    
+    // Input del chat
+    this.inputContainer = document.createElement('div');
+    this.inputContainer.style.cssText = `
+      padding: 8px;
+      border-top: 1px solid #555;
+      display: flex;
+      gap: 5px;
+    `;
+    
+    this.chatInput = document.createElement('input');
+    this.chatInput.type = 'text';
+    this.chatInput.placeholder = this.isOnline ? 'Escribe un mensaje...' : 'Escribe una nota o comando...';
+    this.chatInput.maxLength = 200;
+    this.chatInput.style.cssText = `
+      flex: 1;
+      background: #222;
+      border: 1px solid #555;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: inherit;
+    `;
+    
+    this.sendButton = document.createElement('button');
+    this.sendButton.textContent = 'Enviar';
+    this.sendButton.style.cssText = `
+      background: #4CAF50;
+      border: none;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      min-width: 60px;
+    `;
+    
+    // Ensamblar UI
+    this.inputContainer.appendChild(this.chatInput);
+    this.inputContainer.appendChild(this.sendButton);
+    
+    this.chatContainer.appendChild(this.chatHeader);
+    this.chatContainer.appendChild(this.messagesArea);
+    this.chatContainer.appendChild(this.inputContainer);
+    
+    document.body.appendChild(this.chatContainer);
+    
+    // Estado inicial: semi-transparente
+    this.chatContainer.style.opacity = '0.7';
+  }
+  
+  setupEventListeners() {
+    // Enter para enviar mensaje
+    this.chatInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        this.sendMessage();
+      }
+    });
+    
+    // Click en botón enviar
+    this.sendButton.addEventListener('click', () => {
+      this.sendMessage();
+    });
+    
+    // Focus/blur para opacidad y control de estado
+    this.chatInput.addEventListener('focus', () => {
+      this.chatContainer.style.opacity = '1';
+      this.chatActivo = true;
+      this.notificarCambioEstado(true);
+    });
+    
+    this.chatInput.addEventListener('blur', () => {
+      setTimeout(() => {
+        this.chatContainer.style.opacity = '0.7';
+        this.chatActivo = false;
+        this.notificarCambioEstado(false);
+      }, 2000);
+    });
+    
+    // Tecla T para abrir chat rápido
+    document.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 't' && !this.chatInput.matches(':focus') && !this.chatActivo) {
+        e.preventDefault();
+        this.abrirChat();
+      }
+    });
+  }
+  
+  sendMessage() {
+    const message = this.chatInput.value.trim();
+    if (!message) return;
+    
+    if (this.isOnline) {
+      // En modo online, mostrar mensaje propio con nombre del jugador
+      this.addPlayerMessage(this.playerName, message, true); // true = mensaje propio
+      // TODO: Enviar al servidor cuando esté implementado
+    } else {
+      // En modo local, procesar comandos o agregar como nota
+      this.processLocalMessage(message);
+    }
+    
+    this.chatInput.value = '';
+    this.cerrarChat();
+  }
+  
+  abrirChat() {
+    this.chatInput.focus();
+    this.chatContainer.style.opacity = '1';
+    this.chatActivo = true;
+    this.notificarCambioEstado(true);
+  }
+  
+  cerrarChat() {
+    this.chatInput.blur();
+    this.chatActivo = false;
+    this.notificarCambioEstado(false);
+    setTimeout(() => {
+      if (!this.chatActivo) {
+        this.chatContainer.style.opacity = '0.7';
+      }
+    }, 100);
+  }
+  
+  notificarCambioEstado(activo) {
+    if (this.onChatStateChange) {
+      this.onChatStateChange(activo);
+    }
+  }
+  
+  // Método para verificar si el chat está activo (para uso externo)
+  estaActivo() {
+    return this.chatActivo;
+  }
+  
+  processLocalMessage(message) {
+    const command = message.toLowerCase();
+    
+    // Comandos especiales en modo local
+    switch (command) {
+      case 'help':
+        this.addSystemMessage('Comandos disponibles:');
+        this.addSystemMessage('• help - Muestra esta ayuda');
+        this.addSystemMessage('• time - Muestra tiempo actual');
+        this.addSystemMessage('• clear - Limpia el chat');
+        this.addSystemMessage('• fps - Muestra FPS estimado');
+        this.addSystemMessage('• ping - Test de latencia');
+        this.addSystemMessage('• info - Información del juego');
+        break;
+        
+      case 'time':
+        const now = new Date();
+        this.addSystemMessage(`Hora actual: ${now.toLocaleTimeString()}`);
+        break;
+        
+      case 'clear':
+        this.clearMessages();
+        this.addSystemMessage('Chat limpiado');
+        break;
+        
+      case 'fps':
+        this.addSystemMessage('FPS: ~60 (estimado)');
+        break;
+        
+      case 'ping':
+        const start = performance.now();
+        setTimeout(() => {
+          const ping = Math.round(performance.now() - start);
+          this.addSystemMessage(`Ping local: ${ping}ms`);
+        }, Math.random() * 50 + 10);
+        break;
+        
+      case 'info':
+        this.addSystemMessage('Juego FPS Three.js');
+        this.addSystemMessage('Modo: ' + (this.isOnline ? 'Multijugador' : 'Local'));
+        this.addSystemMessage('Navegador: ' + navigator.userAgent.split(' ')[0]);
+        this.addSystemMessage('Resolución: ' + window.innerWidth + 'x' + window.innerHeight);
+        break;
+        
+      default:
+        // Mensaje normal como nota
+        this.addPlayerMessage('Nota', message);
+        break;
+    }
+  }
+  
+  addPlayerMessage(playerName, message, isOwnMessage = false) {
+    const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    const messageElement = document.createElement('div');
+    messageElement.style.cssText = `
+      margin-bottom: 4px;
+      word-wrap: break-word;
+      padding: 2px 4px;
+      border-radius: 4px;
+      background: ${isOwnMessage ? 'rgba(76, 175, 80, 0.1)' : 'rgba(33, 150, 243, 0.1)'};
+    `;
+    
+    // Determinar si es mensaje propio
+    const esMensajePropio = isOwnMessage || playerName === this.playerName || playerName === 'Nota';
+    const nameColor = esMensajePropio ? '#4CAF50' : '#2196F3';
+    
+    // Usar el nombre real del jugador en lugar de emojis
+    const nombreMostrar = playerName === 'Nota' ? this.playerName : playerName;
+    
+    messageElement.innerHTML = `
+      <span style="color: #888; font-size: 10px;">[${timestamp}]</span>
+      <span style="color: ${nameColor}; font-weight: bold; font-size: 12px;">${nombreMostrar}:</span>
+      <span style="color: white; margin-left: 5px;">${this.escapeHtml(message)}</span>
+    `;
+    
+    this.addMessageElement(messageElement);
+  }
+  
+  addSystemMessage(message) {
+    const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    const messageElement = document.createElement('div');
+    messageElement.style.cssText = `
+      margin-bottom: 4px;
+      color: #FFC107;
+      font-style: italic;
+      word-wrap: break-word;
+    `;
+    
+    messageElement.innerHTML = `
+      <span style="color: #888; font-size: 10px;">[${timestamp}]</span>
+      <span>${this.escapeHtml(message)}</span>
+    `;
+    
+    this.addMessageElement(messageElement);
+  }
+  
+  addMessageElement(element) {
+    this.messages.push(element);
+    this.messagesArea.appendChild(element);
+    
+    // Limitar número de mensajes
+    if (this.messages.length > this.maxMessages) {
+      const oldMessage = this.messages.shift();
+      this.messagesArea.removeChild(oldMessage);
+    }
+    
+    // Scroll al final
+    this.messagesArea.scrollTop = this.messagesArea.scrollHeight;
+    
+    // Mostrar chat temporalmente
+    this.chatContainer.style.opacity = '1';
+    setTimeout(() => {
+      if (!this.chatInput.matches(':focus')) {
+        this.chatContainer.style.opacity = '0.7';
+      }
+    }, 3000);
+  }
+  
+  clearMessages() {
+    this.messages = [];
+    this.messagesArea.innerHTML = '';
+  }
+  
+  toggleChat() {
+    const isHidden = this.messagesArea.style.display === 'none';
+    
+    if (isHidden) {
+      this.messagesArea.style.display = 'block';
+      this.inputContainer.style.display = 'flex';
+      this.chatContainer.style.height = '200px';
+      this.chatHeader.querySelector('button').textContent = '−';
+    } else {
+      this.messagesArea.style.display = 'none';
+      this.inputContainer.style.display = 'none';
+      this.chatContainer.style.height = 'auto';
+      this.chatHeader.querySelector('button').textContent = '+';
+    }
+  }
+  
+  // Recibir mensaje de otro jugador (para modo online)
+  receiveMessage(playerName, message) {
+    this.addPlayerMessage(playerName, message);
+  }
+  
+  // Cambiar modo (local/online)
+  setMode(isOnline, playerName = 'Jugador') {
+    this.isOnline = isOnline;
+    this.playerName = playerName;
+    
+    // Actualizar UI
+    const title = this.chatHeader.querySelector('span');
+    title.textContent = isOnline ? 'Chat Multijugador' : 'Chat de Batalla';
+    
+    this.chatInput.placeholder = isOnline ? 'Escribe un mensaje...' : 'Escribe una nota o comando...';
+    
+    // Mensaje de cambio de modo
+    this.clearMessages();
+    if (isOnline) {
+      this.addSystemMessage('Modo multijugador activado');
+    } else {
+      this.addSystemMessage('Chat de batalla activado');
+      this.addSystemMessage('Tip: Escribe "help" para ver comandos');
+    }
+  }
+  
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  
+  // Destruir chat
+  destroy() {
+    if (this.chatContainer && this.chatContainer.parentNode) {
+      this.chatContainer.parentNode.removeChild(this.chatContainer);
+    }
+  }
+}
