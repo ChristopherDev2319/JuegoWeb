@@ -66,6 +66,8 @@ export class RemotePlayer {
     
     this.currentWeapon = state.currentWeapon || 'M4A1';
     this.weaponMeshes = {}; // Referencias a los meshes de armas en el modelo
+    this.modeloCargado = false;
+    this.placeholderCreado = false;
     
     this.loadCharacterModel();
     
@@ -101,10 +103,20 @@ export class RemotePlayer {
     }
   }
 
-  loadCharacterModel() {
+  loadCharacterModel(intentos = 0) {
+    const maxIntentos = 3;
     const gltfLoader = new THREE.GLTFLoader();
     
+    // Crear un placeholder invisible mientras carga (no el cubo azul)
+    if (!this.placeholderCreado) {
+      this.crearPlaceholderInvisible();
+      this.placeholderCreado = true;
+    }
+    
     gltfLoader.load(CHARACTER_CONFIG.modelPath, async (gltf) => {
+      // Remover placeholder si existe
+      this.removerPlaceholder();
+      
       this.characterModel = gltf.scene;
       this.characterModel.scale.setScalar(CHARACTER_CONFIG.scale);
       this.characterModel.position.y = 0;
@@ -128,6 +140,7 @@ export class RemotePlayer {
       });
       
       this.group.add(this.characterModel);
+      this.modeloCargado = true;
       await this.inicializarAnimaciones();
       
       // Mostrar el arma actual
@@ -135,9 +148,42 @@ export class RemotePlayer {
       
       console.log(`Character model loaded for player ${this.id}`);
     }, undefined, (error) => {
-      console.error(`Error loading character model for player ${this.id}:`, error);
-      this.createFallbackMesh();
+      console.error(`Error loading character model for player ${this.id} (intento ${intentos + 1}/${maxIntentos}):`, error);
+      
+      // Reintentar si no hemos alcanzado el máximo de intentos
+      if (intentos < maxIntentos - 1) {
+        console.log(`Reintentando carga del modelo para jugador ${this.id}...`);
+        setTimeout(() => {
+          this.loadCharacterModel(intentos + 1);
+        }, 500 * (intentos + 1)); // Espera incremental
+      } else {
+        // Solo mostrar fallback después de agotar todos los intentos
+        console.error(`No se pudo cargar el modelo después de ${maxIntentos} intentos para jugador ${this.id}`);
+        this.removerPlaceholder();
+        this.createFallbackMesh();
+      }
     });
+  }
+  
+  /**
+   * Crea un placeholder invisible mientras se carga el modelo
+   * Esto evita que aparezca el cubo azul durante la carga
+   */
+  crearPlaceholderInvisible() {
+    // No crear nada visible, el jugador simplemente no se ve hasta que cargue
+    this.placeholderMesh = null;
+  }
+  
+  /**
+   * Remueve el placeholder si existe
+   */
+  removerPlaceholder() {
+    if (this.placeholderMesh) {
+      this.group.remove(this.placeholderMesh);
+      this.placeholderMesh.geometry?.dispose();
+      this.placeholderMesh.material?.dispose();
+      this.placeholderMesh = null;
+    }
   }
 
   /**

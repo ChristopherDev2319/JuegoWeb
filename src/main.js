@@ -108,7 +108,7 @@ import {
 } from './sistemas/crosshair.js';
 
 // Sistema de menú de pausa
-import { inicializarMenuPausa, alternarMenuPausa, estaMenuActivo } from './sistemas/menuPausa.js';
+import { inicializarMenuPausa, alternarMenuPausa, estaMenuActivo, cerrarMenuForzado } from './sistemas/menuPausa.js';
 
 // Sistema de sonidos
 import { inicializarSonidos, reproducirSonidoDisparo } from './sistemas/sonidos.js';
@@ -1304,6 +1304,11 @@ function configurarCallbacksRed() {
     }
     
     if (data.playerId === localPlayerId) {
+      // Cerrar menú de pausa si está activo para evitar superposición
+      if (estaMenuActivo()) {
+        cerrarMenuForzado();
+      }
+      
       // Obtener arma actual antes de morir
       const estadoArma = obtenerEstado();
       const armaActual = estadoArma.tipoActual || armaSeleccionadaParaPartida;
