@@ -120,6 +120,10 @@ import { inicializarColisiones, toggleDebugVisual } from './sistemas/colisiones.
 // Requirements: 1.1, 2.1, 3.1, 4.4
 import { BotManager } from './sistemas/botManager.js';
 
+// Sistema de spawns de munición
+// Requirements: 5.1, 5.2, 5.3, 5.4
+import { AmmoSpawn } from './entidades/AmmoSpawn.js';
+
 // UI de estadísticas de entrenamiento
 // Requirements: 6.1, 6.2, 4.4
 import {
@@ -530,6 +534,152 @@ function inicializarBotManager() {
   console.log('✅ Sistema de bots de entrenamiento inicializado');
 }
 
+/**
+ * Inicializa el sistema de spawns de munición
+ * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
+ */
+async function inicializarAmmoSpawns() {
+  if (ammoSpawns.length > 0) {
+    console.warn('AmmoSpawns ya están inicializados');
+    return;
+  }
+
+  console.log('📦 Inicializando sistema de spawns de munición...');
+
+  const configSpawns = CONFIG.spawnsAmmo;
+  if (!configSpawns || !configSpawns.posiciones) {
+    console.warn('⚠️ No se encontró configuración de spawns de munición');
+    return;
+  }
+
+  // Crear spawns en cada posición configurada
+  for (const posicion of configSpawns.posiciones) {
+    const spawn = new AmmoSpawn(scene, posicion, {
+      porcentajeMunicion: configSpawns.porcentajeMunicion,
+      tiempoRecarga: configSpawns.tiempoRecarga,
+      radioRecoleccion: configSpawns.radioRecoleccion,
+      escala: configSpawns.escala
+    });
+
+    // Cargar el modelo
+    try {
+      await spawn.cargarModelo(configSpawns.modelo);
+    } catch (error) {
+      console.warn(`⚠️ Error cargando modelo de spawn:`, error);
+    }
+
+    ammoSpawns.push(spawn);
+  }
+
+  console.log(`✅ Sistema de spawns de munición inicializado: ${ammoSpawns.length} spawns`);
+}
+
+/**
+ * Actualiza los spawns de munición y verifica recolección
+ * Requirements: 5.1, 5.2, 5.3
+ * @param {number} deltaTime - Tiempo desde el último frame
+ */
+function actualizarAmmoSpawns(deltaTime) {
+  if (ammoSpawns.length === 0) return;
+
+  const estadoArma = obtenerEstado();
+  
+  for (const spawn of ammoSpawns) {
+    // Actualizar timer de recarga
+    spawn.actualizar(deltaTime);
+
+    // Verificar si el jugador puede recoger munición
+    if (spawn.estaActivo() && jugador.posicion) {
+      // Verificar si la munición ya está llena
+      const configArma = CONFIG.armas[estadoArma.tipoActual];
+      if (configArma && configArma.municionTotal && arma.municionTotal >= configArma.municionTotal) {
+        // Munición llena, no recoger
+        continue;
+      }
+      
+      const resultado = spawn.recoger(jugador, estadoArma);
+      
+      if (resultado.exito) {
+        // En modo multijugador, enviar al servidor para que actualice la munición
+        if (isMultiplayerConnected) {
+          inputSender.sendAmmoPickup(resultado.municionOtorgada, spawn.id);
+        } else {
+          // Modo local: actualizar directamente
+          const municionMaxima = configArma ? configArma.municionTotal : 100;
+          arma.municionTotal = Math.min(arma.municionTotal + resultado.municionOtorgada, municionMaxima);
+        }
+        
+        // Actualizar display de munición
+        actualizarDisplayMunicion();
+        
+        // Mostrar feedback visual
+        mostrarMensajeMunicion(resultado.municionOtorgada);
+        
+        console.log(`🎁 +${resultado.municionOtorgada} munición recogida`);
+      }
+    }
+  }
+}
+
+/**
+ * Muestra un mensaje temporal cuando se recoge munición
+ * @param {number} cantidad - Cantidad de munición recogida
+ */
+function mostrarMensajeMunicion(cantidad) {
+  // Crear elemento de mensaje
+  const mensaje = document.createElement('div');
+  mensaje.className = 'ammo-pickup-message';
+  mensaje.innerHTML = `+${cantidad} 🔫`;
+  mensaje.style.cssText = `
+    position: fixed;
+    bottom: 150px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 128, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 18px;
+    font-weight: bold;
+    z-index: 1000;
+    animation: fadeInOut 2s ease-in-out;
+    pointer-events: none;
+  `;
+
+  // Agregar animación CSS si no existe
+  if (!document.getElementById('ammo-pickup-style')) {
+    const style = document.createElement('style');
+    style.id = 'ammo-pickup-style';
+    style.textContent = `
+      @keyframes fadeInOut {
+        0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+        20% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  document.body.appendChild(mensaje);
+
+  // Remover después de la animación
+  setTimeout(() => {
+    mensaje.remove();
+  }, 2000);
+}
+
+/**
+ * Destruye todos los spawns de munición
+ */
+function destruirAmmoSpawns() {
+  for (const spawn of ammoSpawns) {
+    spawn.destruir();
+  }
+  ammoSpawns = [];
+  console.log('🗑️ Spawns de munición destruidos');
+}
+
 // Network state
 let connection = null;
 let inputSender = null;
@@ -540,6 +690,10 @@ let localPlayerId = null;
 // Bot Manager para modo local
 // Requirements: 1.1, 2.1, 3.1, 4.4
 let botManager = null;
+
+// Sistema de spawns de munición
+// Requirements: 5.1, 5.2, 5.3, 5.4
+let ammoSpawns = [];
 
 // Input sending rate control (20Hz to match server tick rate)
 const INPUT_SEND_RATE = 1000 / 20; // 50ms
@@ -646,9 +800,12 @@ async function manejarMatchmaking(nombre) {
     
     actualizarEstadoMatchmaking('Buscando partida...');
     
-    const resultado = await solicitarMatchmaking(nombre);
+    // Obtener arma seleccionada del sistema de selección de armas
+    const armaSeleccionada = obtenerArmaSeleccionadaUI() || armaSeleccionadaParaPartida || 'M4A1';
+    armaSeleccionadaParaPartida = armaSeleccionada; // Sincronizar
+    const resultado = await solicitarMatchmaking(nombre, armaSeleccionada);
     
-    console.log('✅ Matchmaking exitoso:', resultado);
+    console.log(`✅ Matchmaking exitoso con arma ${armaSeleccionada}:`, resultado);
     salaActualId = resultado.roomId;
     nombreJugadorActual = nombre;
     
@@ -690,9 +847,12 @@ async function manejarCrearPartida(nombre, password) {
     // Primero conectar al servidor si no está conectado
     await conectarServidorParaLobby();
     
-    const resultado = await crearPartidaPrivada(nombre, password);
+    // Obtener arma seleccionada del sistema de selección de armas
+    const armaSeleccionada = obtenerArmaSeleccionadaUI() || armaSeleccionadaParaPartida || 'M4A1';
+    armaSeleccionadaParaPartida = armaSeleccionada; // Sincronizar
+    const resultado = await crearPartidaPrivada(nombre, password, armaSeleccionada);
     
-    console.log('✅ Partida creada:', resultado);
+    console.log(`✅ Partida creada con arma ${armaSeleccionada}:`, resultado);
     salaActualId = resultado.roomId;
     nombreJugadorActual = nombre;
     
@@ -726,9 +886,12 @@ async function manejarUnirsePartida(nombre, codigo, password) {
     // Primero conectar al servidor si no está conectado
     await conectarServidorParaLobby();
     
-    const resultado = await unirsePartidaPrivada(nombre, codigo, password);
+    // Obtener arma seleccionada del sistema de selección de armas
+    const armaSeleccionada = obtenerArmaSeleccionadaUI() || armaSeleccionadaParaPartida || 'M4A1';
+    armaSeleccionadaParaPartida = armaSeleccionada; // Sincronizar
+    const resultado = await unirsePartidaPrivada(nombre, codigo, password, armaSeleccionada);
     
-    console.log('✅ Unido a partida:', resultado);
+    console.log(`✅ Unido a partida con arma ${armaSeleccionada}:`, resultado);
     salaActualId = resultado.roomId;
     nombreJugadorActual = nombre;
     
@@ -880,7 +1043,8 @@ async function inicializarJuegoCompleto() {
   
   actualizarCarga(50, 'Cargando arma principal...');
 
-  // Cargar SOLO el arma inicial (M4A1) - las demás se cargan en background
+  // Cargar SOLO el arma inicial - usar el arma seleccionada
+  console.log(`🔫 armaSeleccionadaParaPartida antes de inicializarArmaInicial: ${armaSeleccionadaParaPartida}`);
   await inicializarArmaInicial();
 
   actualizarCarga(65, 'Cargando animaciones...');
@@ -999,6 +1163,10 @@ async function inicializarJuegoCompleto() {
     inicializarBotManager();
   }
 
+  // Inicializar sistema de spawns de munición (para ambos modos)
+  // Requirements: 5.1, 5.2, 5.3, 5.4
+  await inicializarAmmoSpawns();
+
   actualizarCarga(100, '¡Listo!');
 
   // Pequeña pausa para mostrar el 100%
@@ -1042,6 +1210,10 @@ function volverAlLobby() {
     botManager.destruir();
     botManager = null;
   }
+  
+  // Destruir sistema de spawns de munición
+  // Requirements: 5.1, 5.2, 5.3, 5.4
+  destruirAmmoSpawns();
   
   // Destruir UI de entrenamiento
   destruirEntrenamientoUI();
@@ -1256,10 +1428,21 @@ function configurarCallbacksRed() {
     // Set local player ID in remote player manager
     remotePlayerManager.setLocalPlayerId(localPlayerId);
     
-    // Apply initial game state
+    // Apply initial game state (pero NO sobrescribir el arma local)
+    // La función actualizarArmaDesdeServidor ya verifica si el arma coincide
     if (data.gameState) {
       procesarEstadoJuego(data.gameState);
     }
+    
+    // Enviar weaponChange al servidor para asegurar sincronización
+    const armaLocal = armaSeleccionadaParaPartida;
+    if (armaLocal && inputSender) {
+      console.log(`🔫 Sincronizando arma con servidor: ${armaLocal}`);
+      inputSender.sendWeaponChange(armaLocal);
+    }
+    
+    // Actualizar UI con el estado del arma LOCAL (no del servidor)
+    actualizarDisplayMunicion();
     
     ocultarMensajeConexion();
   });
@@ -1446,12 +1629,20 @@ function procesarEstadoJuego(gameState) {
 async function inicializarArmaInicial() {
   const armaSeleccionada = armaSeleccionadaParaPartida || 'M4A1';
   console.log(`🔫 Cargando arma seleccionada: ${armaSeleccionada}...`);
+  console.log(`🔫 CONFIG.armas[${armaSeleccionada}]:`, CONFIG.armas[armaSeleccionada]?.tamañoCargador, '/', CONFIG.armas[armaSeleccionada]?.municionTotal);
   
   // Establecer el arma seleccionada como única en el inventario
   // Requirements: 2.2 - El inventario solo contiene el arma seleccionada
   try {
     establecerArmaUnica(armaSeleccionada, weaponContainer);
     console.log(`✅ Arma ${armaSeleccionada} equipada como única en inventario`);
+    console.log(`🔫 Estado después de establecerArmaUnica: ${arma.municionActual}/${arma.municionTotal}`);
+    
+    // Sincronizar con el servidor si estamos conectados
+    if (isMultiplayerConnected && inputSender) {
+      inputSender.sendWeaponChange(armaSeleccionada);
+      console.log(`🔫 Arma sincronizada con servidor: ${armaSeleccionada}`);
+    }
   } catch (error) {
     console.error('❌ Error equipando arma seleccionada:', error);
     // Fallback a M4A1 si hay error
@@ -1462,8 +1653,9 @@ async function inicializarArmaInicial() {
   // Requirements: 2.3 - Deshabilitar cambio de arma durante partida
   iniciarPartidaSeleccion();
   
-  // Actualizar UI inicial
+  // Actualizar UI inicial con los valores correctos del arma seleccionada
   const estadoInicial = obtenerEstado();
+  console.log(`🔫 Estado para UI: ${estadoInicial.municionActual}/${estadoInicial.municionTotal}`);
   actualizarInfoArma(estadoInicial);
   
   // Actualizar crosshair según el tipo de arma
@@ -2085,6 +2277,10 @@ function bucleJuego() {
     if (botManager && modoJuegoActual === 'local') {
       botManager.actualizar(deltaTime * 1000, jugador.posicion);
     }
+
+    // Actualizar sistema de spawns de munición
+    // Requirements: 5.1, 5.2, 5.3
+    actualizarAmmoSpawns(deltaTime);
 
     // Sincronizar cámara con jugador
     sincronizarCamara(camera);
