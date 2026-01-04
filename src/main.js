@@ -47,7 +47,12 @@ import {
   estaApuntando,
   obtenerDispersionRetroceso,
   actualizarRetroceso,
-  establecerArmaUnica
+  establecerArmaUnica,
+  alternarCuchillo,
+  esCuchilloEquipado,
+  obtenerArmaPrincipalPrevia,
+  atacarConCuchillo,
+  actualizarAnimacionesCuchillo
 } from './sistemas/armas.js';
 
 import { Bala } from './entidades/Bala.js';
@@ -1065,11 +1070,12 @@ async function inicializarJuegoCompleto() {
     onDisparar: manejarDisparo,
     onSaltar: manejarSalto,
     onMovimientoMouse: manejarMovimientoMouse,
-    onSiguienteArma: manejarSiguienteArma,
+    onSiguienteArma: manejarSiguienteArmaRueda,
     onArmaAnterior: manejarArmaAnterior,
     onSeleccionarArma: manejarSeleccionarArma,
     onApuntar: manejarApuntado,
-    onPausar: manejarPausar
+    onPausar: manejarPausar,
+    onAlternarCuchillo: manejarAlternarCuchillo
   });
 
   // Establecer referencia de cámara para el sistema de apuntado
@@ -1546,13 +1552,49 @@ function configurarCallbacksRed() {
   });
   
   // Bullet created by another player - trigger shoot animation
+  // Requirements: 3.1 - Reproducir animación de ataque TPS para cuchillo
   connection.onBulletCreated((bullet) => {
     if (bullet && bullet.ownerId && bullet.ownerId !== localPlayerId) {
       const remotePlayer = remotePlayerManager.getPlayer(bullet.ownerId);
-      if (remotePlayer && remotePlayer.dispararAnimacion) {
-        remotePlayer.dispararAnimacion(0.25);
+      if (remotePlayer) {
+        // Si es un ataque de cuchillo, usar animación específica
+        if (bullet.weaponType === 'KNIFE' && remotePlayer.procesarAtaqueCuchillo) {
+          remotePlayer.procesarAtaqueCuchillo();
+        } else if (remotePlayer.dispararAnimacion) {
+          remotePlayer.dispararAnimacion(0.25);
+        }
       }
     }
+  });
+  
+  // Melee attack from another player - trigger knife attack animation TPS
+  // Requirements: 3.1, 3.2, 3.4 - Reproducir animación de ataque de cuchillo TPS
+  connection.onMeleeAttack((data) => {
+    console.log(`🔪 [main.js] Evento meleeAttack recibido:`, data);
+    
+    if (!data || !data.attackerId) {
+      console.warn(`⚠️ [main.js] Evento meleeAttack sin attackerId válido`);
+      return;
+    }
+    
+    if (data.attackerId === localPlayerId) {
+      console.log(`🔪 [main.js] Ignorando evento meleeAttack propio`);
+      return;
+    }
+    
+    const remotePlayer = remotePlayerManager.getPlayer(data.attackerId);
+    if (!remotePlayer) {
+      console.warn(`⚠️ [main.js] No se encontró jugador remoto con ID: ${data.attackerId}`);
+      return;
+    }
+    
+    if (!remotePlayer.procesarAtaqueCuchillo) {
+      console.warn(`⚠️ [main.js] Jugador remoto ${data.attackerId} no tiene método procesarAtaqueCuchillo`);
+      return;
+    }
+    
+    remotePlayer.procesarAtaqueCuchillo();
+    console.log(`🔪 [main.js] Animación TPS de ataque de cuchillo iniciada para jugador ${data.attackerId}`);
   });
   
   // Damage dealt notification (when local player hits someone)
@@ -1719,9 +1761,43 @@ async function inicializarSistemaArmas() {
 }
 
 /**
- * Maneja el cambio a la siguiente arma
+ * Maneja el intercambio de cuchillo con tecla Q
+ * Requirements: 2.1, 2.2 - Intercambio rápido con tecla Q
  */
-function manejarSiguienteArma() {
+async function manejarAlternarCuchillo() {
+  // No permitir cambio durante recarga
+  if (arma.estaRecargando) {
+    console.log('🔪 No se puede cambiar durante recarga');
+    return;
+  }
+
+  // Usar alternarCuchillo para intercambiar entre cuchillo y arma principal
+  const exito = await alternarCuchillo(weaponContainer);
+  
+  if (exito) {
+    const estado = obtenerEstado();
+    mostrarCambioArma(estado.nombre);
+    actualizarInfoArma(estado);
+    actualizarDisplayMunicion();
+    
+    // Actualizar crosshair dinámico
+    const configArma = CONFIG.armas[estado.tipoActual];
+    if (configArma) {
+      establecerTipoArma(configArma.tipo);
+    }
+    
+    // Notificar al servidor del cambio de arma
+    if (isMultiplayerConnected) {
+      inputSender.sendWeaponChange(estado.tipoActual);
+    }
+    console.log(`🔄 Cambiado a: ${estado.nombre}`);
+  }
+}
+
+/**
+ * Maneja el cambio a la siguiente arma con rueda del mouse
+ */
+function manejarSiguienteArmaRueda() {
   siguienteArma(weaponContainer);
   const estado = obtenerEstado();
   mostrarCambioArma(estado.nombre);
@@ -1729,7 +1805,10 @@ function manejarSiguienteArma() {
   actualizarDisplayMunicion();
   
   // Actualizar crosshair dinámico
-  establecerTipoArma(CONFIG.armas[estado.tipoActual].tipo);
+  const configArma = CONFIG.armas[estado.tipoActual];
+  if (configArma) {
+    establecerTipoArma(configArma.tipo);
+  }
   
   // Notificar al servidor del cambio de arma
   if (isMultiplayerConnected) {
@@ -1963,9 +2042,21 @@ function verificarImpactoBots(bala, bots) {
  * Requirement 5.1: Send shoot input to server
  */
 function manejarDisparo() {
+  console.log('🔫 manejarDisparo llamado');
+  
   // No disparar si hay overlay de conexión visible
   const connectionOverlay = document.getElementById('connection-overlay');
   if (connectionOverlay && connectionOverlay.style.display !== 'none') {
+    return;
+  }
+
+  // Verificar si el cuchillo está equipado - usar ataque melee
+  const cuchilloEquipado = esCuchilloEquipado();
+  console.log(`🔫 ¿Cuchillo equipado? ${cuchilloEquipado}`);
+  
+  if (cuchilloEquipado) {
+    console.log('🔪 Redirigiendo a manejarAtaqueCuchillo');
+    manejarAtaqueCuchillo();
     return;
   }
 
@@ -2079,6 +2170,68 @@ function manejarDisparo() {
       }
     }
   }
+}
+
+/**
+ * Maneja el ataque con cuchillo
+ * Detecta enemigos en rango y aplica daño
+ */
+function manejarAtaqueCuchillo() {
+  console.log('🔪 === INICIANDO ATAQUE CON CUCHILLO ===');
+  
+  // En modo multijugador, enviar ataque al servidor primero
+  if (isMultiplayerConnected && inputSender) {
+    console.log('🔪 Enviando ataque al servidor (multijugador)');
+    inputSender.sendMeleeAttack({
+      posicion: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+      direccion: { 
+        x: -Math.sin(jugador.rotacionY), 
+        y: 0, 
+        z: -Math.cos(jugador.rotacionY) 
+      }
+    });
+  }
+
+  // Obtener lista de enemigos (bots en modo local, jugadores remotos en multijugador)
+  let enemigos = [];
+  
+  if (isMultiplayerConnected && remotePlayerManager) {
+    // Modo multijugador: obtener jugadores remotos
+    const playersMap = remotePlayerManager.getAllPlayers();
+    if (playersMap && playersMap.size > 0) {
+      enemigos = Array.from(playersMap.values());
+    }
+    console.log(`🔪 Modo multijugador - Jugadores remotos: ${enemigos.length}`);
+  } else if (botManager) {
+    // Modo local: obtener bots
+    enemigos = botManager.obtenerBots ? botManager.obtenerBots() : [];
+    console.log(`🔪 Modo local - Bots disponibles: ${enemigos.length}`);
+  } else {
+    console.log('🔪 No hay botManager ni remotePlayerManager');
+  }
+  
+  // Ejecutar ataque con cuchillo (en modo local aplica daño, en multijugador es solo visual)
+  const resultado = atacarConCuchillo(camera, enemigos, scene, (impacto) => {
+    // Callback cuando el cuchillo impacta
+    console.log(`🔪 ¡IMPACTO DE CUCHILLO!:`, impacto);
+    
+    // Mostrar indicador de daño causado
+    if (impacto.daño) {
+      mostrarDañoCausado(impacto.daño);
+    }
+    
+    // Registrar impacto para estadísticas (solo modo local)
+    if (!isMultiplayerConnected && botManager && impacto.enemigo) {
+      botManager.registrarImpacto();
+      
+      // Si el bot murió, registrar eliminación
+      if (impacto.enemigo.datos && impacto.enemigo.datos.vidaActual <= 0) {
+        botManager.registrarEliminacion(impacto.enemigo);
+      }
+    }
+  });
+  
+  console.log(`🔪 Resultado ataque - Impactos: ${resultado.enemigosGolpeados.length}`);
 }
 
 /**

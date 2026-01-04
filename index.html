@@ -298,14 +298,20 @@
     <div id="crosshair"></div>
     <div id="aim-indicator">APUNTANDO</div>
     
-    <!-- Weapon info -->
+    <!-- Weapon info con slots intercambiables -->
+    <!-- Requirements: 4.3, 4.4, 4.5 - UI de munición con slots intercambiables -->
     <div id="weapon-info">
-      <div id="weapon-name">M4A1</div>
-      <div id="ammo">30 / 120</div>
+      <!-- Slot superior: arma secundaria con indicador [Q] -->
+      <div id="weapon-slot-superior" class="weapon-slot secundario">
+        <span class="slot-nombre">Cuchillo</span>
+        <span class="slot-tecla">[Q]</span>
+      </div>
+      <!-- Slot inferior: arma equipada con munición -->
+      <div id="weapon-slot-inferior" class="weapon-slot principal">
+        <div id="weapon-name">M4A1</div>
+        <div id="ammo">30 / 120</div>
+      </div>
     </div>
-    
-    <!-- Weapon list -->
-    <div id="weapon-list"></div>
     
     <div id="dash-charges">
       <span>DASH: </span>

@@ -32,6 +32,26 @@ const WEAPON_MODEL_NAMES = {
   'MP5': 'weapon_mp5'
 };
 
+// Configuración del cuchillo TPS
+// Requirements: 1.1, 1.2, 1.3, 1.4, 3.1, 3.2, 3.3
+const KNIFE_TPS_CONFIG = {
+  modelPath: 'modelos/valorants_knife_low_poly.glb',
+  scale: 0.08,  // Escala apropiada para TPS
+  // Offset de posición relativo al hueso de la mano
+  positionOffset: { x: 0.02, y: 0.01, z: 0.03 },
+  // Rotación para que el cuchillo se vea natural en la mano
+  rotationOffset: { x: Math.PI * 0.5, y: 0, z: Math.PI * 0.25 },
+  // Nombres posibles del hueso de la mano derecha
+  handBoneNames: ['hand_r', 'Hand_R', 'RightHand', 'mixamorigRightHand', 'hand.R'],
+  // Configuración de animación de ataque
+  // Requirements: 3.1, 3.2
+  animacionAtaque: {
+    ruta: 'modelos/animaciones/knife_attack_tps.glb',
+    duracion: 0.5,  // Duración aproximada de la animación en segundos
+    cooldown: 500   // Cooldown en milisegundos (debe coincidir con CONFIG.armas.KNIFE.cadenciaAtaque)
+  }
+};
+
 // Hitbox del servidor - DEBE COINCIDIR con server/bulletSystem.js
 const SERVER_HITBOX = {
   width: 1.4,    // Debe coincidir con CHARACTER_HITBOX.width en el servidor
@@ -68,6 +88,20 @@ export class RemotePlayer {
     this.weaponMeshes = {}; // Referencias a los meshes de armas en el modelo
     this.modeloCargado = false;
     this.placeholderCreado = false;
+    
+    // Sistema de cuchillo TPS
+    // Requirements: 1.1, 1.2, 1.3, 3.1, 3.2, 3.3
+    this.modeloCuchilloTPS = null;  // Modelo del cuchillo para TPS (separado)
+    this.meshesCuchilloEnModelo = []; // Meshes del cuchillo dentro del modelo del personaje
+    this.meshesCuchillo = [];       // Referencias a los meshes del cuchillo TPS separado
+    this.huesoMano = null;          // Referencia al hueso de la mano
+    this.cuchilloVisible = false;   // Estado de visibilidad del cuchillo
+    
+    // Sistema de animación de ataque del cuchillo
+    // Requirements: 3.1, 3.2, 3.3
+    this.animacionAtaqueCuchilloCargada = false;  // Si la animación está cargada
+    this.animacionAtaqueEnProgreso = false;       // Si hay un ataque en progreso
+    this.ultimoAtaqueCuchillo = 0;                // Timestamp del último ataque
     
     this.loadCharacterModel();
     
@@ -137,11 +171,28 @@ export class RemotePlayer {
           this.weaponMeshes[child.name] = child;
           child.visible = false; // Ocultar todas inicialmente
         }
+        
+        // Buscar y ocultar el cuchillo que está dentro del modelo del personaje
+        // El cuchillo puede tener nombres como "knife", "Cube.001_knife_0", etc.
+        const nombreLower = child.name.toLowerCase();
+        if (
+          nombreLower.includes('knife') ||
+          nombreLower.includes('cuchillo') ||
+          child.name.includes('knife')
+        ) {
+          console.log(`🔪 Encontrado mesh de cuchillo en modelo: ${child.name}`);
+          this.meshesCuchilloEnModelo.push(child);
+          child.visible = false; // Ocultar inicialmente
+        }
       });
       
       this.group.add(this.characterModel);
       this.modeloCargado = true;
       await this.inicializarAnimaciones();
+      
+      // Cargar modelo del cuchillo TPS y parentarlo al hueso de la mano
+      // Requirements: 1.1, 1.4
+      await this.cargarCuchilloTPS();
       
       // Mostrar el arma actual
       this.actualizarArmaVisible(this.currentWeapon);
@@ -202,10 +253,286 @@ export class RemotePlayer {
     if (nombreArma && this.weaponMeshes[nombreArma]) {
       this.weaponMeshes[nombreArma].visible = true;
     }
+    
+    // Actualizar visibilidad del cuchillo TPS
+    // Requirements: 1.2, 1.3
+    const esCuchillo = weaponType === 'KNIFE';
+    this.actualizarVisibilidadCuchillo(esCuchillo);
+  }
+
+  /**
+   * Carga el modelo del cuchillo para TPS y lo parenta al hueso de la mano
+   * Requirements: 1.1, 1.4
+   * @returns {Promise<void>}
+   */
+  async cargarCuchilloTPS() {
+    if (!this.characterModel) {
+      console.warn(`⚠️ No hay modelo de personaje para cargar cuchillo TPS (jugador ${this.id})`);
+      return;
+    }
+
+    // Buscar el hueso de la mano en el skeleton
+    this.huesoMano = this.buscarHuesoMano();
+    
+    if (!this.huesoMano) {
+      console.warn(`⚠️ No se encontró hueso de mano para jugador ${this.id}`);
+      return;
+    }
+
+    return new Promise((resolve) => {
+      const gltfLoader = new THREE.GLTFLoader();
+      
+      gltfLoader.load(
+        KNIFE_TPS_CONFIG.modelPath,
+        (gltf) => {
+          this.modeloCuchilloTPS = gltf.scene;
+          
+          // Guardar referencias a todos los meshes del cuchillo para control de visibilidad
+          this.meshesCuchillo = [];
+          
+          // Aplicar escala apropiada para TPS
+          this.modeloCuchilloTPS.scale.setScalar(KNIFE_TPS_CONFIG.scale);
+          
+          // Aplicar offset de posición
+          const pos = KNIFE_TPS_CONFIG.positionOffset;
+          this.modeloCuchilloTPS.position.set(pos.x, pos.y, pos.z);
+          
+          // Aplicar offset de rotación
+          const rot = KNIFE_TPS_CONFIG.rotationOffset;
+          this.modeloCuchilloTPS.rotation.set(rot.x, rot.y, rot.z);
+          
+          // Configurar materiales sin sombras y guardar referencias a meshes
+          this.modeloCuchilloTPS.traverse((child) => {
+            // Ocultar TODOS los objetos del cuchillo inicialmente
+            child.visible = false;
+            
+            if (child.isMesh) {
+              child.castShadow = false;
+              child.receiveShadow = false;
+              this.meshesCuchillo.push(child);
+              console.log(`🔪 Mesh del cuchillo encontrado: ${child.name}`);
+            }
+          });
+          
+          // Ocultar el objeto raíz también
+          this.modeloCuchilloTPS.visible = false;
+          
+          // Parentar al hueso de la mano
+          // Requirements: 1.4 - El cuchillo sigue la posición y rotación del hueso
+          this.huesoMano.add(this.modeloCuchilloTPS);
+          
+          this.cuchilloVisible = false;
+          
+          console.log(`🔪 Cuchillo TPS cargado para jugador ${this.id} - ${this.meshesCuchillo.length} meshes`);
+          resolve();
+        },
+        undefined,
+        (error) => {
+          console.error(`❌ Error cargando cuchillo TPS para jugador ${this.id}:`, error);
+          resolve(); // No rechazar, permitir que el juego continúe
+        }
+      );
+    });
+  }
+
+  /**
+   * Busca el hueso de la mano derecha en el skeleton del modelo
+   * Requirements: 1.1
+   * @returns {THREE.Bone|null} - El hueso de la mano o null si no se encuentra
+   */
+  buscarHuesoMano() {
+    if (!this.characterModel) return null;
+    
+    let huesoEncontrado = null;
+    
+    this.characterModel.traverse((child) => {
+      if (huesoEncontrado) return; // Ya encontramos uno
+      
+      if (child.isBone) {
+        // Buscar por nombres conocidos del hueso de la mano
+        const nombreLower = child.name.toLowerCase();
+        for (const nombreBuscar of KNIFE_TPS_CONFIG.handBoneNames) {
+          if (nombreLower === nombreBuscar.toLowerCase() || 
+              nombreLower.includes('hand') && nombreLower.includes('r')) {
+            huesoEncontrado = child;
+            console.log(`🦴 Hueso de mano encontrado: ${child.name} para jugador ${this.id}`);
+            return;
+          }
+        }
+      }
+    });
+    
+    return huesoEncontrado;
+  }
+
+  /**
+   * Actualiza la visibilidad del cuchillo TPS según el arma equipada
+   * Requirements: 1.2, 1.3
+   * @param {boolean} visible - true para mostrar, false para ocultar
+   */
+  actualizarVisibilidadCuchillo(visible) {
+    console.log(
+      `🔪 [${this.id}] actualizarVisibilidadCuchillo(${visible}) - meshesEnModelo: ${this.meshesCuchilloEnModelo.length}, modeloTPS: ${!!this.modeloCuchilloTPS}`
+    );
+
+    // Manejar TODOS los meshes del cuchillo que están dentro del modelo del personaje
+    if (this.meshesCuchilloEnModelo && this.meshesCuchilloEnModelo.length > 0) {
+      this.meshesCuchilloEnModelo.forEach((mesh) => {
+        mesh.visible = visible;
+        console.log(`🔪 [${this.id}] ${mesh.name}.visible = ${visible}`);
+      });
+    }
+
+    // Manejar el modelo de cuchillo TPS separado (si existe)
+    if (this.modeloCuchilloTPS) {
+      // Ocultar/mostrar el objeto padre
+      this.modeloCuchilloTPS.visible = visible;
+
+      // Ocultar/mostrar todos los hijos recursivamente
+      this.modeloCuchilloTPS.traverse((child) => {
+        child.visible = visible;
+      });
+
+      // También actualizar los meshes guardados explícitamente
+      if (this.meshesCuchillo) {
+        this.meshesCuchillo.forEach((mesh) => {
+          mesh.visible = visible;
+        });
+      }
+    }
+
+    this.cuchilloVisible = visible;
+  }
+
+  /**
+   * Reproduce la animación de ataque del cuchillo en TPS
+   * Requirements: 3.1, 3.2, 3.3
+   * @returns {boolean} - true si se inició la animación, false si no se pudo
+   */
+  reproducirAnimacionAtaqueTPS() {
+    console.log(`🔪 [JugadorRemoto ${this.id}] reproducirAnimacionAtaqueTPS - animacionEnProgreso: ${this.animacionAtaqueEnProgreso}, animacionCargada: ${this.animacionAtaqueCuchilloCargada}, animador: ${!!this.animador}`);
+    
+    // Requirements: 3.2 - Bloquear ataques durante animación
+    if (this.animacionAtaqueEnProgreso) {
+      console.log(`🔪 [JugadorRemoto ${this.id}] Animación ya en progreso, ignorando`);
+      return false;
+    }
+    
+    // Verificar cooldown
+    const ahora = Date.now();
+    const cooldown = KNIFE_TPS_CONFIG.animacionAtaque.cooldown;
+    if (ahora - this.ultimoAtaqueCuchillo < cooldown) {
+      console.log(`🔪 [JugadorRemoto ${this.id}] En cooldown, ignorando`);
+      return false;
+    }
+    
+    // Requirements: 3.1 - Reproducir animación si está cargada
+    if (this.animacionAtaqueCuchilloCargada && this.animador) {
+      this.animacionAtaqueEnProgreso = true;
+      this.ultimoAtaqueCuchillo = ahora;
+      
+      // Reproducir animación de ataque (no loop)
+      this.animador.reproducir('knife_attack', { transicion: 0.1, loop: false });
+      
+      // Programar fin de la animación
+      const duracion = KNIFE_TPS_CONFIG.animacionAtaque.duracion * 1000;
+      setTimeout(() => {
+        this.animacionAtaqueEnProgreso = false;
+        // Volver a idle si el cuchillo sigue equipado
+        if (this.cuchilloVisible && this.animador) {
+          this.animador.reproducir('idle', { transicion: 0.2, loop: true });
+        }
+      }, duracion);
+      
+      console.log(`🔪 Animación de ataque TPS para jugador ${this.id}`);
+      return true;
+    }
+    
+    // Requirements: 3.3 - Fallback si la animación no está cargada
+    if (!this.animacionAtaqueCuchilloCargada) {
+      this.animacionAtaqueEnProgreso = true;
+      this.ultimoAtaqueCuchillo = ahora;
+      
+      // Animación procedural de fallback: mover el cuchillo hacia adelante
+      this.reproducirAnimacionAtaqueFallback();
+      
+      console.log(`🔪 Animación de ataque fallback para jugador ${this.id}`);
+      return true;
+    }
+    
+    return false;
+  }
+
+  /**
+   * Animación procedural de fallback cuando knife_attack_tps.glb no está disponible
+   * Requirements: 3.3
+   */
+  reproducirAnimacionAtaqueFallback() {
+    if (!this.modeloCuchilloTPS) {
+      this.animacionAtaqueEnProgreso = false;
+      return;
+    }
+    
+    // Guardar posición original
+    const posOriginal = {
+      x: this.modeloCuchilloTPS.position.x,
+      y: this.modeloCuchilloTPS.position.y,
+      z: this.modeloCuchilloTPS.position.z
+    };
+    const rotOriginal = {
+      x: this.modeloCuchilloTPS.rotation.x,
+      y: this.modeloCuchilloTPS.rotation.y,
+      z: this.modeloCuchilloTPS.rotation.z
+    };
+    
+    // Fase 1: Mover hacia adelante (ataque)
+    const duracionAtaque = 150; // ms
+    const duracionRetorno = 200; // ms
+    
+    // Animación de ataque
+    this.modeloCuchilloTPS.position.z += 0.1;
+    this.modeloCuchilloTPS.rotation.x += 0.5;
+    
+    // Retornar a posición original
+    setTimeout(() => {
+      if (this.modeloCuchilloTPS) {
+        this.modeloCuchilloTPS.position.set(posOriginal.x, posOriginal.y, posOriginal.z);
+        this.modeloCuchilloTPS.rotation.set(rotOriginal.x, rotOriginal.y, rotOriginal.z);
+      }
+      this.animacionAtaqueEnProgreso = false;
+    }, duracionAtaque + duracionRetorno);
+  }
+
+  /**
+   * Procesa un evento de ataque con cuchillo recibido del servidor
+   * Requirements: 3.1, 3.2
+   */
+  procesarAtaqueCuchillo() {
+    console.log(`🔪 [JugadorRemoto ${this.id}] procesarAtaqueCuchillo llamado - currentWeapon: ${this.currentWeapon}, cuchilloVisible: ${this.cuchilloVisible}`);
+    
+    // Si recibimos un evento de ataque melee, el jugador tiene el cuchillo equipado
+    // Forzar la visibilidad del cuchillo si no está sincronizado
+    if (this.currentWeapon !== 'KNIFE' && !this.cuchilloVisible) {
+      console.log(`🔪 [JugadorRemoto ${this.id}] Sincronizando estado del cuchillo para animación`);
+      // Temporalmente mostrar el cuchillo para la animación
+      this.actualizarVisibilidadCuchillo(true);
+    }
+    
+    // Reproducir la animación de ataque
+    const resultado = this.reproducirAnimacionAtaqueTPS();
+    
+    if (resultado) {
+      console.log(`🔪 [JugadorRemoto ${this.id}] Animación de ataque TPS iniciada`);
+    } else {
+      console.warn(`⚠️ [JugadorRemoto ${this.id}] No se pudo iniciar animación de ataque TPS`);
+    }
+    
+    return resultado;
   }
 
   /**
    * Cambia el arma del jugador remoto
+   * Requirements: 1.2, 1.3 - Actualiza visibilidad del cuchillo
    * @param {string} weaponType - Nuevo tipo de arma
    */
   changeWeapon(weaponType) {
@@ -233,10 +560,11 @@ export class RemotePlayer {
     
     try {
       // Intentar cargar animaciones externas
-      const [clipIdle, clipWalk, clipAim] = await Promise.all([
+      const [clipIdle, clipWalk, clipAim, clipKnifeAttack] = await Promise.all([
         cargarAnimacion('idle'),
         cargarAnimacion('walk'),
-        cargarAnimacion('aim')
+        cargarAnimacion('aim'),
+        cargarAnimacion('knife_attack')  // Requirements: 3.1
       ]);
       
       // Usar animación del modelo como fallback si no se cargó la externa
@@ -254,6 +582,17 @@ export class RemotePlayer {
       }
       if (clipAim) {
         this.animador.agregarAnimacion('aim', clipAim);
+      }
+      
+      // Agregar animación de ataque del cuchillo
+      // Requirements: 3.1
+      if (clipKnifeAttack) {
+        this.animador.agregarAnimacion('knife_attack', clipKnifeAttack);
+        this.animacionAtaqueCuchilloCargada = true;
+        console.log(`🔪 Animación de ataque de cuchillo cargada para jugador ${this.id}`);
+      } else {
+        console.warn(`⚠️ No se pudo cargar animación de ataque de cuchillo para jugador ${this.id}`);
+        this.animacionAtaqueCuchilloCargada = false;
       }
       
       // Iniciar con animación idle inmediatamente
@@ -432,9 +771,19 @@ export class RemotePlayer {
       }
     }
     
-    // Determinar animación según prioridad: disparando/apuntando > walk > idle
+    // Determinar animación según prioridad: ataque cuchillo > disparando/apuntando > walk > idle
+    // Requirements: 3.2 - No interrumpir animación de ataque del cuchillo
     let animacionObjetivo = 'idle';
     let usarLoop = true;
+    
+    // Si hay un ataque de cuchillo en progreso, no cambiar la animación
+    if (this.animacionAtaqueEnProgreso) {
+      // Mantener la animación de ataque, solo actualizar el mixer
+      if (this.animador) {
+        this.animador.actualizar(deltaTime);
+      }
+      return;
+    }
     
     if (this.estaApuntando || this.estaDisparando) {
       animacionObjetivo = 'aim';
@@ -468,6 +817,27 @@ export class RemotePlayer {
       this.animador.destruir();
       this.animador = null;
     }
+    
+    // Limpiar modelo del cuchillo TPS
+    if (this.modeloCuchilloTPS) {
+      if (this.huesoMano) {
+        this.huesoMano.remove(this.modeloCuchilloTPS);
+      }
+      this.modeloCuchilloTPS.traverse((child) => {
+        if (child.isMesh) {
+          child.geometry?.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(m => m.dispose());
+            } else {
+              child.material.dispose();
+            }
+          }
+        }
+      });
+      this.modeloCuchilloTPS = null;
+    }
+    this.huesoMano = null;
     
     this.scene.remove(this.group);
     

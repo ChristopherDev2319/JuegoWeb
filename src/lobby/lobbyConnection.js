@@ -162,9 +162,10 @@ function configurarTimeout(action, onTimeout) {
  * Solicita matchmaking para partida pública
  * Requirements: 6.1, 6.4, 6.5
  * @param {string} nombreJugador - Nombre del jugador
+ * @param {string} weaponType - Tipo de arma seleccionada
  * @returns {Promise<{roomId: string, roomCode: string, players: number, maxPlayers: number}>}
  */
-export function solicitarMatchmaking(nombreJugador) {
+export function solicitarMatchmaking(nombreJugador, weaponType = 'M4A1') {
   return new Promise((resolve, reject) => {
     // Configurar callbacks temporales
     const originalSuccess = lobbyCallbacks.onMatchmakingSuccess;
@@ -199,9 +200,10 @@ export function solicitarMatchmaking(nombreJugador) {
       reject(new Error('Timeout: No se pudo encontrar partida'));
     });
     
-    // Enviar solicitud
+    // Enviar solicitud con arma seleccionada
     const enviado = enviarMensajeLobby('matchmaking', {
-      playerName: nombreJugador
+      playerName: nombreJugador,
+      weaponType: weaponType
     });
     
     if (!enviado) {
@@ -221,9 +223,10 @@ export function solicitarMatchmaking(nombreJugador) {
  * Requirements: 3.2, 4.2, 4.3
  * @param {string} nombreJugador - Nombre del jugador
  * @param {string} password - Contraseña de la sala
+ * @param {string} weaponType - Tipo de arma seleccionada
  * @returns {Promise<{roomId: string, roomCode: string, players: number, maxPlayers: number}>}
  */
-export function crearPartidaPrivada(nombreJugador, password) {
+export function crearPartidaPrivada(nombreJugador, password, weaponType = 'M4A1') {
   return new Promise((resolve, reject) => {
     // Configurar callbacks temporales
     const originalSuccess = lobbyCallbacks.onCreateSuccess;
@@ -254,10 +257,11 @@ export function crearPartidaPrivada(nombreJugador, password) {
       reject(new Error('Timeout: No se pudo crear la partida'));
     });
     
-    // Enviar solicitud
+    // Enviar solicitud con arma seleccionada
     const enviado = enviarMensajeLobby('createPrivate', {
       playerName: nombreJugador,
-      password: password
+      password: password,
+      weaponType: weaponType
     });
     
     if (!enviado) {
@@ -278,9 +282,10 @@ export function crearPartidaPrivada(nombreJugador, password) {
  * @param {string} nombreJugador - Nombre del jugador
  * @param {string} codigo - Código de la sala
  * @param {string} password - Contraseña de la sala
+ * @param {string} weaponType - Tipo de arma seleccionada
  * @returns {Promise<{roomId: string, roomCode: string, players: number, maxPlayers: number}>}
  */
-export function unirsePartidaPrivada(nombreJugador, codigo, password) {
+export function unirsePartidaPrivada(nombreJugador, codigo, password, weaponType = 'M4A1') {
   return new Promise((resolve, reject) => {
     // Configurar callbacks temporales
     const originalSuccess = lobbyCallbacks.onJoinSuccess;
@@ -311,11 +316,12 @@ export function unirsePartidaPrivada(nombreJugador, codigo, password) {
       reject(new Error('Timeout: No se pudo unir a la partida'));
     });
     
-    // Enviar solicitud
+    // Enviar solicitud con arma seleccionada
     const enviado = enviarMensajeLobby('joinPrivate', {
       playerName: nombreJugador,
       roomCode: codigo,
-      password: password
+      password: password,
+      weaponType: weaponType
     });
     
     if (!enviado) {

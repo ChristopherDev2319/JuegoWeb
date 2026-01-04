@@ -84,13 +84,14 @@ function handleLobbyMessage(ws, message) {
     case 'matchmaking': {
       const sala = encontrarMejorSala(roomManager);
       const playerName = data.playerName || `Jugador_${Math.floor(Math.random() * 10000)}`;
+      const weaponType = data.weaponType || 'M4A1';
       
       const jugadoresActuales = [];
       for (const [, jugador] of sala.jugadores) {
         jugadoresActuales.push({ id: jugador.id, nombre: jugador.nombre });
       }
       
-      const added = sala.agregarJugador(playerId, playerName);
+      const added = sala.agregarJugador(playerId, playerName, weaponType);
       
       if (added) {
         playerRooms.set(playerId, sala.id);
@@ -132,9 +133,10 @@ function handleLobbyMessage(ws, message) {
     case 'createPrivate': {
       const password = data.password || '';
       const playerName = data.playerName || `Jugador_${Math.floor(Math.random() * 10000)}`;
+      const weaponType = data.weaponType || 'M4A1';
       
       const sala = roomManager.crearSala({ tipo: 'privada', password });
-      sala.agregarJugador(playerId, playerName);
+      sala.agregarJugador(playerId, playerName, weaponType);
       playerRooms.set(playerId, sala.id);
       ws.inLobby = false;
       ws.roomId = sala.id;
@@ -198,7 +200,8 @@ function handleLobbyMessage(ws, message) {
         jugadoresActuales.push({ id: jugador.id, nombre: jugador.nombre });
       }
       
-      sala.agregarJugador(playerId, playerName);
+      const weaponType = data.weaponType || 'M4A1';
+      sala.agregarJugador(playerId, playerName, weaponType);
       playerRooms.set(playerId, sala.id);
       ws.inLobby = false;
       ws.roomId = sala.id;
@@ -320,6 +323,18 @@ function handleMessage(ws, data) {
     }
   }
   
+  // Handle melee attack - ensure player has KNIFE equipped
+  if (message.type === 'meleeAttack') {
+    const player = currentGameManager.getPlayer(playerId);
+    if (player) {
+      // Asegurar que el jugador tiene el cuchillo equipado en el servidor
+      if (player.currentWeapon !== 'KNIFE') {
+        player.changeWeapon('KNIFE');
+        console.log(`[MELEE] Auto-equipped KNIFE for player ${playerId}`);
+      }
+    }
+  }
+  
   const input = { type: inputType, data: inputData };
   const result = currentGameManager.processInput(playerId, input);
   
@@ -328,6 +343,65 @@ function handleMessage(ws, data) {
       broadcastToRoom(roomId, serializeMessage('bulletCreated', { bullet: result.bullet }));
     } else {
       broadcast(serializeMessage('bulletCreated', { bullet: result.bullet }));
+    }
+  }
+
+  // Broadcast melee attack to other players for TPS animation
+  if ((message.type === 'meleeAttack' || inputType === 'meleeAttack') && result && result.success) {
+    const meleeData = {
+      attackerId: playerId,
+      hits: result.hits || []
+    };
+    if (roomId) {
+      broadcastToRoom(roomId, serializeMessage('meleeAttack', meleeData), playerId);
+    } else {
+      broadcast(serializeMessage('meleeAttack', meleeData));
+    }
+    
+    // Requirements: 4.1, 4.2 - Send damageDealt notification to attacker for each hit
+    // This enables the damage indicator to show for melee attacks in multiplayer
+    if (result.hits && result.hits.length > 0) {
+      const attackerWs = connections.get(playerId);
+      if (attackerWs && attackerWs.readyState === attackerWs.OPEN) {
+        for (const hit of result.hits) {
+          const targetPlayer = currentGameManager.getPlayer(hit.targetId);
+          attackerWs.send(serializeMessage('damageDealt', {
+            damage: hit.damage,
+            targetId: hit.targetId,
+            targetHealth: targetPlayer ? targetPlayer.health : 0
+          }));
+        }
+      }
+      
+      // Send death event for kills by knife
+      // This ensures the victim sees the death screen and can respawn
+      for (const hit of result.hits) {
+        if (hit.killed) {
+          const sala = roomId ? roomManager.obtenerSala(roomId) : null;
+          if (sala) {
+            sala.registrarKill(playerId);
+          }
+          
+          const killer = sala?.jugadores.get(playerId);
+          const victim = sala?.jugadores.get(hit.targetId);
+          
+          const deathData = {
+            playerId: hit.targetId,
+            killerId: playerId,
+            killerName: killer?.nombre || playerId,
+            victimName: victim?.nombre || hit.targetId,
+            scoreboard: sala?.obtenerScoreboard() || []
+          };
+          
+          if (roomId) {
+            broadcastToRoom(roomId, serializeMessage('death', deathData));
+          } else {
+            broadcast(serializeMessage('death', deathData));
+          }
+          
+          console.log(`[MELEE DEATH] Broadcast death event: ${hit.targetId} killed by ${playerId}`);
+        }
+      }
     }
   }
 }

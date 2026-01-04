@@ -44,6 +44,8 @@ export function seleccionarArma(tipoArma) {
  * Obtiene las armas disponibles para selección
  * Lee las armas configuradas en CONFIG.armas y las devuelve en formato para UI
  * 
+ * Requirements: 2.4 - Excluir cuchillo de pantallas de selección
+ * 
  * @returns {Array<{tipo: string, nombre: string, descripcion: string, icono: string, stats: Object}>}
  */
 export function obtenerArmasDisponibles() {
@@ -55,6 +57,12 @@ export function obtenerArmasDisponibles() {
   const armasDisponibles = [];
   
   for (const [tipo, config] of Object.entries(CONFIG.armas)) {
+    // Requirements: 2.4 - Excluir KNIFE de la lista de armas seleccionables
+    // El cuchillo es un arma secundaria siempre disponible, no seleccionable
+    if (tipo === 'KNIFE' || config.tipo === 'melee') {
+      continue;
+    }
+    
     armasDisponibles.push({
       tipo: tipo,
       nombre: config.nombre || tipo,

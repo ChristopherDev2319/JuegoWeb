@@ -1507,6 +1507,53 @@ canvas {
   border-radius: 5px;
   font-weight: bold;
   text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Slots de armas intercambiables */
+/* Requirements: 4.3, 4.4, 4.5 */
+.weapon-slot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 5px 0;
+  transition: all 0.2s ease;
+}
+
+.weapon-slot.secundario {
+  opacity: 0.6;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 8px;
+}
+
+.weapon-slot.secundario:hover {
+  opacity: 0.8;
+}
+
+.weapon-slot.principal {
+  opacity: 1;
+}
+
+.slot-nombre {
+  color: #aaa;
+}
+
+.slot-tecla {
+  background: rgba(255, 170, 0, 0.3);
+  color: #ffaa00;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Ocultar slot superior cuando no hay arma secundaria */
+#weapon-slot-superior.hidden {
+  display: none;
 }
 
 #weapon-name {
@@ -1519,55 +1566,9 @@ canvas {
   font-size: 24px;
 }
 
-/* Lista de armas */
-#weapon-list {
-  position: absolute;
-  bottom: 120px;
-  right: 30px;
-  background: rgba(0, 0, 0, 0.7);
-  border-radius: 5px;
-  padding: 10px;
-  min-width: 150px;
-}
-
-.weapon-item {
-  display: flex;
-  align-items: center;
-  padding: 5px 10px;
-  margin: 2px 0;
-  border-radius: 3px;
-  color: #aaa;
-  font-size: 14px;
-  transition: all 0.2s ease;
-}
-
-.weapon-item.active {
-  background: rgba(255, 170, 0, 0.3);
-  color: #ffaa00;
-  border-left: 3px solid #ffaa00;
-}
-
-.weapon-number {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: bold;
-  margin-right: 10px;
-}
-
-.weapon-item.active .weapon-number {
-  background: #ffaa00;
-  color: black;
-}
-
-.weapon-name {
-  flex: 1;
+/* Ocultar munición cuando el cuchillo está equipado */
+#ammo.hidden {
+  display: none;
 }
 
 /* Indicador de apuntado */

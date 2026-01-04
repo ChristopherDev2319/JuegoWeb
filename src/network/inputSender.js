@@ -163,6 +163,39 @@ export class InputSender {
       weaponType: weaponType
     });
   }
+
+  /**
+   * Send ammo pickup notification to server
+   * @param {number} amount - Amount of ammo picked up
+   * @param {string} spawnId - ID of the ammo spawn (optional)
+   */
+  sendAmmoPickup(amount, spawnId = null) {
+    if (!this.connection.isConnected()) {
+      return;
+    }
+    
+    const data = { amount: amount };
+    if (spawnId) {
+      data.spawnId = spawnId;
+    }
+    
+    this.connection.send('ammoPickup', data);
+  }
+
+  /**
+   * Send melee attack (knife) to server
+   * @param {Object} attackData - Attack data { posicion, direccion }
+   */
+  sendMeleeAttack(attackData) {
+    if (!this.connection.isConnected()) {
+      return;
+    }
+    
+    this.connection.send('meleeAttack', {
+      position: attackData.posicion || attackData.position,
+      direction: attackData.direccion || attackData.direction
+    });
+  }
 }
 
 // Singleton instance for easy access

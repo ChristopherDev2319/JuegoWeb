@@ -36,8 +36,21 @@ export const inventarioArmas = {
 };
 
 /**
+ * Estado del cuchillo para controlar cadencia de ataque e intercambio con Q
+ * Requirements: 2.1, 2.2, 2.3, 4.1, 4.4, 4.5
+ * Movido al inicio del archivo para que esté disponible en establecerArmaUnica
+ */
+const estadoCuchillo = {
+  equipado: false,              // true si el cuchillo está equipado actualmente
+  armaPrincipalPrevia: null,    // Arma a restaurar al presionar Q
+  ultimoAtaque: 0,
+  puedeAtacar: true
+};
+
+/**
  * Establece el inventario con una única arma
- * Requirements: 2.2 - El jugador solo puede usar el arma seleccionada
+ * Requirements: 2.2, 2.3 - El jugador solo puede usar el arma seleccionada
+ * Requirements: 1.1, 2.1, 4.3 - Inicializar estado de cuchillo al cargar
  * @param {string} tipoArma - Tipo de arma a establecer como única en el inventario
  * @param {THREE.Object3D} weaponContainer - Contenedor del arma (opcional)
  * @returns {boolean} - true si se estableció exitosamente
@@ -66,12 +79,21 @@ export function establecerArmaUnica(tipoArma, weaponContainer = null) {
   arma.disparosConsecutivos = 0;
   arma.inicializado = true; // Marcar como inicializado
   
+  // Inicializar estado del cuchillo - guardar arma principal para intercambio con Q
+  // Requirements: 1.1, 2.1, 4.3 - Inicializar estado de cuchillo al cargar
+  // Requirements: 2.3 - Recordar arma principal para intercambios posteriores
+  estadoCuchillo.equipado = false;
+  estadoCuchillo.armaPrincipalPrevia = tipoArma;
+  estadoCuchillo.ultimoAtaque = 0;
+  estadoCuchillo.puedeAtacar = true;
+  
   // Cambiar modelo si se proporciona el contenedor
   if (weaponContainer) {
     cambiarModeloArma(tipoArma, weaponContainer);
   }
   
   console.log(`🔫 Inventario establecido con arma única: ${configArma.nombre} - Munición: ${arma.municionActual}/${arma.municionTotal}`);
+  console.log(`🔪 Estado cuchillo inicializado - Arma principal: ${tipoArma}`);
   return true;
 }
 
@@ -503,9 +525,15 @@ export function establecerCamara(cameraRef) {
 
 /**
  * Inicia o detiene el apuntado
+ * Requirements: 5.1, 5.2, 5.4 - Bloquear apuntado cuando el cuchillo está equipado
  * @param {boolean} apuntar - true para apuntar, false para dejar de apuntar
  */
 export function alternarApuntado(apuntar = null) {
+  // Requirements: 5.1, 5.2, 5.4 - Bloquear apuntado si el cuchillo está equipado
+  if (arma.tipoActual === 'KNIFE') {
+    return; // No permitir apuntado con cuchillo
+  }
+  
   if (apuntar === null) {
     apuntar = !arma.estaApuntando;
   }
@@ -759,6 +787,7 @@ export function animarRetroceso() {
 
 /**
  * Obtiene el estado actual del arma
+ * Requirements: 4.3, 4.4, 4.5 - Incluir info de cuchillo para UI
  * @returns {Object} - Estado del arma
  */
 export function obtenerEstado() {
@@ -774,7 +803,10 @@ export function obtenerEstado() {
     estaApuntando: arma.estaApuntando,
     factorApuntado: arma.transicionApuntado,
     tieneApuntado: !!configArma?.apuntado,
-    inicializado: arma.inicializado
+    inicializado: arma.inicializado,
+    // Info del cuchillo para UI de slots
+    esCuchillo: estadoCuchillo.equipado,
+    armaPrincipalPrevia: estadoCuchillo.armaPrincipalPrevia
   };
 }
 
@@ -848,17 +880,8 @@ export function actualizarDesdeServidor(serverState) {
 }
 
 /**
- * Estado del cuchillo para controlar cadencia de ataque
- * Requirements: 4.1, 4.4, 4.5
- */
-const estadoCuchillo = {
-  ultimoAtaque: 0,
-  puedeAtacar: true
-};
-
-/**
  * Ataca con el cuchillo (arma cuerpo a cuerpo)
- * Requirements: 4.1, 4.5
+ * Requirements: 2.1, 2.2, 4.1, 4.5
  * 
  * @param {THREE.Camera} camera - Cámara del jugador para obtener posición y dirección
  * @param {Array} enemigos - Array de enemigos/jugadores en la escena
@@ -867,6 +890,12 @@ const estadoCuchillo = {
  * @returns {Object} - { impacto: boolean, enemigosGolpeados: Array }
  */
 export function atacarConCuchillo(camera, enemigos, scene, onImpacto = null) {
+  // Requirements: 2.1 - Validar array de enemigos al inicio
+  // Convertir null/undefined a array vacío para evitar crashes
+  if (!enemigos || !Array.isArray(enemigos)) {
+    enemigos = [];
+  }
+
   const configCuchillo = CONFIG.armas["KNIFE"];
   if (!configCuchillo) {
     console.warn("⚠️ Configuración del cuchillo no encontrada");
@@ -874,14 +903,25 @@ export function atacarConCuchillo(camera, enemigos, scene, onImpacto = null) {
   }
 
   const ahora = performance.now();
-  const cadenciaAtaque = configCuchillo.cadenciaAtaque || 500;
+  const cadenciaAtaque = configCuchillo.cadenciaAtaque || 350;
 
   // Verificar si puede atacar (cadencia)
   if (ahora - estadoCuchillo.ultimoAtaque < cadenciaAtaque) {
+    // No mostrar log para evitar spam
     return { impacto: false, enemigosGolpeados: [] };
   }
 
   estadoCuchillo.ultimoAtaque = ahora;
+  
+  console.log(`🔪 ATAQUE EJECUTADO - modeloArma: ${modeloArma ? 'existe' : 'NULL'}, arma.tipoActual: ${arma.tipoActual}`);
+
+  // SIEMPRE animar el ataque, haya o no enemigos
+  if (modeloArma && arma.tipoActual === "KNIFE") {
+    console.log('🔪 Ejecutando animación FPS');
+    animarAtaqueCuchillo();
+  } else {
+    console.log(`🔪 NO se ejecuta animación - modeloArma: ${!!modeloArma}, tipoActual: ${arma.tipoActual}`);
+  }
 
   // Obtener posición y dirección del jugador
   const posicionJugador = camera.position.clone();
@@ -889,58 +929,107 @@ export function atacarConCuchillo(camera, enemigos, scene, onImpacto = null) {
   direccionMirada.applyQuaternion(camera.quaternion);
   direccionMirada.normalize();
 
-  const rangoAtaque = configCuchillo.rangoAtaque || 2;
-  const daño = configCuchillo.daño || 30;
+  const rangoAtaque = configCuchillo.rangoAtaque || 3;
+  const daño = configCuchillo.daño || 50;
 
   const enemigosGolpeados = [];
 
+  console.log(`🔪 Buscando enemigos - Disponibles: ${enemigos.length}, Rango: ${rangoAtaque}`);
+
   // Detectar enemigos en rango
+  // Requirements: 2.1, 2.2 - Agregar try-catch alrededor del procesamiento de cada enemigo
   for (const enemigo of enemigos) {
-    if (!enemigo || !enemigo.mesh) continue;
-
-    // Calcular distancia al enemigo
-    const posicionEnemigo = enemigo.mesh.position.clone();
-    const distancia = posicionJugador.distanceTo(posicionEnemigo);
-
-    // Verificar si está en rango (2 unidades)
-    if (distancia <= rangoAtaque) {
-      // Verificar que el enemigo está aproximadamente frente al jugador
-      const direccionAlEnemigo = posicionEnemigo.clone().sub(posicionJugador).normalize();
-      const angulo = direccionMirada.dot(direccionAlEnemigo);
-
-      // Ángulo de 90 grados (cos(90°) ≈ 0), aceptamos enemigos en un cono frontal
-      if (angulo > 0) {
-        // Aplicar daño al enemigo
-        if (typeof enemigo.recibirDaño === 'function') {
-          enemigo.recibirDaño(daño);
-        } else if (enemigo.vida !== undefined) {
-          enemigo.vida -= daño;
+    // Requirements: 2.2 - Saltar enemigos null/undefined sin crashear
+    if (!enemigo) continue;
+    
+    try {
+      // Obtener posición del enemigo (soportar diferentes estructuras)
+      // Requirements: 2.2 - Validar posición de enemigos
+      let posicionEnemigo = null;
+      
+      try {
+        if (enemigo.mesh && enemigo.mesh.position) {
+          posicionEnemigo = enemigo.mesh.position.clone();
+        } else if (enemigo.obtenerPosicion) {
+          posicionEnemigo = enemigo.obtenerPosicion();
+        } else if (enemigo.position) {
+          posicionEnemigo = new THREE.Vector3(enemigo.position.x, enemigo.position.y, enemigo.position.z);
+        } else if (enemigo.group && enemigo.group.position) {
+          posicionEnemigo = enemigo.group.position.clone();
         }
-
-        enemigosGolpeados.push({
-          enemigo: enemigo,
-          distancia: distancia,
-          daño: daño
-        });
-
-        // Callback de impacto
-        if (onImpacto) {
-          onImpacto({
-            tipo: 'melee',
-            enemigo: enemigo,
-            daño: daño,
-            posicion: posicionEnemigo
-          });
-        }
-
-        console.log(`🔪 Cuchillo impactó enemigo a ${distancia.toFixed(2)} unidades - Daño: ${daño}`);
+      } catch (errorPosicion) {
+        console.warn('🔪 Error obteniendo posición de enemigo:', errorPosicion);
+        continue; // Saltar este enemigo y continuar con los demás
       }
-    }
-  }
+      
+      // Requirements: 2.2 - Verificar que posicionEnemigo no sea null antes de usar
+      if (!posicionEnemigo) {
+        console.log('🔪 Enemigo sin posición válida, saltando');
+        continue;
+      }
 
-  // Animar ataque del cuchillo si hay modelo
-  if (modeloArma && arma.tipoActual === "KNIFE") {
-    animarAtaqueCuchillo();
+      // Verificar si el enemigo está vivo
+      const estaVivo = enemigo.estaVivo ? enemigo.estaVivo() : 
+                       (enemigo.datos ? enemigo.datos.estaVivo : 
+                       (enemigo.isAlive !== undefined ? enemigo.isAlive() : true));
+      
+      if (!estaVivo) continue;
+
+      // Calcular distancia al enemigo
+      const distancia = posicionJugador.distanceTo(posicionEnemigo);
+
+      console.log(`🔪 Enemigo a distancia: ${distancia.toFixed(2)} (rango: ${rangoAtaque})`);
+
+      // Verificar si está en rango
+      if (distancia <= rangoAtaque) {
+        // Verificar que el enemigo está aproximadamente frente al jugador
+        const direccionAlEnemigo = posicionEnemigo.clone().sub(posicionJugador).normalize();
+        const angulo = direccionMirada.dot(direccionAlEnemigo);
+
+        console.log(`🔪 Ángulo con enemigo: ${angulo.toFixed(2)} (necesita > -0.3)`);
+
+        // Aceptar enemigos en un cono amplio (casi 180 grados)
+        if (angulo > -0.3) {
+          // Aplicar daño al enemigo
+          let dañoAplicado = false;
+          
+          if (typeof enemigo.recibirDaño === 'function') {
+            enemigo.recibirDaño(daño);
+            dañoAplicado = true;
+          } else if (enemigo.datos && enemigo.datos.vidaActual !== undefined) {
+            enemigo.datos.vidaActual -= daño;
+            dañoAplicado = true;
+          } else if (enemigo.vida !== undefined) {
+            enemigo.vida -= daño;
+            dañoAplicado = true;
+          }
+
+          if (dañoAplicado) {
+            enemigosGolpeados.push({
+              enemigo: enemigo,
+              distancia: distancia,
+              daño: daño
+            });
+
+            // Callback de impacto
+            if (onImpacto) {
+              onImpacto({
+                tipo: 'melee',
+                enemigo: enemigo,
+                daño: daño,
+                posicion: posicionEnemigo
+              });
+            }
+
+            console.log(`🔪 ¡IMPACTO! Cuchillo golpeó enemigo a ${distancia.toFixed(2)} unidades - Daño: ${daño}`);
+          }
+        }
+      }
+    } catch (errorEnemigo) {
+      // Requirements: 2.1, 2.2 - Manejar errores sin crashear, continuar con otros enemigos
+      console.warn('🔪 Error procesando enemigo, continuando con los demás:', errorEnemigo);
+      continue;
+    }
   }
 
   return {
@@ -952,10 +1041,15 @@ export function atacarConCuchillo(camera, enemigos, scene, onImpacto = null) {
 /**
  * Anima el ataque del cuchillo
  * Requirements: 4.3
- * Usa la animación cargada si está disponible, sino usa animación fallback
+ * Usa la animación cargada si está disponible, sino usa animación fallback mejorada
  */
 function animarAtaqueCuchillo() {
-  if (!modeloArma) return;
+  if (!modeloArma) {
+    console.log('🔪 No hay modelo de arma para animar');
+    return;
+  }
+
+  console.log('🔪 Iniciando animación de ataque FPS');
 
   // Intentar usar la animación cargada primero
   if (animacionesCuchillo.accionAtaque && animacionesCuchillo.mixer) {
@@ -963,7 +1057,7 @@ function animarAtaqueCuchillo() {
     return;
   }
 
-  // Animación fallback si no hay animación cargada
+  // Animación fallback mejorada - movimiento de slash horizontal
   // Guardar posición y rotación original
   const posOriginal = {
     x: modeloArma.position.x,
@@ -976,21 +1070,73 @@ function animarAtaqueCuchillo() {
     z: modeloArma.rotation.z
   };
 
-  // Animación de ataque: mover hacia adelante y rotar
-  const duracionAtaque = 150; // ms
-  const duracionRetorno = 100; // ms
+  // Parámetros de animación más dramáticos
+  const duracionPreparacion = 40;   // ms - preparar el golpe
+  const duracionAtaque = 80;        // ms - slash rápido
+  const duracionRetorno = 180;      // ms - volver a posición
 
-  // Fase 1: Ataque hacia adelante
-  modeloArma.position.z -= 0.3;
-  modeloArma.rotation.x -= 0.5;
+  // Fase 1: Preparación - mover a la derecha y rotar
+  modeloArma.position.x += 0.15;
+  modeloArma.position.z += 0.1;
+  modeloArma.rotation.z -= 0.4;
+  modeloArma.rotation.y -= 0.3;
 
-  // Fase 2: Retorno a posición original
+  // Fase 2: Ataque - slash hacia la izquierda y adelante
   setTimeout(() => {
-    if (modeloArma) {
-      modeloArma.position.set(posOriginal.x, posOriginal.y, posOriginal.z);
-      modeloArma.rotation.set(rotOriginal.x, rotOriginal.y, rotOriginal.z);
-    }
-  }, duracionAtaque + duracionRetorno);
+    if (!modeloArma) return;
+    modeloArma.position.x = posOriginal.x - 0.25;  // Mover a la izquierda
+    modeloArma.position.z = posOriginal.z - 0.35;  // Empujar hacia adelante
+    modeloArma.position.y = posOriginal.y - 0.1;   // Bajar un poco
+    modeloArma.rotation.z = rotOriginal.z + 0.6;   // Rotar en el slash
+    modeloArma.rotation.x = rotOriginal.x + 0.3;   // Inclinar hacia abajo
+  }, duracionPreparacion);
+
+  // Fase 3: Retorno suave a posición original
+  setTimeout(() => {
+    if (!modeloArma) return;
+    
+    const pasos = 12;
+    const intervalo = duracionRetorno / pasos;
+    let paso = 0;
+    
+    // Posición después del ataque
+    const posAtaque = {
+      x: posOriginal.x - 0.25,
+      y: posOriginal.y - 0.1,
+      z: posOriginal.z - 0.35
+    };
+    const rotAtaque = {
+      x: rotOriginal.x + 0.3,
+      y: rotOriginal.y,
+      z: rotOriginal.z + 0.6
+    };
+    
+    const animarRetorno = setInterval(() => {
+      paso++;
+      const progreso = paso / pasos;
+      const easeOut = 1 - Math.pow(1 - progreso, 3); // Ease out cubic
+      
+      if (modeloArma) {
+        modeloArma.position.x = posAtaque.x + (posOriginal.x - posAtaque.x) * easeOut;
+        modeloArma.position.y = posAtaque.y + (posOriginal.y - posAtaque.y) * easeOut;
+        modeloArma.position.z = posAtaque.z + (posOriginal.z - posAtaque.z) * easeOut;
+        modeloArma.rotation.x = rotAtaque.x + (rotOriginal.x - rotAtaque.x) * easeOut;
+        modeloArma.rotation.y = rotAtaque.y + (rotOriginal.y - rotAtaque.y) * easeOut;
+        modeloArma.rotation.z = rotAtaque.z + (rotOriginal.z - rotAtaque.z) * easeOut;
+      }
+      
+      if (paso >= pasos) {
+        clearInterval(animarRetorno);
+        // Asegurar posición final exacta
+        if (modeloArma) {
+          modeloArma.position.set(posOriginal.x, posOriginal.y, posOriginal.z);
+          modeloArma.rotation.set(rotOriginal.x, rotOriginal.y, rotOriginal.z);
+        }
+      }
+    }, intervalo);
+  }, duracionPreparacion + duracionAtaque);
+  
+  console.log('🔪 Animación de ataque FPS ejecutada');
 }
 
 /**
@@ -1014,4 +1160,118 @@ export function cuchilloPuedeAtacar() {
  */
 export function esCuchillo() {
   return arma.tipoActual === "KNIFE";
+}
+
+/**
+ * Verifica si el cuchillo está equipado actualmente
+ * Requirements: 2.1, 2.2
+ * @returns {boolean}
+ */
+export function esCuchilloEquipado() {
+  // Verificar tanto el estado del cuchillo como el tipo de arma actual
+  const equipado = estadoCuchillo.equipado || arma.tipoActual === 'KNIFE';
+  console.log(`🔪 esCuchilloEquipado: ${equipado} (estado: ${estadoCuchillo.equipado}, arma: ${arma.tipoActual})`);
+  return equipado;
+}
+
+/**
+ * Obtiene el arma principal previa guardada
+ * Requirements: 2.3
+ * @returns {string|null} - Tipo de arma principal o null si no hay
+ */
+export function obtenerArmaPrincipalPrevia() {
+  return estadoCuchillo.armaPrincipalPrevia;
+}
+
+/**
+ * Alterna entre el cuchillo y el arma principal con la tecla Q
+ * Requirements: 2.1, 2.2, 5.3
+ * 
+ * Si tiene arma principal equipada: guarda el arma y equipa el cuchillo
+ * Si tiene cuchillo equipado: restaura el arma principal guardada
+ * 
+ * @param {THREE.Object3D} weaponContainer - Contenedor del arma para cambiar el modelo
+ * @returns {boolean} - true si se realizó el cambio exitosamente
+ */
+export async function alternarCuchillo(weaponContainer = null) {
+  // No permitir cambio durante recarga
+  if (arma.estaRecargando) {
+    console.log('🔪 No se puede cambiar al cuchillo durante recarga');
+    return false;
+  }
+
+  if (estadoCuchillo.equipado) {
+    // Tiene cuchillo equipado -> restaurar arma principal
+    const armaPrincipal = estadoCuchillo.armaPrincipalPrevia;
+    
+    if (!armaPrincipal || !CONFIG.armas[armaPrincipal]) {
+      console.warn('⚠️ No hay arma principal previa para restaurar');
+      return false;
+    }
+
+    // Restaurar arma principal
+    arma.tipoActual = armaPrincipal;
+    const configArma = CONFIG.armas[armaPrincipal];
+    
+    // Restaurar munición del arma principal (mantener valores actuales si existen)
+    if (arma.municionActual === 0 && arma.municionTotal === 0) {
+      arma.municionActual = configArma.tamañoCargador;
+      arma.municionTotal = configArma.municionTotal;
+    }
+    
+    arma.estaRecargando = false;
+    estadoCuchillo.equipado = false;
+    
+    // Requirements: 5.3 - Al cambiar de cuchillo a arma principal, el apuntado funciona normalmente
+    // El estado de apuntado se mantiene en false, permitiendo que el jugador apunte cuando quiera
+
+    // Cambiar modelo si se proporciona el contenedor
+    if (weaponContainer) {
+      await cambiarModeloArma(armaPrincipal, weaponContainer);
+    }
+
+    console.log(`🔫 Restaurado arma principal: ${configArma.nombre} - Apuntado disponible`);
+    return true;
+  } else {
+    // Tiene arma principal equipada -> guardar y equipar cuchillo
+    const armaActual = arma.tipoActual;
+    
+    // No guardar si ya es el cuchillo
+    if (armaActual === 'KNIFE') {
+      return false;
+    }
+
+    // Guardar arma principal actual
+    estadoCuchillo.armaPrincipalPrevia = armaActual;
+    
+    // Equipar cuchillo
+    arma.tipoActual = 'KNIFE';
+    estadoCuchillo.equipado = true;
+    
+    // Requirements: 5.1, 5.4 - Desactivar apuntado al equipar cuchillo
+    // Si estaba apuntando, desactivar y restaurar FOV
+    if (arma.estaApuntando) {
+      arma.estaApuntando = false;
+      arma.transicionApuntado = 0;
+      
+      // Restaurar FOV de la cámara si existe
+      if (camera) {
+        camera.fov = fovOriginal;
+        camera.updateProjectionMatrix();
+      }
+      
+      console.log('🔪 Apuntado desactivado al equipar cuchillo');
+    }
+    
+    // El cuchillo no tiene munición
+    // No modificamos municionActual/municionTotal para preservar los valores del arma principal
+
+    // Cambiar modelo si se proporciona el contenedor
+    if (weaponContainer) {
+      await cambiarModeloArma('KNIFE', weaponContainer);
+    }
+
+    console.log(`🔪 Cuchillo equipado - Arma guardada: ${armaActual}`);
+    return true;
+  }
 }

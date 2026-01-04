@@ -23,6 +23,7 @@ export class NetworkConnection {
     this._onDeath = null;
     this._onRespawn = null;
     this._onBulletCreated = null;
+    this._onMeleeAttack = null;
     this._onDamageDealt = null;
     this._onError = null;
     this._onDisconnect = null;
@@ -208,6 +209,12 @@ export class NetworkConnection {
         }
         break;
         
+      case 'meleeAttack':
+        if (this._onMeleeAttack) {
+          this._onMeleeAttack(message.data);
+        }
+        break;
+        
       case 'damageDealt':
         if (this._onDamageDealt) {
           this._onDamageDealt(message.data);
@@ -298,6 +305,14 @@ export class NetworkConnection {
    */
   onBulletCreated(callback) {
     this._onBulletCreated = callback;
+  }
+
+  /**
+   * Register callback for melee attack events (knife attacks from other players)
+   * @param {Function} callback - Function to call with attack data
+   */
+  onMeleeAttack(callback) {
+    this._onMeleeAttack = callback;
   }
 
   /**

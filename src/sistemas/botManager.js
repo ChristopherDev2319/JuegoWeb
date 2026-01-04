@@ -359,6 +359,14 @@ export class BotManager {
   }
 
   /**
+   * Alias para obtenerBotsVivos - usado por el sistema de cuchillo
+   * @returns {Array<BotBase>}
+   */
+  obtenerBots() {
+    return this.obtenerBotsVivos();
+  }
+
+  /**
    * Obtiene los bots de un tipo específico
    * @param {string} tipo - Tipo de bot
    * @returns {Array<BotBase>}

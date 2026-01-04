@@ -84,9 +84,10 @@ export class GameRoom {
    * Requirement 10.5: Maintain max 8 players per room
    * @param {string} playerId - Player ID
    * @param {string} nombre - Player name
+   * @param {string} weaponType - Weapon type selected by player
    * @returns {boolean} - True if player was added successfully
    */
-  agregarJugador(playerId, nombre) {
+  agregarJugador(playerId, nombre, weaponType = null) {
     // Check if room has space (Requirement 10.5)
     if (!this.tieneEspacio()) {
       return false;
@@ -107,8 +108,8 @@ export class GameRoom {
     // Inicializar kills a 0 para el nuevo jugador (Requirement 2.3)
     this.killsPorJugador.set(playerId, 0);
     
-    // Add player to game manager
-    this.gameManager.addPlayer(playerId);
+    // Add player to game manager with selected weapon
+    this.gameManager.addPlayer(playerId, weaponType);
     
     // Update last activity
     this.ultimaActividad = new Date();

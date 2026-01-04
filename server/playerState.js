@@ -11,7 +11,7 @@ import { PLAYER_CONFIG, WEAPON_CONFIG, DASH_CONFIG, MAP_LIMITS, getWeaponConfig 
  * PlayerState class representing a player's complete state
  */
 export class PlayerState {
-  constructor(id, spawnPoint = null) {
+  constructor(id, spawnPoint = null, weaponType = null) {
     this.id = id;
     
     // Position and movement
@@ -27,7 +27,8 @@ export class PlayerState {
     this.deathTime = null;
     
     // Weapon state (Requirement 6.2, 6.4)
-    this.currentWeapon = 'M4A1'; // Arma por defecto
+    // Usar arma seleccionada o M4A1 por defecto
+    this.currentWeapon = (weaponType && WEAPON_CONFIG[weaponType]) ? weaponType : 'M4A1';
     const weaponConfig = getWeaponConfig(this.currentWeapon);
     this.ammo = weaponConfig.magazineSize;
     this.maxAmmo = weaponConfig.magazineSize;
@@ -36,6 +37,8 @@ export class PlayerState {
     this.reloadStartTime = null;
     this.lastFireTime = 0;
     
+    console.log(`[PLAYER] Created player ${id} with weapon: ${this.currentWeapon}, ammo: ${this.ammo}/${this.totalAmmo}`);
+    
     // Dash state (Requirement 7.2, 7.3)
     this.dashCharges = DASH_CONFIG.maxCharges;
     this.maxDashCharges = DASH_CONFIG.maxCharges;
@@ -43,6 +46,10 @@ export class PlayerState {
     
     // Aiming state
     this.isAiming = false;
+    
+    // Stats
+    this.kills = 0;
+    this.deaths = 0;
   }
 
   /**
@@ -396,6 +403,41 @@ export class PlayerState {
   }
 
   /**
+   * Add a kill to player stats
+   */
+  addKill() {
+    this.kills = (this.kills || 0) + 1;
+  }
+
+  /**
+   * Add a death to player stats
+   */
+  addDeath() {
+    this.deaths = (this.deaths || 0) + 1;
+  }
+
+  /**
+   * Add ammo to reserve (from ammo pickup)
+   * @param {number} amount - Amount of ammo to add
+   * @returns {number} - Actual amount added (may be less if at max)
+   */
+  addAmmo(amount) {
+    if (!this.isAlive || amount <= 0) return 0;
+    
+    const config = this.getWeaponConfig();
+    const maxTotal = config.totalAmmo;
+    const currentTotal = this.totalAmmo;
+    
+    // Calculate how much we can actually add
+    const spaceAvailable = maxTotal - currentTotal;
+    const actualAmount = Math.min(amount, spaceAvailable);
+    
+    this.totalAmmo += actualAmount;
+    
+    return actualAmount;
+  }
+
+  /**
    * Serialize player state for network transmission
    */
   toJSON() {
@@ -414,7 +456,9 @@ export class PlayerState {
       isReloading: this.isReloading,
       dashCharges: this.dashCharges,
       maxDashCharges: this.maxDashCharges,
-      isAiming: this.isAiming
+      isAiming: this.isAiming,
+      kills: this.kills,
+      deaths: this.deaths
     };
   }
 }
@@ -422,10 +466,11 @@ export class PlayerState {
 /**
  * Create a new player with default values (Requirement 1.2)
  * @param {string} id - Unique player ID
+ * @param {string} [weaponType] - Optional weapon type
  * @returns {PlayerState} - New player state
  */
-export function createPlayer(id) {
-  return new PlayerState(id);
+export function createPlayer(id, weaponType = null) {
+  return new PlayerState(id, null, weaponType);
 }
 
 /**

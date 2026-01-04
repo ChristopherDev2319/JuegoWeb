@@ -29,9 +29,9 @@ export const CONFIG = {
       cadenciaDisparo: 666, // 666 RPM (como CS:GO)
       daño: 33, // 4 balas al cuerpo, 1 headshot
       tamañoCargador: 30,
-      municionTotal: 120,
+      municionTotal: 210, // Actualizado: 210 balas para rifles
       tiempoRecarga: 3.1, // Recarga lenta para balancear
-      velocidadBala: 40.0,
+      velocidadBala: 60.0, // Actualizado: 40 → 60 (incremento 50%)
       modelo: "modelos/FBX/Weapons/M4A1.fbx",
       sonidoDisparo: "sonidos/M4A1.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
@@ -60,9 +60,9 @@ export const CONFIG = {
       cadenciaDisparo: 600, // 600 RPM (como CS:GO)
       daño: 36, // 3 balas al cuerpo, 1 headshot
       tamañoCargador: 30,
-      municionTotal: 90,
+      municionTotal: 210, // Actualizado: 210 balas para rifles
       tiempoRecarga: 2.5,
-      velocidadBala: 42.0,
+      velocidadBala: 63.0, // Actualizado: 42 → 63 (incremento 50%)
       modelo: "modelos/FBX/Weapons/AK47.fbx",
       sonidoDisparo: "sonidos/AK47.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
@@ -93,7 +93,7 @@ export const CONFIG = {
       tamañoCargador: 7,
       municionTotal: 35,
       tiempoRecarga: 2.2,
-      velocidadBala: 30.0,
+      velocidadBala: 45.0, // Actualizado: 30 → 45 (incremento 50%)
       modelo: "modelos/FBX/Weapons/1911.fbx",
       sonidoDisparo: "sonidos/pistola.mp3",
       posicion: { x: 0.2, y: -0.4, z: -0.3 },
@@ -126,11 +126,11 @@ export const CONFIG = {
       descripcion: "Rifle de francotirador de alta precisión con potencial letal",
       tipo: "francotirador",
       cadenciaDisparo: 41, // 41 RPM (muy lento como CS:GO)
-      daño: 115, // 1 shot kill al cuerpo, siempre letal headshot
-      tamañoCargador: 10,
-      municionTotal: 30,
+      daño: 150, // Actualizado: mata de un disparo al cuerpo
+      tamañoCargador: 1, // Actualizado: 1 bala por cargador
+      municionTotal: 10, // Actualizado: 10 balas máximo
       tiempoRecarga: 3.7, // Recarga muy lenta
-      velocidadBala: 85.0, // Muy rápida
+      velocidadBala: 120.0, // Actualizado: velocidad máxima de 120
       modelo: "modelos/FBX/Weapons/AWP.fbx",
       sonidoDisparo: "sonidos/SNIPER.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
@@ -161,11 +161,11 @@ export const CONFIG = {
       descripcion: "Escopeta devastadora en combate cercano con múltiples perdigones",
       tipo: "escopeta",
       cadenciaDisparo: 68, // 68 RPM (lenta como debe ser)
-      daño: 26, // Por perdigón (8 perdigones = 208 máximo)
-      tamañoCargador: 7, // Menos munición
+      daño: 26, // Por perdigón (8 perdigones = 208 máximo) - mantenido
+      tamañoCargador: 3, // Actualizado: 3 cartuchos por cargador
       municionTotal: 28,
       tiempoRecarga: 4.2, // Recarga muy lenta
-      velocidadBala: 25.0, // Lenta
+      velocidadBala: 38.0, // Actualizado: 25 → 38 (incremento 50%)
       modelo: "modelos/FBX/Weapons/Pump Shotgun.fbx",
       sonidoDisparo: "sonidos/ESCOPETA.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
@@ -201,9 +201,9 @@ export const CONFIG = {
       cadenciaDisparo: 800, // 800 RPM (alta cadencia)
       daño: 26, // 4 balas al cuerpo, 2 headshots
       tamañoCargador: 30,
-      municionTotal: 120,
+      municionTotal: 240, // Actualizado: 240 balas para subfusiles
       tiempoRecarga: 2.6,
-      velocidadBala: 32.0,
+      velocidadBala: 48.0, // Actualizado: 32 → 48 (incremento 50%)
       modelo: "modelos/FBX/Weapons/MP5.fbx",
       sonidoDisparo: "sonidos/MP5.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
@@ -229,36 +229,26 @@ export const CONFIG = {
         reduccionDispersion: 0.4
       }
     },
-    
-    // SCAR: Rifle de batalla pesado - Daño alto, cadencia media
-    "SCAR": {
-      nombre: "SCAR-H",
-      descripcion: "Rifle de batalla pesado con gran poder de parada y alcance",
-      tipo: "rifle",
-      cadenciaDisparo: 625, // 625 RPM (entre M4A1 y AK47)
-      daño: 40, // Más daño que M4A1 pero menos que AK47
-      tamañoCargador: 20, // Cargador más pequeño
-      municionTotal: 80,
-      tiempoRecarga: 2.8,
-      velocidadBala: 45.0,
-      modelo: "modelos/FBX/Weapons/SCAR.fbx",
-      sonidoDisparo: "sonidos/SCAR.mp3",
-      posicion: { x: 0.3, y: -0.3, z: -0.5 },
-      rotacion: { x: 0, y: Math.PI, z: 0 },
-      retroceso: {
-        cantidad: 0.09, // Retroceso moderado-alto
-        arriba: 0.05,
-        duracion: 75
-      },
-      multiplicadorHeadshot: 4.0, // Headshot letal
-      dispersion: 0.025, // Precisión buena pero no perfecta
-      apuntado: {
-        zoom: 1.6,
-        reduccionRetroceso: 0.45,
-        tiempoTransicion: 0.28,
-        posicionArma: { x: 0, y: -0.08, z: -0.18 },
-        reduccionDispersion: 0.35
-      }
+
+    // KNIFE: Cuchillo táctico para combate cuerpo a cuerpo
+    // Requirements: 4.1, 4.2, 4.5, 5.1, 5.2, 5.3
+    "KNIFE": {
+      nombre: "Knife",
+      descripcion: "Cuchillo táctico para combate cuerpo a cuerpo",
+      tipo: "melee",
+      semiAutomatica: true,        // Solo un ataque por click (evita ataques múltiples)
+      daño: 30,                    // 30 puntos de daño por ataque (balanceado)
+      rangoAtaque: 3.0,            // 3 unidades de distancia (aumentado para mejor alcance)
+      cadenciaAtaque: 350,         // ms entre ataques (más rápido)
+      modelo: "modelos/valorants_knife_low_poly.glb",
+      animacionAtaque: "modelos/animaciones/knife_attack_tps.glb",
+      animacionAtaqueTPS: "modelos/animaciones/knife_attack_tps.glb",
+      // Posición FPS: más alejado y a la derecha para verse bien
+      posicion: { x: 0.35, y: -0.4, z: -0.5 },
+      // Rotación FPS: agarre natural diagonal
+      rotacion: { x: -0.2, y: Math.PI * 0.7, z: 0.15 },
+      // Escala para tamaño apropiado en pantalla
+      escala: { x: 0.6, y: 0.6, z: 0.6 }
     }
   },
 
@@ -374,5 +364,24 @@ export const CONFIG = {
         nombre: 'Zona de Reacción'
       }
     }
+  },
+
+  // Configuración del sistema de spawns de munición
+  // Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
+  spawnsAmmo: {
+    porcentajeMunicion: 0.35,      // 35% de munición máxima del arma equipada
+    tiempoRecarga: 10000,          // 10 segundos en ms para reactivar
+    modelo: "modelos/ammo_pack.glb",
+    escala: 0.04,
+    radioRecoleccion: 1.5,         // Distancia para recoger (unidades)
+    // Posiciones estratégicas de spawns en el mapa
+    posiciones: [
+      { x: 10, y: 0, z: 10 },
+      { x: -10, y: 0, z: 10 },
+      { x: 10, y: 0, z: -10 },
+      { x: -10, y: 0, z: -10 },
+      { x: 0, y: 0, z: 20 },
+      { x: 0, y: 0, z: -20 }
+    ]
   }
 };

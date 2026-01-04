@@ -393,8 +393,8 @@ export function calcularPosicionFinalConExtension(posicionInicial, direccion, di
 /**
  * Ejecuta un dash con interpolación suave
  * Reemplaza el dash instantáneo por uno que interpola la posición durante la duración
- * Usa extensión automática para atravesar estructuras
- * Requirements: 1.1, 1.4, 2.1, 2.2, 2.3
+ * El dash se detiene al detectar colisiones, NO atraviesa estructuras
+ * Requirements: 1.1, 1.4, 3.1, 3.2
  * 
  * @param {Object} jugador - Estado del jugador con posicion y rotacion
  * @param {Object} teclas - Estado de las teclas presionadas
@@ -450,18 +450,49 @@ export function ejecutarDashInterpolado(jugador, teclas, onDashEjecutado = null)
     jugador.posicion.z
   );
 
-  // Calcular posición final con extensión automática para atravesar estructuras
-  // Requirements: 2.1, 2.2, 2.3 - Extensión automática para atravesar colisiones internas
+  // Calcular posición final usando shapeCastDash para detectar colisiones
+  // Requirements: 3.1, 3.2 - El dash se detiene en el punto de colisión, NO atraviesa estructuras
   const distanciaDash = CONFIG.dash.poder;
-  const resultadoExtension = calcularPosicionFinalConExtension(
-    jugador.posicion,
-    direccionDash,
-    distanciaDash
-  );
+  let posicionFinal;
+  let huboColision = false;
   
-  sistemaDash.posicionFinDash = resultadoExtension.posicionFinal;
-  sistemaDash.atravesoEstructura = resultadoExtension.fueExtendido;
-  sistemaDash.distanciaExtendida = resultadoExtension.distanciaTotal;
+  if (colisionesActivas()) {
+    // Usar shapeCastDash directamente para detectar colisiones durante el dash
+    // Requirement 3.1: Detener dash antes de atravesar estructuras
+    // Requirement 3.2: Posicionar en el punto más cercano válido antes de la colisión
+    const resultadoDash = shapeCastDash(
+      jugador.posicion,
+      direccionDash,
+      distanciaDash
+    );
+    
+    posicionFinal = resultadoDash.posicionFinal;
+    huboColision = resultadoDash.colision;
+    
+    // Verificar que la posición final es válida
+    // Requirement 3.2: Asegurar posición válida antes de la colisión
+    const validacion = verificarPosicionValida(posicionFinal);
+    if (!validacion.valida) {
+      posicionFinal = validacion.posicionCorregida;
+    }
+    
+    // Aplicar límites del mapa
+    posicionFinal = aplicarLimitesMapa(posicionFinal);
+  } else {
+    // Fallback: dash sin colisiones si el sistema no está disponible
+    posicionFinal = new THREE.Vector3(
+      jugador.posicion.x + direccionDash.x * distanciaDash,
+      jugador.posicion.y,
+      jugador.posicion.z + direccionDash.z * distanciaDash
+    );
+    
+    // Aplicar límites del mapa
+    posicionFinal = aplicarLimitesMapa(posicionFinal);
+  }
+  
+  sistemaDash.posicionFinDash = posicionFinal;
+  sistemaDash.atravesoEstructura = false; // Ya no atravesamos estructuras
+  sistemaDash.distanciaExtendida = 0;
 
   // Guardar tiempo de inicio para interpolación
   sistemaDash.tiempoInicioDash = performance.now();
@@ -469,7 +500,7 @@ export function ejecutarDashInterpolado(jugador, teclas, onDashEjecutado = null)
 
   // Ejecutar callback si existe
   if (onDashEjecutado) {
-    onDashEjecutado(direccionDash, sistemaDash.posicionFinDash);
+    onDashEjecutado(direccionDash, sistemaDash.posicionFinDash, huboColision);
   }
 
   return true;
@@ -490,7 +521,8 @@ function lerp(a, b, t) {
 /**
  * Actualiza la interpolación del dash en cada frame
  * Debe llamarse en el loop de actualización del juego
- * Requirements: 1.2, 2.3
+ * El dash ya no atraviesa estructuras, por lo que no necesita desatorar
+ * Requirements: 1.2, 3.1
  * 
  * @param {Object} jugador - Estado del jugador con posicion
  * @param {number} deltaTime - Tiempo transcurrido desde el último frame (ms)
@@ -527,8 +559,8 @@ export function actualizarDashInterpolacion(jugador, deltaTime) {
     jugador.posicion.x = posFin.x;
     jugador.posicion.z = posFin.z;
     
-    // Requirement 2.3: Desatorar si terminó dentro de geometría
-    // Requirement 4.2: Pasar dirección del dash para buscar primero en esa dirección
+    // Requirement 3.1: El dash ya se detuvo antes de la colisión
+    // Solo verificar como medida de seguridad adicional
     if (estaDentroGeometria(jugador.posicion)) {
       // Calcular dirección del dash desde posición inicial a final
       const direccionDash = new THREE.Vector3(
