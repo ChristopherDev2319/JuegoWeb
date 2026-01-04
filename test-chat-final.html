@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Chat Final - Nombres Mejorados</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .demo-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+        .btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .btn:hover { background: #45a049; }
+        .btn-blue { background: #2196F3; }
+        .btn-blue:hover { background: #1976D2; }
+        .status {
+            padding: 10px;
+            background: #333;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Test Final - Chat con Nombres Mejorados</h1>
+        
+        <div class="demo-section">
+            <h3>📊 Estado del Sistema</h3>
+            <div id="status" class="status">Inicializando...</div>
+        </div>
+        
+        <div class="demo-section">
+            <h3>🎯 Demostración de Mejoras</h3>
+            <button class="btn" onclick="demoMensajesBasicos()">Mensajes Básicos</button>
+            <button class="btn" onclick="demoConversacion()">Conversación Completa</button>
+            <button class="btn" onclick="demoComandos()">Comandos Locales</button>
+            <button class="btn btn-blue" onclick="cambiarModo()">Cambiar Modo</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { ChatSystem } from './src/ui/chatSystem.js';
+        
+        let chat = null;
+        let modoOnline = false;
+        
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            chat = new ChatSystem({
+                isOnline: false,
+                playerName: 'MiNombre'
+            });
+            actualizarEstado();
+        });
+        
+        function actualizarEstado() {
+            const status = document.getElementById('status');
+            status.innerHTML = `
+                Modo: ${modoOnline ? '🌐 Online' : '📝 Local'} | 
+                Jugador: ${chat?.playerName || 'N/A'} | 
+                Chat: ${chat ? '✅ Activo' : '❌ Inactivo'}
+            `;
+        }
+        
+        window.demoMensajesBasicos = () => {
+            chat.addPlayerMessage('MiNombre', 'Este es mi mensaje (debería ser verde 🟢)', true);
+            chat.addPlayerMessage('OtroJugador', 'Este es de otro jugador (debería ser azul 🔵)', false);
+            chat.addPlayerMessage('📝 Nota', 'Esta es una nota local (debería ser verde 🟢)', false);
+        };
+        
+        window.demoConversacion = () => {
+            const mensajes = [
+                { nombre: 'MiNombre', texto: 'Hola equipo!', propio: true },
+                { nombre: 'Compañero1', texto: 'Hola! ¿Listos para la partida?', propio: false },
+                { nombre: 'Compañero2', texto: 'Sí, vamos!', propio: false },
+                { nombre: 'MiNombre', texto: 'Perfecto, empezamos', propio: true }
+            ];
+            
+            mensajes.forEach((msg, i) => {
+                setTimeout(() => {
+                    chat.addPlayerMessage(msg.nombre, msg.texto, msg.propio);
+                }, i * 800);
+            });
+        };
+        
+        window.demoComandos = () => {
+            chat.processLocalMessage('help');
+            setTimeout(() => chat.processLocalMessage('time'), 500);
+            setTimeout(() => chat.processLocalMessage('info'), 1000);
+        };
+        
+        window.cambiarModo = () => {
+            modoOnline = !modoOnline;
+            chat.setMode(modoOnline, modoOnline ? 'JugadorOnline' : 'JugadorLocal');
+            actualizarEstado();
+        };
+    </script>
+</body>
+</html>

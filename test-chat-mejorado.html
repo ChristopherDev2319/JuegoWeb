@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Chat Sistema Mejorado</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+        .test-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .test-button:hover {
+            background: #45a049;
+        }
+        .mode-button {
+            background: #2196F3;
+        }
+        .mode-button:hover {
+            background: #1976D2;
+        }
+        #game-canvas {
+            width: 100%;
+            height: 300px;
+            background: #333;
+            border: 2px solid #555;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test Chat Sistema Mejorado</h1>
+        <p>Prueba del sistema de chat con nombres de jugadores mejorados</p>
+        
+        <div class="test-section">
+            <h3>🎮 Controles de Modo</h3>
+            <button class="test-button mode-button" onclick="cambiarModoLocal()">Modo Local</button>
+            <button class="test-button mode-button" onclick="cambiarModoOnline()">Modo Online</button>
+            <button class="test-button" onclick="limpiarChat()">Limpiar Chat</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>💬 Pruebas de Mensajes</h3>
+            <button class="test-button" onclick="enviarMensajePropio()">Mensaje Propio</button>
+            <button class="test-button" onclick="enviarMensajeOtroJugador()">Mensaje Otro Jugador</button>
+            <button class="test-button" onclick="enviarMensajeNota()">Nota Local</button>
+            <button class="test-button" onclick="enviarComandoHelp()">Comando Help</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔧 Pruebas Avanzadas</h3>
+            <button class="test-button" onclick="simularConversacion()">Simular Conversación</button>
+            <button class="test-button" onclick="probarNombresLargos()">Nombres Largos</button>
+            <button class="test-button" onclick="probarCaracteresEspeciales()">Caracteres Especiales</button>
+        </div>
+        
+        <div id="game-canvas">
+            <!-- El chat se mostrará aquí -->
+        </div>
+    </div>
+
+    <script type="module">
+        import { ChatSystem } from './src/ui/chatSystem.js';
+        
+        let chatSystem = null;
+        
+        // Inicializar chat en modo local por defecto
+        window.addEventListener('DOMContentLoaded', () => {
+            chatSystem = new ChatSystem({
+                isOnline: false,
+                playerName: 'TestPlayer'
+            });
+            console.log('✅ Chat inicializado en modo local');
+        });
+        
+        // Funciones de control de modo
+        window.cambiarModoLocal = function() {
+            if (chatSystem) {
+                chatSystem.setMode(false, 'TestPlayer');
+                console.log('🎮 Cambiado a modo local');
+            }
+        };
+        
+        window.cambiarModoOnline = function() {
+            if (chatSystem) {
+                chatSystem.setMode(true, 'TestPlayer');
+                console.log('🌐 Cambiado a modo online');
+            }
+        };
+        
+        window.limpiarChat = function() {
+            if (chatSystem) {
+                chatSystem.clearMessages();
+                console.log('🧹 Chat limpiado');
+            }
+        };
+        
+        // Funciones de prueba de mensajes
+        window.enviarMensajePropio = function() {
+            if (chatSystem) {
+                chatSystem.addPlayerMessage('TestPlayer', 'Este es mi mensaje', true);
+                console.log('✅ Mensaje propio enviado');
+            }
+        };
+        
+        window.enviarMensajeOtroJugador = function() {
+            if (chatSystem) {
+                chatSystem.addPlayerMessage('OtroJugador', 'Hola desde otro jugador', false);
+                console.log('✅ Mensaje de otro jugador enviado');
+            }
+        };
+        
+        window.enviarMensajeNota = function() {
+            if (chatSystem) {
+                chatSystem.addPlayerMessage('📝 Nota', 'Esta es una nota local', false);
+                console.log('✅ Nota local enviada');
+            }
+        };
+        
+        window.enviarComandoHelp = function() {
+            if (chatSystem) {
+                chatSystem.processLocalMessage('help');
+                console.log('✅ Comando help ejecutado');
+            }
+        };
+        
+        // Funciones de prueba avanzadas
+        window.simularConversacion = function() {
+            if (!chatSystem) return;
+            
+            const mensajes = [
+                { jugador: 'TestPlayer', mensaje: 'Hola a todos!', propio: true },
+                { jugador: 'Jugador2', mensaje: 'Hola! ¿Cómo están?', propio: false },
+                { jugador: 'Jugador3', mensaje: 'Todo bien por aquí', propio: false },
+                { jugador: 'TestPlayer', mensaje: 'Perfecto, empezamos la partida?', propio: true },
+                { jugador: 'Jugador2', mensaje: 'Dale, estoy listo', propio: false }
+            ];
+            
+            mensajes.forEach((msg, index) => {
+                setTimeout(() => {
+                    chatSystem.addPlayerMessage(msg.jugador, msg.mensaje, msg.propio);
+                }, index * 1000);
+            });
+            
+            console.log('🎭 Simulando conversación...');
+        };
+        
+        window.probarNombresLargos = function() {
+            if (!chatSystem) return;
+            
+            chatSystem.addPlayerMessage('JugadorConNombreMuyLargoQueDeberiaFuncionar', 'Mensaje con nombre largo', false);
+            chatSystem.addPlayerMessage('TestPlayer', 'Respuesta a nombre largo', true);
+            
+            console.log('📏 Probando nombres largos');
+        };
+        
+        window.probarCaracteresEspeciales = function() {
+            if (!chatSystem) return;
+            
+            chatSystem.addPlayerMessage('Jugador_123', 'Mensaje con números y guiones', false);
+            chatSystem.addPlayerMessage('TestPlayer', 'Respuesta con emojis 🎮🔥💯', true);
+            chatSystem.addPlayerMessage('Ñoño-Español', 'Mensaje con ñ y acentos: áéíóú', false);
+            
+            console.log('🔤 Probando caracteres especiales');
+        };
+        
+        // Simular recepción de mensaje (para modo online)
+        window.simularMensajeRecibido = function() {
+            if (chatSystem) {
+                chatSystem.receiveMessage('JugadorRemoto', 'Mensaje recibido del servidor');
+                console.log('📨 Mensaje recibido simulado');
+            }
+        };
+    </script>
+</body>
+</html>

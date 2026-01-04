@@ -7,6 +7,7 @@
 
 // Importar módulos del juego
 import { CONFIG } from './config.js';
+import { ChatSystem } from './ui/chatSystem.js';
 
 import { 
   inicializarEscena, 
@@ -66,7 +67,8 @@ import {
   teclas, 
   inicializarControles, 
   estaPointerLockActivo, 
-  estaMousePresionado 
+  estaMousePresionado,
+  establecerVerificadorChat
 } from './sistemas/controles.js';
 
 import { crearEfectoDash } from './utils/efectos.js';
@@ -541,6 +543,9 @@ let localPlayerId = null;
 // Requirements: 1.1, 2.1, 3.1, 4.4
 let botManager = null;
 
+// Chat system
+let chatSystem = null;
+
 // Input sending rate control (20Hz to match server tick rate)
 const INPUT_SEND_RATE = 1000 / 20; // 50ms
 let lastInputSendTime = 0;
@@ -961,6 +966,25 @@ async function inicializarJuegoCompleto() {
     // Continuar sin crosshair dinámico si hay error
   }
 
+  // Inicializar sistema de chat
+  try {
+    chatSystem = new ChatSystem({
+      isOnline: modoJuegoActual === 'online',
+      playerName: nombreJugadorActual || 'Jugador',
+      onChatStateChange: (activo) => {
+        console.log(`Chat ${activo ? 'activado' : 'desactivado'} - Controles ${activo ? 'bloqueados' : 'desbloqueados'}`);
+      }
+    });
+    
+    // Configurar verificador de chat en el sistema de controles
+    establecerVerificadorChat(() => chatSystem ? chatSystem.estaActivo() : false);
+    
+    console.log('✅ Sistema de chat inicializado');
+  } catch (error) {
+    console.warn('⚠️ Error inicializando chat:', error);
+    // Continuar sin chat si hay error
+  }
+
   // Inicializar sistema de autenticación
   try {
     inicializarAuthUI();
@@ -1256,6 +1280,11 @@ function configurarCallbacksRed() {
     // Set local player ID in remote player manager
     remotePlayerManager.setLocalPlayerId(localPlayerId);
     
+    // Actualizar chat a modo online
+    if (chatSystem) {
+      chatSystem.setMode(true, nombreJugadorActual || `Jugador ${localPlayerId}`);
+    }
+    
     // Apply initial game state
     if (data.gameState) {
       procesarEstadoJuego(data.gameState);
@@ -1382,6 +1411,11 @@ function configurarCallbacksRed() {
   connection.onDisconnect(() => {
     isMultiplayerConnected = false;
     localPlayerId = null;
+    
+    // Actualizar chat a modo local
+    if (chatSystem) {
+      chatSystem.setMode(false, nombreJugadorActual || 'Jugador');
+    }
     
     // Liberar pointer lock para que el click funcione en el overlay
     if (document.pointerLockElement) {

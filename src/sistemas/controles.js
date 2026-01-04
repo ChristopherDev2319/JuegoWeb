@@ -8,6 +8,9 @@ import { estadoSeleccion, cambioArmaPermitido } from './seleccionArmas.js';
 // Referencia al estado del menú (se establece después de inicializar)
 let verificarMenuActivo = null;
 
+// Referencia al estado del chat (se establece después de inicializar)
+let verificarChatActivo = null;
+
 // Flag temporal para ignorar cambios de pointer lock después de cerrar el menú
 let ignorarCambioPointerLock = false;
 
@@ -81,6 +84,11 @@ export function inicializarControles(eventCallbacks = {}) {
  * @param {KeyboardEvent} evento
  */
 function manejarTeclaPresionada(evento) {
+  // No procesar teclas si el chat está activo
+  if (verificarChatActivo && verificarChatActivo()) {
+    return;
+  }
+
   // Evitar repetición de teclas
   if (teclas[evento.code]) return;
 
@@ -136,6 +144,11 @@ function manejarTeclaPresionada(evento) {
  * @param {KeyboardEvent} evento
  */
 function manejarTeclaSoltada(evento) {
+  // No procesar teclas si el chat está activo
+  if (verificarChatActivo && verificarChatActivo()) {
+    return;
+  }
+  
   teclas[evento.code] = false;
 }
 
@@ -235,6 +248,14 @@ export function establecerVerificadorMenu(fn) {
 }
 
 /**
+ * Establece la función para verificar si el chat está activo
+ * @param {Function} fn - Función que retorna true si el chat está activo
+ */
+export function establecerVerificadorChat(fn) {
+  verificarChatActivo = fn;
+}
+
+/**
  * Ignora temporalmente los cambios de pointer lock
  * @param {number} duracion - Duración en ms para ignorar cambios
  */
@@ -264,6 +285,11 @@ function manejarMovimientoMouse(evento) {
 function manejarMouseDown(evento) {
   if (!pointerLockActivo) return;
   
+  // No procesar clics si el chat está activo
+  if (verificarChatActivo && verificarChatActivo()) {
+    return;
+  }
+  
   if (evento.button === 0) {
     // Clic izquierdo - disparar
     mousePresionado = true;
@@ -283,6 +309,11 @@ function manejarMouseDown(evento) {
  * @param {MouseEvent} evento
  */
 function manejarMouseUp(evento) {
+  // No procesar clics si el chat está activo
+  if (verificarChatActivo && verificarChatActivo()) {
+    return;
+  }
+  
   if (evento.button === 0) {
     mousePresionado = false;
   } else if (evento.button === 2) {
@@ -299,6 +330,11 @@ function manejarMouseUp(evento) {
  */
 function manejarRuedaMouse(evento) {
   if (!pointerLockActivo) return;
+
+  // No procesar rueda del mouse si el chat está activo
+  if (verificarChatActivo && verificarChatActivo()) {
+    return;
+  }
 
   evento.preventDefault();
 
