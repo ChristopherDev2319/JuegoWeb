@@ -1231,14 +1231,14 @@ function obtenerUrlServidor() {
   // Use current host for WebSocket connection
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = window.location.hostname || 'localhost';
-  const port = window.location.port;
   
-  // En producción (Render, etc.) no incluir puerto - usa el estándar 443/80
-  // Solo incluir puerto en desarrollo local
-  if (port) {
-    return `${protocol}//${host}:${port}`;
+  // En producción (HTTPS) usar ruta /ws que nginx redirige al servidor de juego
+  if (window.location.protocol === 'https:') {
+    return `${protocol}//${host}/ws`;
   }
-  return `${protocol}//${host}`;
+  
+  // En desarrollo local, conectar directamente al puerto 3000
+  return `${protocol}//${host}:3000`;
 }
 
 /**
