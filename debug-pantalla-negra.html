@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Debug Pantalla Negra</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .section {
+            background: #2a2a2a;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #00ff00;
+        }
+        
+        .error { border-left-color: #ff4444; }
+        .warning { border-left-color: #ffaa44; }
+        .info { border-left-color: #4488ff; }
+        
+        h2 {
+            margin-top: 0;
+            color: #00ff00;
+        }
+        
+        .error h2 { color: #ff4444; }
+        .warning h2 { color: #ffaa44; }
+        .info h2 { color: #4488ff; }
+        
+        button {
+            background: #333;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        
+        button:hover {
+            background: #555;
+        }
+        
+        .success { color: #00ff00; }
+        .error-text { color: #ff4444; }
+        .warning-text { color: #ffaa44; }
+        
+        pre {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        
+        #console-output {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #000;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Diagnóstico de Pantalla Negra</h1>
+        
+        <div class="section info">
+            <h2>📋 Instrucciones</h2>
+            <p>1. Abre la consola del navegador (F12)</p>
+            <p>2. Haz click en "Ejecutar Diagnóstico"</p>
+            <p>3. Copia TODOS los errores que veas en la consola</p>
+            <p>4. Pégalos aquí abajo para que pueda ayudarte</p>
+        </div>
+        
+        <div class="section">
+            <h2>🧪 Tests de Diagnóstico</h2>
+            <button onclick="testBasico()">Test Básico</button>
+            <button onclick="testModulos()">Test Módulos</button>
+            <button onclick="testEscena()">Test Escena</button>
+            <button onclick="testCompleto()">Test Completo</button>
+            <button onclick="limpiarConsola()">Limpiar</button>
+        </div>
+        
+        <div class="section">
+            <h2>📊 Resultados</h2>
+            <div id="resultados">
+                <p>Haz click en un test para ver los resultados...</p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🖥️ Consola en Vivo</h2>
+            <div id="console-output">
+                <p>Los mensajes de consola aparecerán aquí...</p>
+            </div>
+        </div>
+        
+        <div class="section error">
+            <h2>❌ Errores Comunes</h2>
+            <pre>
+Si ves estos errores, aquí están las causas:
+
+1. "Cannot read properties of null (reading 'layers')"
+   → Problema con Three.js o cámara no inicializada
+
+2. "SyntaxError: Unexpected token"
+   → Error de sintaxis en JavaScript
+
+3. "Failed to load resource"
+   → Archivos no encontrados (modelos, texturas, etc.)
+
+4. "TypeError: Cannot read properties of undefined"
+   → Variable no definida o módulo no cargado
+
+5. "CORS policy" 
+   → Usar servidor HTTP, no file://
+            </pre>
+        </div>
+    </div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script>
+        const resultados = document.getElementById('resultados');
+        const consoleOutput = document.getElementById('console-output');
+        
+        // Capturar todos los logs de consola
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        function addToConsole(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff4444' : type === 'warn' ? '#ffaa44' : '#ffffff';
+            consoleOutput.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsole(args.join(' '), 'log');
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsole('ERROR: ' + args.join(' '), 'error');
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addToConsole('WARNING: ' + args.join(' '), 'warn');
+        };
+        
+        function log(mensaje, tipo = 'info') {
+            const colors = {
+                success: '#00ff00',
+                error: '#ff4444',
+                warning: '#ffaa44',
+                info: '#4488ff'
+            };
+            
+            resultados.innerHTML += `<div style="color: ${colors[tipo] || '#ffffff'}">${mensaje}</div>`;
+            console.log(mensaje);
+        }
+        
+        function limpiar() {
+            resultados.innerHTML = '';
+            consoleOutput.innerHTML = '<p>Consola limpiada...</p>';
+        }
+        
+        window.limpiarConsola = function() {
+            console.clear();
+            limpiar();
+            log('🧹 Consola limpiada', 'info');
+        };
+        
+        window.testBasico = function() {
+            limpiar();
+            log('🧪 === TEST BÁSICO ===', 'info');
+            
+            try {
+                // Test 1: Three.js
+                if (typeof THREE === 'undefined') {
+                    log('❌ THREE.js NO disponible', 'error');
+                    return;
+                }
+                log('✅ THREE.js disponible', 'success');
+                
+                // Test 2: GLTFLoader
+                if (typeof THREE.GLTFLoader === 'undefined') {
+                    log('❌ GLTFLoader NO disponible', 'error');
+                    return;
+                }
+                log('✅ GLTFLoader disponible', 'success');
+                
+                // Test 3: Crear escena básica
+                const scene = new THREE.Scene();
+                log('✅ Escena creada', 'success');
+                
+                // Test 4: Crear cámara
+                const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                log('✅ Cámara creada', 'success');
+                
+                // Test 5: Crear renderer
+                const renderer = new THREE.WebGLRenderer();
+                log('✅ Renderer creado', 'success');
+                
+                log('🎉 Test básico COMPLETADO - Three.js funciona', 'success');
+                
+            } catch (error) {
+                log(`❌ ERROR en test básico: ${error.message}`, 'error');
+                console.error('Error completo:', error);
+            }
+        };
+        
+        window.testModulos = function() {
+            limpiar();
+            log('📦 === TEST DE MÓDULOS ===', 'info');
+            
+            const modulos = [
+                '/src/config.js',
+                '/src/escena.js',
+                '/src/main.js',
+                '/src/entidades/BotBase.js',
+                '/src/sistemas/botManager.js'
+            ];
+            
+            let completados = 0;
+            
+            modulos.forEach(modulo => {
+                fetch(modulo)
+                    .then(response => {
+                        if (response.ok) {
+                            log(`✅ ${modulo} - Disponible`, 'success');
+                        } else {
+                            log(`❌ ${modulo} - Error ${response.status}`, 'error');
+                        }
+                        completados++;
+                        if (completados === modulos.length) {
+                            log('📦 Test de módulos completado', 'info');
+                        }
+                    })
+                    .catch(error => {
+                        log(`❌ ${modulo} - Error: ${error.message}`, 'error');
+                        completados++;
+                        if (completados === modulos.length) {
+                            log('📦 Test de módulos completado', 'info');
+                        }
+                    });
+            });
+        };
+        
+        window.testEscena = function() {
+            limpiar();
+            log('🗺️ === TEST DE ESCENA ===', 'info');
+            
+            try {
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                const renderer = new THREE.WebGLRenderer();
+                
+                // Test de mapa
+                log('📦 Probando carga de mapa...', 'info');
+                const loader = new THREE.GLTFLoader();
+                
+                loader.load('/modelos/map_visual.glb', 
+                    (gltf) => {
+                        log('✅ Mapa cargado exitosamente', 'success');
+                    },
+                    (progress) => {
+                        if (progress.total > 0) {
+                            const percent = Math.round((progress.loaded / progress.total) * 100);
+                            log(`📊 Cargando mapa: ${percent}%`, 'info');
+                        }
+                    },
+                    (error) => {
+                        log(`❌ Error cargando mapa: ${error.message}`, 'error');
+                    }
+                );
+                
+                // Test de modelo de oso
+                log('🐻 Probando carga de oso...', 'info');
+                loader.load('/modelos/cubed_bear.glb',
+                    (gltf) => {
+                        log('✅ Modelo de oso cargado exitosamente', 'success');
+                    },
+                    undefined,
+                    (error) => {
+                        log(`❌ Error cargando oso: ${error.message}`, 'error');
+                    }
+                );
+                
+            } catch (error) {
+                log(`❌ ERROR en test de escena: ${error.message}`, 'error');
+                console.error('Error completo:', error);
+            }
+        };
+        
+        window.testCompleto = function() {
+            limpiar();
+            log('🚀 === TEST COMPLETO ===', 'info');
+            log('Ejecutando todos los tests...', 'info');
+            
+            setTimeout(() => testBasico(), 100);
+            setTimeout(() => testModulos(), 1000);
+            setTimeout(() => testEscena(), 2000);
+        };
+        
+        // Capturar errores globales
+        window.addEventListener('error', (event) => {
+            log(`❌ ERROR GLOBAL: ${event.message}`, 'error');
+            log(`📍 Archivo: ${event.filename}:${event.lineno}:${event.colno}`, 'error');
+        });
+        
+        window.addEventListener('unhandledrejection', (event) => {
+            log(`❌ PROMESA RECHAZADA: ${event.reason}`, 'error');
+        });
+        
+        // Inicializar
+        log('🔍 Diagnóstico listo. Ejecuta los tests para identificar el problema.', 'info');
+    </script>
+</body>
+</html>

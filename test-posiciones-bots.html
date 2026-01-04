@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>📍 Test Posiciones de Bots</title>
+    <style>
+        body { margin: 0; background: #1a1a1a; color: white; font-family: Arial; padding: 20px; }
+        #container { width: 100%; height: 60vh; border: 2px solid #333; margin-bottom: 20px; }
+        #controls { background: #333; padding: 15px; border-radius: 5px; margin-bottom: 10px; }
+        #logs { background: #222; padding: 10px; border-radius: 5px; height: 200px; overflow-y: auto; }
+        button { margin: 5px; padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        .log { margin: 2px 0; font-size: 12px; }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .warning { color: #ff9800; }
+    </style>
+</head>
+<body>
+    <h1>📍 Test Posiciones de Bots</h1>
+    
+    <div id="container"></div>
+    
+    <div id="controls">
+        <button onclick="inicializar()">🚀 Inicializar</button>
+        <button onclick="crearBots()">🤖 Crear Bots</button>
+        <button onclick="mostrarPosiciones()">📍 Mostrar Posiciones</button>
+        <button onclick="moverCamara()">📷 Mover Cámara</button>
+        <button onclick="limpiarLogs()">🧹 Limpiar</button>
+    </div>
+    
+    <div id="logs"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script type="module">
+        let scene, camera, renderer, botManager;
+        let camaraPos = 0; // 0=centro, 1=izquierda, 2=derecha, 3=atrás
+        
+        function inicializar() {
+            log('🚀 Inicializando Three.js...', 'success');
+            
+            const container = document.getElementById('container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 8, 20); // Más alto y más lejos
+            camera.lookAt(0, 0, 0);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+            
+            // Luces brillantes
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            // Suelo más grande
+            const groundGeometry = new THREE.PlaneGeometry(100, 100);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // Marcadores de posición (cubos de colores)
+            // Zona estáticos (rojo) - izquierda
+            const cuboRojo = new THREE.Mesh(
+                new THREE.BoxGeometry(1, 1, 1),
+                new THREE.MeshLambertMaterial({ color: 0xff0000 })
+            );
+            cuboRojo.position.set(-8, 0.5, 0);
+            scene.add(cuboRojo);
+            
+            // Zona móviles (azul) - derecha
+            const cuboAzul = new THREE.Mesh(
+                new THREE.BoxGeometry(1, 1, 1),
+                new THREE.MeshLambertMaterial({ color: 0x0088ff })
+            );
+            cuboAzul.position.set(8, 0.5, 0);
+            scene.add(cuboAzul);
+            
+            // Zona tiradores (naranja) - atrás
+            const cuboNaranja = new THREE.Mesh(
+                new THREE.BoxGeometry(1, 1, 1),
+                new THREE.MeshLambertMaterial({ color: 0xff8800 })
+            );
+            cuboNaranja.position.set(0, 0.5, -8);
+            scene.add(cuboNaranja);
+            
+            // Centro (blanco)
+            const cuboBlanco = new THREE.Mesh(
+                new THREE.BoxGeometry(0.5, 0.5, 0.5),
+                new THREE.MeshLambertMaterial({ color: 0xffffff })
+            );
+            cuboBlanco.position.set(0, 0.25, 0);
+            scene.add(cuboBlanco);
+            
+            animate();
+            
+            log('✅ Escena inicializada con marcadores de zonas', 'success');
+            log('🔴 Cubo rojo: Zona estáticos (-8, 0, 0)', 'success');
+            log('🔵 Cubo azul: Zona móviles (8, 0, 0)', 'success');
+            log('🟠 Cubo naranja: Zona tiradores (0, 0, -8)', 'success');
+        }
+        
+        async function crearBots() {
+            try {
+                log('🤖 Creando sistema de bots...', 'success');
+                
+                // Importar módulos
+                const { precargarModeloOso } = await import('./src/sistemas/modeloCache.js');
+                const { BotManager } = await import('./src/sistemas/botManager.js');
+                
+                // Precargar modelo
+                log('🐻 Precargando modelo...', 'success');
+                await precargarModeloOso();
+                log('✅ Modelo precargado', 'success');
+                
+                // Crear BotManager
+                botManager = new BotManager(scene, {
+                    onEliminacion: (tipoBot, estadisticas) => {
+                        log(`📊 Bot ${tipoBot} eliminado`, 'success');
+                    }
+                });
+                
+                // Inicializar
+                log('⚙️ Inicializando bots...', 'success');
+                await botManager.inicializar();
+                
+                const totalBots = botManager.obtenerTotalBots();
+                log(`✅ ${totalBots} bots creados`, 'success');
+                
+                // Verificar inmediatamente
+                mostrarPosiciones();
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        function mostrarPosiciones() {
+            if (!botManager) {
+                log('⚠️ No hay BotManager', 'warning');
+                return;
+            }
+            
+            log('📍 Posiciones de bots:', 'success');
+            
+            const bots = botManager.obtenerTodosBots();
+            bots.forEach((bot, index) => {
+                const pos = bot.obtenerPosicion();
+                const visible = bot.mesh && bot.mesh.visible;
+                const enEscena = bot.mesh && scene.children.includes(bot.mesh);
+                
+                log(`🤖 Bot ${index + 1} (${bot.tipo}):`, 'success');
+                log(`   📍 Posición: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})`, 'success');
+                log(`   👁️ Visible: ${visible}`, visible ? 'success' : 'error');
+                log(`   🎬 En escena: ${enEscena}`, enEscena ? 'success' : 'error');
+                
+                if (bot.mesh) {
+                    log(`   📏 Escala: (${bot.mesh.scale.x}, ${bot.mesh.scale.y}, ${bot.mesh.scale.z})`, 'success');
+                    
+                    // Contar meshes hijos
+                    let meshCount = 0;
+                    bot.mesh.traverse((child) => {
+                        if (child.isMesh) meshCount++;
+                    });
+                    log(`   🔍 Meshes hijos: ${meshCount}`, 'success');
+                }
+            });
+            
+            // Calcular distancia a la cámara
+            const camPos = camera.position;
+            log(`📷 Cámara en: (${camPos.x.toFixed(1)}, ${camPos.y.toFixed(1)}, ${camPos.z.toFixed(1)})`, 'success');
+            
+            bots.forEach((bot, index) => {
+                const botPos = bot.obtenerPosicion();
+                const distancia = camPos.distanceTo(botPos);
+                log(`📏 Distancia bot ${index + 1}: ${distancia.toFixed(1)} unidades`, 'success');
+            });
+        }
+        
+        function moverCamara() {
+            const posiciones = [
+                { pos: [0, 8, 20], look: [0, 0, 0], desc: "Vista general" },
+                { pos: [-8, 5, 10], look: [-8, 0, 0], desc: "Zona estáticos" },
+                { pos: [8, 5, 10], look: [8, 0, 0], desc: "Zona móviles" },
+                { pos: [0, 5, 5], look: [0, 0, -8], desc: "Zona tiradores" }
+            ];
+            
+            camaraPos = (camaraPos + 1) % posiciones.length;
+            const config = posiciones[camaraPos];
+            
+            camera.position.set(...config.pos);
+            camera.lookAt(...config.look);
+            
+            log(`📷 Cámara: ${config.desc}`, 'success');
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (botManager) {
+                botManager.actualizar(16);
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        function log(mensaje, tipo = 'success') {
+            const div = document.createElement('div');
+            div.className = `log ${tipo}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${mensaje}`;
+            document.getElementById('logs').appendChild(div);
+            document.getElementById('logs').scrollTop = document.getElementById('logs').scrollHeight;
+            console.log(mensaje);
+        }
+        
+        function limpiarLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+        
+        // Hacer funciones globales
+        window.inicializar = inicializar;
+        window.crearBots = crearBots;
+        window.mostrarPosiciones = mostrarPosiciones;
+        window.moverCamara = moverCamara;
+        window.limpiarLogs = limpiarLogs;
+    </script>
+</body>
+</html>

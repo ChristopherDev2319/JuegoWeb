@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>🎮 Test Juego Principal</title>
+    <style>
+        body { margin: 0; background: #1a1a1a; color: white; font-family: Arial; padding: 20px; }
+        #info { background: #333; padding: 15px; border-radius: 5px; margin-bottom: 10px; }
+        button { margin: 5px; padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        .log { margin: 2px 0; font-size: 12px; }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .warning { color: #ff9800; }
+    </style>
+</head>
+<body>
+    <h1>🎮 Test Juego Principal</h1>
+    
+    <div id="info">
+        <p>Este test abre el juego principal en modo local para verificar que los bots aparezcan con skins de oso.</p>
+        <button onclick="abrirJuego()">🚀 Abrir Juego Principal</button>
+        <button onclick="abrirConsola()">🔍 Ver Consola del Juego</button>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        function abrirJuego() {
+            log('🚀 Abriendo juego principal...', 'success');
+            log('📍 URL: http://localhost:3001/index.html', 'success');
+            log('⚠️ Asegúrate de:', 'warning');
+            log('   1. Entrar en modo LOCAL', 'warning');
+            log('   2. Revisar la consola del navegador (F12)', 'warning');
+            log('   3. Buscar mensajes de "🐻 Creando bot" y "✅ Bot creado"', 'warning');
+            
+            // Abrir en nueva ventana
+            window.open('http://localhost:3001/index.html', '_blank');
+        }
+        
+        function abrirConsola() {
+            log('🔍 Para ver la consola:', 'success');
+            log('   1. Presiona F12 en el juego', 'success');
+            log('   2. Ve a la pestaña "Console"', 'success');
+            log('   3. Busca mensajes que empiecen con 🐻 o ❌', 'success');
+            log('   4. Si ves "❌ crearClonOso() devolvió null", el problema está en el cache', 'error');
+            log('   5. Si ves "✅ Bot creado con modelo de oso", pero no los ves, es problema visual', 'warning');
+        }
+        
+        function log(mensaje, tipo = 'success') {
+            const div = document.createElement('div');
+            div.className = `log ${tipo}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${mensaje}`;
+            document.getElementById('logs').appendChild(div);
+            console.log(mensaje);
+        }
+        
+        // Mostrar instrucciones iniciales
+        log('🎯 Objetivo: Verificar que los bots aparezcan con skins de oso en el juego principal', 'success');
+        log('📋 Pasos:', 'success');
+        log('   1. Click "Abrir Juego Principal"', 'success');
+        log('   2. En el juego, selecciona "MODO LOCAL"', 'success');
+        log('   3. Busca los bots con forma de oso', 'success');
+        log('   4. Si no los ves, revisa la consola (F12)', 'success');
+    </script>
+</body>
+</html>

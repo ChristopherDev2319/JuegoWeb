@@ -355,7 +355,7 @@ export const CONFIG = {
       rangoVision: 30,          // Distancia máxima de detección del jugador
       cantidad: 3
     },
-    // Zonas de entrenamiento separadas
+    // Zonas de entrenamiento separadas - POSICIONES ORIGINALES
     // Requirements: 4.1, 4.2, 4.3
     zonas: {
       estaticos: { 

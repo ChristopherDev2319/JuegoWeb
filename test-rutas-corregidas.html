@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✅ Test de Rutas Corregidas</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: 'Courier New', monospace;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 2px solid #333;
+            border-radius: 8px;
+        }
+        .success { border-color: #00ff00; }
+        .error { border-color: #ff0000; }
+        .warning { border-color: #ffaa00; }
+        .result {
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .result.success { background: rgba(0, 255, 0, 0.1); color: #00ff00; }
+        .result.error { background: rgba(255, 0, 0, 0.1); color: #ff0000; }
+        .result.warning { background: rgba(255, 170, 0, 0.1); color: #ffaa00; }
+        button {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 10px 15px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover { background: #555; }
+        #canvas { width: 100%; height: 400px; border: 2px solid #333; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>✅ Test de Rutas Corregidas - Verificación CORS</h1>
+    <p>Este test verifica que todas las rutas estén corregidas para usar HTTP en lugar de file:// o blob:</p>
+
+    <div class="test-section">
+        <h3>🔍 Test 1: Verificación de Archivos</h3>
+        <button onclick="testArchivos()">Verificar Archivos</button>
+        <div id="archivos-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🐻 Test 2: Carga del Modelo de Oso</h3>
+        <button onclick="testModeloOso()">Cargar Modelo</button>
+        <div id="modelo-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🎵 Test 3: Carga de Sonidos</h3>
+        <button onclick="testSonidos()">Verificar Sonidos</button>
+        <div id="sonidos-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🤖 Test 4: Creación de Bot Completo</h3>
+        <button onclick="testBotCompleto()">Crear Bot</button>
+        <div id="bot-results"></div>
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script>
+        function addResult(containerId, message, type = 'success') {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = message;
+            container.appendChild(div);
+        }
+
+        function clearResults(containerId) {
+            document.getElementById(containerId).innerHTML = '';
+        }
+
+        async function testArchivos() {
+            clearResults('archivos-results');
+            addResult('archivos-results', '🔄 Verificando archivos...', 'warning');
+
+            const archivos = [
+                '/modelos/cubed_bear.glb',
+                '/modelos/map_visual.glb',
+                '/modelos/map_coll.glb',
+                '/sonidos/M4A1.mp3',
+                '/sonidos/pistola.mp3'
+            ];
+
+            for (const archivo of archivos) {
+                try {
+                    const response = await fetch(archivo, { method: 'HEAD' });
+                    if (response.ok) {
+                        const size = response.headers.get('content-length');
+                        addResult('archivos-results', `✅ ${archivo} - ${size ? size + ' bytes' : 'OK'}`, 'success');
+                    } else {
+                        addResult('archivos-results', `❌ ${archivo} - Error ${response.status}`, 'error');
+                    }
+                } catch (error) {
+                    addResult('archivos-results', `❌ ${archivo} - ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function testModeloOso() {
+            clearResults('modelo-results');
+            addResult('modelo-results', '🔄 Cargando modelo de oso...', 'warning');
+
+            const loader = new THREE.GLTFLoader();
+            
+            try {
+                const gltf = await new Promise((resolve, reject) => {
+                    loader.load('/modelos/cubed_bear.glb', resolve, undefined, reject);
+                });
+
+                addResult('modelo-results', '✅ Modelo cargado exitosamente', 'success');
+                
+                // Analizar modelo
+                let meshes = 0;
+                let materiales = 0;
+                let texturas = 0;
+
+                gltf.scene.traverse((child) => {
+                    if (child.isMesh) {
+                        meshes++;
+                        if (child.material) {
+                            materiales++;
+                            if (child.material.map) texturas++;
+                        }
+                    }
+                });
+
+                addResult('modelo-results', `📊 Análisis: ${meshes} meshes, ${materiales} materiales, ${texturas} texturas`, 'success');
+
+                // Test de clonación
+                try {
+                    const clon = gltf.scene.clone();
+                    clon.traverse((child) => {
+                        if (child.isMesh && child.material) {
+                            child.material = child.material.clone();
+                            child.material.color.setHex(0xff0000);
+                            child.material.needsUpdate = true;
+                        }
+                    });
+                    addResult('modelo-results', '✅ Clonación y modificación de materiales exitosa', 'success');
+                } catch (error) {
+                    addResult('modelo-results', `❌ Error en clonación: ${error.message}`, 'error');
+                }
+
+            } catch (error) {
+                addResult('modelo-results', `❌ Error cargando modelo: ${error.message}`, 'error');
+                
+                // Diagnóstico del error
+                if (error.message.includes('404')) {
+                    addResult('modelo-results', '💡 El archivo no existe en el servidor', 'warning');
+                } else if (error.message.includes('CORS')) {
+                    addResult('modelo-results', '💡 Error CORS - verificar configuración del servidor', 'warning');
+                } else {
+                    addResult('modelo-results', '💡 Error desconocido - verificar consola', 'warning');
+                }
+            }
+        }
+
+        async function testSonidos() {
+            clearResults('sonidos-results');
+            addResult('sonidos-results', '🔄 Verificando sonidos...', 'warning');
+
+            const sonidos = [
+                '/sonidos/M4A1.mp3',
+                '/sonidos/AK47.mp3',
+                '/sonidos/pistola.mp3',
+                '/sonidos/SNIPER.mp3',
+                '/sonidos/ESCOPETA.mp3',
+                '/sonidos/MP5.mp3'
+            ];
+
+            for (const sonido of sonidos) {
+                try {
+                    const audio = new Audio(sonido);
+                    await new Promise((resolve, reject) => {
+                        audio.addEventListener('canplaythrough', resolve);
+                        audio.addEventListener('error', reject);
+                        audio.load();
+                    });
+                    addResult('sonidos-results', `✅ ${sonido} - Cargado correctamente`, 'success');
+                } catch (error) {
+                    addResult('sonidos-results', `❌ ${sonido} - ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function testBotCompleto() {
+            clearResults('bot-results');
+            addResult('bot-results', '🔄 Creando bot completo...', 'warning');
+
+            // Crear escena Three.js
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222);
+
+            const camera = new THREE.PerspectiveCamera(75, 800 / 400, 0.1, 1000);
+            camera.position.set(3, 2, 5);
+
+            const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas') });
+            renderer.setSize(800, 400);
+            renderer.shadowMap.enabled = true;
+
+            // Iluminación
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            scene.add(directionalLight);
+
+            // Suelo
+            const groundGeometry = new THREE.PlaneGeometry(10, 10);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x228b22 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+
+            try {
+                // Cargar modelo y crear bot
+                const loader = new THREE.GLTFLoader();
+                const gltf = await new Promise((resolve, reject) => {
+                    loader.load('/modelos/cubed_bear.glb', resolve, undefined, reject);
+                });
+
+                addResult('bot-results', '✅ Modelo base cargado', 'success');
+
+                // Crear 3 bots con diferentes colores
+                const colores = [0xff0000, 0x0088ff, 0xff8800]; // Rojo, Azul, Naranja
+                const nombres = ['Estático', 'Móvil', 'Tirador'];
+
+                for (let i = 0; i < 3; i++) {
+                    const bot = gltf.scene.clone();
+                    bot.position.set((i - 1) * 2, 1, 0);
+                    
+                    // Aplicar color (simulando BotBase.js)
+                    bot.traverse((child) => {
+                        if (child.isMesh && child.material) {
+                            child.material = child.material.clone();
+                            child.material.color.setHex(colores[i]);
+                            child.material.needsUpdate = true;
+                        }
+                    });
+                    
+                    scene.add(bot);
+                    addResult('bot-results', `✅ Bot ${nombres[i]} creado con color ${colores[i].toString(16)}`, 'success');
+                }
+
+                // Animar escena
+                function animate() {
+                    requestAnimationFrame(animate);
+                    
+                    const time = Date.now() * 0.001;
+                    camera.position.x = Math.cos(time * 0.5) * 5;
+                    camera.position.z = Math.sin(time * 0.5) * 5;
+                    camera.lookAt(0, 1, 0);
+                    
+                    renderer.render(scene, camera);
+                }
+                animate();
+
+                addResult('bot-results', '🎉 ¡Test completo exitoso! Los bots deberían verse con sus colores distintivos', 'success');
+
+            } catch (error) {
+                addResult('bot-results', `❌ Error creando bot: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-ejecutar test básico al cargar
+        window.addEventListener('load', () => {
+            setTimeout(testArchivos, 1000);
+        });
+    </script>
+</body>
+</html>

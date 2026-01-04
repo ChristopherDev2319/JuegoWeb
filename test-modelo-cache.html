@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Sistema de Cache de Modelos</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        #info {
+            padding: 15px;
+            background: #333;
+            border-radius: 5px;
+        }
+        
+        .status {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        
+        .success { background: #2d5a2d; }
+        .error { background: #5a2d2d; }
+        .warning { background: #5a5a2d; }
+        
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test - Sistema de Cache de Modelos</h1>
+    
+    <div id="info">
+        <h3>Estado del Sistema:</h3>
+        <div id="status-container"></div>
+        
+        <h3>Controles:</h3>
+        <button onclick="testPrecargarModelo()">🐻 Test Precargar Modelo</button>
+        <button onclick="testCrearClon()">🔄 Test Crear Clon</button>
+        <button onclick="limpiarConsola()">🧹 Limpiar</button>
+    </div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script type="module">
+        import { precargarModeloOso, crearClonOso, estaEnCache } from './src/sistemas/modeloCache.js';
+        
+        // Test 1: Precargar modelo
+        async function testPrecargarModelo() {
+            try {
+                mostrarStatus('🚀 Iniciando precarga del modelo...', 'success');
+                
+                const modelo = await precargarModeloOso();
+                
+                if (modelo) {
+                    mostrarStatus('✅ Modelo precargado exitosamente', 'success');
+                    mostrarStatus(`📊 Tipo de objeto: ${modelo.constructor.name}`, 'success');
+                    mostrarStatus(`📊 Hijos: ${modelo.children.length}`, 'success');
+                } else {
+                    mostrarStatus('❌ Error: modelo es null', 'error');
+                }
+                
+            } catch (error) {
+                mostrarStatus(`❌ Error precargando modelo: ${error.message}`, 'error');
+                console.error('Error completo:', error);
+            }
+        }
+        
+        // Test 2: Crear clon
+        function testCrearClon() {
+            try {
+                mostrarStatus('🔄 Intentando crear clon...', 'success');
+                
+                const clon = crearClonOso();
+                
+                if (clon) {
+                    mostrarStatus('✅ Clon creado exitosamente', 'success');
+                    mostrarStatus(`📊 Tipo de objeto: ${clon.constructor.name}`, 'success');
+                    mostrarStatus(`📊 Escala: ${clon.scale.x}x${clon.scale.y}x${clon.scale.z}`, 'success');
+                    mostrarStatus(`📊 Hijos: ${clon.children.length}`, 'success');
+                } else {
+                    mostrarStatus('❌ Error: clon es null (¿modelo no precargado?)', 'error');
+                }
+                
+            } catch (error) {
+                mostrarStatus(`❌ Error creando clon: ${error.message}`, 'error');
+                console.error('Error completo:', error);
+            }
+        }
+        
+        // Utilidades de UI
+        function mostrarStatus(mensaje, tipo = 'success') {
+            const container = document.getElementById('status-container');
+            const div = document.createElement('div');
+            div.className = `status ${tipo}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${mensaje}`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            
+            console.log(mensaje);
+        }
+        
+        function limpiarConsola() {
+            document.getElementById('status-container').innerHTML = '';
+            console.clear();
+        }
+        
+        // Hacer funciones globales
+        window.testPrecargarModelo = testPrecargarModelo;
+        window.testCrearClon = testCrearClon;
+        window.limpiarConsola = limpiarConsola;
+        
+        // Mostrar estado inicial
+        mostrarStatus('🔧 Sistema de cache listo para testing', 'success');
+    </script>
+</body>
+</html>

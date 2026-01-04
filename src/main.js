@@ -482,7 +482,7 @@ function ocultarIndicadorModoLocal() {
  * Inicializa el sistema de bots de entrenamiento para modo local
  * Requirements: 1.1, 2.1, 3.1, 4.4, 6.1, 6.2
  */
-function inicializarBotManager() {
+async function inicializarBotManager() {
   if (botManager) {
     console.warn('BotManager ya está inicializado');
     return;
@@ -521,8 +521,8 @@ function inicializarBotManager() {
     }
   });
 
-  // Inicializar el sistema de bots
-  botManager.inicializar();
+  // Inicializar el sistema de bots (ahora async para precargar modelo)
+  await botManager.inicializar();
 
   // Mostrar estadísticas iniciales
   actualizarEstadisticasUI(botManager.obtenerEstadisticas());
@@ -996,7 +996,7 @@ async function inicializarJuegoCompleto() {
     
     // Inicializar sistema de bots de entrenamiento
     // Requirements: 1.1, 2.1, 3.1, 4.4
-    inicializarBotManager();
+    await inicializarBotManager();
   }
 
   actualizarCarga(100, '¡Listo!');

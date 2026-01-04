@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐻 Test Bots con Skin Original</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: 'Courier New', monospace;
+        }
+        .info {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: 350px;
+            background: rgba(0,0,0,0.9);
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #333;
+            z-index: 1000;
+        }
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        .warning { color: #ffaa00; }
+        #canvas-container {
+            margin-left: 370px;
+            width: calc(100% - 390px);
+            height: 100vh;
+        }
+        button {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 8px 12px;
+            margin: 5px 0;
+            cursor: pointer;
+            border-radius: 4px;
+            width: 100%;
+        }
+        button:hover { background: #555; }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <h3>🐻 Test: Bots con Skin Original</h3>
+        <div id="status">Iniciando...</div>
+        <div id="details"></div>
+        <button id="btn-crear">🤖 Crear Bots</button>
+        <button id="btn-escalar">📏 Hacer Más Grandes</button>
+        <button id="btn-dano">💥 Test Daño</button>
+        <button id="btn-muerte">💀 Test Muerte</button>
+        <button id="btn-respawn">🔄 Test Respawn</button>
+        <button id="btn-reiniciar">🔄 Reiniciar</button>
+        <button id="btn-debug">🔧 Debug Consola</button>
+    </div>
+    
+    <div id="canvas-container"></div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script>
+        // Variables globales
+        let scene, camera, renderer;
+        let statusDiv = document.getElementById('status');
+        let detailsDiv = document.getElementById('details');
+        let bots = [];
+        let modeloOso = null;
+
+        function updateStatus(message, type = 'info') {
+            const colors = {
+                info: '#00aaff',
+                success: '#00ff00',
+                error: '#ff0000',
+                warning: '#ffaa00'
+            };
+            statusDiv.innerHTML = `<span style="color: ${colors[type]}">${message}</span>`;
+            console.log(message);
+        }
+
+        function addDetail(message, type = 'info') {
+            const colors = {
+                info: '#00aaff',
+                success: '#00ff00',
+                error: '#ff0000',
+                warning: '#ffaa00'
+            };
+            const div = document.createElement('div');
+            div.innerHTML = `<span style="color: ${colors[type]}">${message}</span>`;
+            detailsDiv.appendChild(div);
+            
+            // Mantener solo las últimas 10 líneas
+            while (detailsDiv.children.length > 10) {
+                detailsDiv.removeChild(detailsDiv.firstChild);
+            }
+        }
+
+        function init() {
+            updateStatus('🚀 Inicializando escena...', 'info');
+
+            // Crear escena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb); // Cielo azul
+
+            // Crear cámara
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 3, 8);
+
+            // Crear renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth - 390, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Iluminación realista
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+
+            // Suelo verde
+            const groundGeometry = new THREE.PlaneGeometry(20, 20);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x228b22 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Grid helper
+            const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x444444);
+            scene.add(gridHelper);
+
+            updateStatus('✅ Escena creada', 'success');
+            
+            // Cargar modelo
+            cargarModelo();
+        }
+
+        async function cargarModelo() {
+            updateStatus('🐻 Cargando modelo de oso...', 'info');
+            
+            const loader = new THREE.GLTFLoader();
+            
+            try {
+                // Intentar cargar el modelo con timeout y mejor manejo
+                const gltf = await Promise.race([
+                    new Promise((resolve, reject) => {
+                        loader.load('/modelos/cubed_bear.glb', resolve, 
+                            (progress) => {
+                                if (progress.total > 0) {
+                                    const percent = Math.round((progress.loaded / progress.total) * 100);
+                                    updateStatus(`🔄 Cargando: ${percent}%`, 'info');
+                                }
+                            }, 
+                            reject
+                        );
+                    }),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Timeout: Modelo tardó más de 10 segundos')), 10000)
+                    )
+                ]);
+
+                modeloOso = gltf.scene;
+                updateStatus('✅ Modelo de oso cargado', 'success');
+                
+                // DIAGNÓSTICO DETALLADO DEL MODELO
+                addDetail('🔍 === ANÁLISIS DEL MODELO ===', 'info');
+                
+                // Verificar bounding box
+                const box = new THREE.Box3().setFromObject(modeloOso);
+                const size = box.getSize(new THREE.Vector3());
+                const center = box.getCenter(new THREE.Vector3());
+                
+                addDetail(`📏 Tamaño: ${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`, 'info');
+                addDetail(`📍 Centro: (${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)})`, 'info');
+                
+                // Si el modelo es muy pequeño, escalarlo
+                if (size.x < 0.1 || size.y < 0.1 || size.z < 0.1) {
+                    const escala = 10; // Hacer 10 veces más grande
+                    modeloOso.scale.set(escala, escala, escala);
+                    addDetail(`⚠️ Modelo muy pequeño, escalado x${escala}`, 'warning');
+                } else if (size.x < 2 || size.y < 2 || size.z < 2) {
+                    // Si es pequeño pero no microscópico, escalarlo moderadamente
+                    const escala = 3; // Hacer 3 veces más grande
+                    modeloOso.scale.set(escala, escala, escala);
+                    addDetail(`⚠️ Modelo pequeño, escalado x${escala} para mejor visibilidad`, 'warning');
+                }
+                
+                // Si el modelo está muy abajo, subirlo
+                if (center.y < 0) {
+                    modeloOso.position.y = Math.abs(center.y) + 1;
+                    addDetail(`⚠️ Modelo reposicionado en Y: ${modeloOso.position.y}`, 'warning');
+                }
+
+                // Analizar materiales
+                let meshes = 0;
+                let materiales = 0;
+                let texturas = 0;
+                let meshesVisibles = 0;
+
+                modeloOso.traverse((child) => {
+                    if (child.isMesh) {
+                        meshes++;
+                        
+                        // Forzar visibilidad
+                        child.visible = true;
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        
+                        if (child.material) {
+                            materiales++;
+                            
+                            // Asegurar que el material sea visible
+                            child.material.visible = true;
+                            child.material.needsUpdate = true;
+                            
+                            // Si es transparente con opacidad 0, corregir
+                            if (child.material.transparent && child.material.opacity === 0) {
+                                child.material.opacity = 1.0;
+                                addDetail(`⚠️ Corregida opacidad de ${child.name || 'mesh'}`, 'warning');
+                            }
+                            
+                            // Si no tiene color, asignar uno
+                            if (child.material.color && child.material.color.getHex() === 0x000000) {
+                                child.material.color.setHex(0x8B4513); // Marrón oso
+                                addDetail(`⚠️ Color asignado a ${child.name || 'mesh'}`, 'warning');
+                            }
+                            
+                            if (child.material.map) texturas++;
+                            
+                            meshesVisibles++;
+                            addDetail(`✅ Mesh: ${child.name || 'Sin nombre'} - Visible`, 'success');
+                            addDetail(`  └ Color: #${child.material.color ? child.material.color.getHexString() : 'N/A'}`, 'info');
+                            addDetail(`  └ Textura: ${child.material.map ? 'Sí' : 'No'}`, child.material.map ? 'success' : 'warning');
+                        } else {
+                            addDetail(`❌ Mesh sin material: ${child.name || 'Sin nombre'}`, 'error');
+                        }
+                    }
+                });
+
+                addDetail(`📊 Total: ${meshes} meshes, ${materiales} materiales, ${texturas} texturas`, 'success');
+                addDetail(`👁️ Meshes visibles: ${meshesVisibles}`, meshesVisibles > 0 ? 'success' : 'error');
+                addDetail('🎯 Haz click en "Crear Bots" para probar', 'info');
+                
+            } catch (error) {
+                updateStatus(`❌ Error: ${error.message}`, 'error');
+                addDetail(`Error cargando modelo: ${error.message}`, 'error');
+                
+                // Crear modelo fallback
+                console.warn('Creando modelo fallback...');
+                crearModeloFallback();
+            }
+        }
+
+        function crearModeloFallback() {
+            updateStatus('⚠️ Usando modelo fallback (cubo)', 'warning');
+            
+            // Crear un cubo simple como fallback
+            const geometry = new THREE.BoxGeometry(1.5, 2, 1.5);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0x8B4513, // Color marrón como un oso
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            
+            const cubo = new THREE.Mesh(geometry, material);
+            cubo.userData.esFallback = true;
+            
+            // Crear un grupo para simular la estructura del modelo
+            const grupo = new THREE.Group();
+            grupo.add(cubo);
+            
+            modeloOso = grupo;
+            addDetail('⚠️ Modelo fallback creado (cubo marrón)', 'warning');
+            addDetail('🎯 Haz click en "Crear Bots" para probar', 'info');
+        }
+
+        function crearBots() {
+            console.log('🤖 Función crearBots() ejecutada');
+            
+            if (!modeloOso) {
+                updateStatus('❌ Modelo no cargado', 'error');
+                addDetail('❌ Espera a que el modelo se cargue primero', 'error');
+                return;
+            }
+
+            // Limpiar bots anteriores
+            console.log(`🗑️ Limpiando ${bots.length} bots anteriores...`);
+            bots.forEach(bot => {
+                if (bot.mesh && bot.mesh.parent) {
+                    scene.remove(bot.mesh);
+                }
+            });
+            bots = [];
+
+            updateStatus('🤖 Creando bots con skin original...', 'info');
+
+            const tipos = ['Estático', 'Móvil', 'Tirador'];
+            const posiciones = [[-4, 1, 0], [0, 1, 0], [4, 1, 0]]; // Más separados
+
+            try {
+                for (let i = 0; i < 3; i++) {
+                    console.log(`🤖 Creando bot ${i + 1}: ${tipos[i]}`);
+                    
+                    // CLONACIÓN PROFUNDA del modelo
+                    const botMesh = modeloOso.clone(true); // true para deep clone
+                    
+                    // Configurar posición y escala MÁS GRANDE
+                    botMesh.position.set(...posiciones[i]);
+                    
+                    // ESCALA MÁS GRANDE para mejor visibilidad
+                    const escalaFinal = 2.5; // 2.5 veces más grande que el original
+                    botMesh.scale.set(escalaFinal, escalaFinal, escalaFinal);
+                    
+                    addDetail(`📏 Bot ${tipos[i]} escalado x${escalaFinal}`, 'info');
+                    
+                    // IMPORTANTE: Asegurar visibilidad completa
+                    botMesh.visible = true;
+                    botMesh.castShadow = true;
+                    botMesh.receiveShadow = true;
+                    
+                    // Configurar cada mesh hijo individualmente
+                    let meshesConfigurados = 0;
+                    botMesh.traverse((child) => {
+                        if (child.isMesh) {
+                            meshesConfigurados++;
+                            
+                            // Forzar visibilidad
+                            child.visible = true;
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                            
+                            // Verificar y corregir material
+                            if (child.material) {
+                                // NO clonar material para mantener texturas originales
+                                child.material.visible = true;
+                                child.material.needsUpdate = true;
+                                
+                                // Corregir transparencia si está mal configurada
+                                if (child.material.transparent && child.material.opacity === 0) {
+                                    child.material.opacity = 1.0;
+                                    console.log(`⚠️ Corregida opacidad para bot ${tipos[i]}`);
+                                }
+                                
+                                // Si el material es completamente negro, darle color
+                                if (child.material.color && child.material.color.getHex() === 0x000000) {
+                                    child.material.color.setHex(0x8B4513); // Marrón oso
+                                    console.log(`⚠️ Color asignado para bot ${tipos[i]}`);
+                                }
+                            } else {
+                                console.warn(`⚠️ Mesh sin material en bot ${tipos[i]}: ${child.name}`);
+                            }
+                        }
+                    });
+
+                    // Crear etiqueta de tipo
+                    const etiqueta = crearEtiqueta(tipos[i]);
+                    etiqueta.position.set(0, 4, 0); // Más alto para mejor visibilidad
+                    botMesh.add(etiqueta);
+
+                    // Agregar userData para identificación
+                    botMesh.userData = {
+                        tipo: tipos[i],
+                        indice: i,
+                        esBot: true,
+                        meshesConfigurados: meshesConfigurados
+                    };
+
+                    scene.add(botMesh);
+                    bots.push({
+                        mesh: botMesh,
+                        tipo: tipos[i],
+                        vida: 100,
+                        vivo: true,
+                        indice: i
+                    });
+
+                    addDetail(`✅ Bot ${tipos[i]} creado (${meshesConfigurados} meshes)`, 'success');
+                    
+                    // Verificar que el bot es visible
+                    const box = new THREE.Box3().setFromObject(botMesh);
+                    const size = box.getSize(new THREE.Vector3());
+                    addDetail(`  └ Tamaño: ${size.x.toFixed(2)}x${size.y.toFixed(2)}x${size.z.toFixed(2)}`, 'info');
+                    
+                    if (size.x === 0 || size.y === 0 || size.z === 0) {
+                        addDetail(`  └ ⚠️ Bot puede ser invisible (tamaño cero)`, 'warning');
+                    }
+                }
+
+                updateStatus('✅ Todos los bots creados con skin original', 'success');
+                addDetail(`🎯 ${bots.length} bots listos para pruebas`, 'success');
+                
+                // Ajustar cámara para ver todos los bots más grandes
+                camera.position.set(0, 6, 10);
+                camera.lookAt(0, 3, 0);
+                
+                // Iniciar animación si no está corriendo
+                if (!window.animacionActiva) {
+                    animate();
+                }
+                
+            } catch (error) {
+                console.error('Error creando bots:', error);
+                updateStatus(`❌ Error creando bots: ${error.message}`, 'error');
+                addDetail(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        function crearEtiqueta(texto) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            // Fondo semi-transparente
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Texto blanco
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(texto, canvas.width / 2, canvas.height / 2);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(2, 0.5, 1);
+            
+            return sprite;
+        }
+
+        function testDaño() {
+            console.log('💥 Función testDaño() ejecutada');
+            
+            if (bots.length === 0) {
+                addDetail('⚠️ No hay bots para probar daño', 'warning');
+                return;
+            }
+            
+            updateStatus('💥 Simulando daño...', 'warning');
+            
+            bots.forEach((bot, index) => {
+                if (bot.vivo && bot.mesh) {
+                    // Efecto de parpadeo (como en BotBase.js)
+                    const mesh = bot.mesh;
+                    mesh.visible = false;
+                    setTimeout(() => {
+                        if (mesh.parent) mesh.visible = true;
+                        setTimeout(() => {
+                            if (mesh.parent) mesh.visible = false;
+                            setTimeout(() => {
+                                if (mesh.parent) mesh.visible = true;
+                            }, 50);
+                        }, 50);
+                    }, 50);
+                    
+                    bot.vida -= 30;
+                    addDetail(`💥 ${bot.tipo} recibió daño (${bot.vida}/100)`, 'warning');
+                }
+            });
+        }
+
+        function testMuerte() {
+            console.log('💀 Función testMuerte() ejecutada');
+            
+            if (bots.length === 0) {
+                addDetail('⚠️ No hay bots para probar muerte', 'warning');
+                return;
+            }
+            
+            updateStatus('💀 Simulando muerte...', 'error');
+            
+            bots.forEach(bot => {
+                if (bot.vivo && bot.mesh) {
+                    bot.vivo = false;
+                    bot.vida = 0;
+                    
+                    // Efecto de muerte (transparencia como en BotBase.js)
+                    bot.mesh.traverse((child) => {
+                        if (child.isMesh && child.material) {
+                            // Clonar material para no afectar otros bots
+                            if (!child.material.userData.clonado) {
+                                child.material = child.material.clone();
+                                child.material.userData.clonado = true;
+                            }
+                            child.material.transparent = true;
+                            child.material.opacity = 0.3;
+                            child.material.needsUpdate = true;
+                        }
+                    });
+                    
+                    addDetail(`💀 ${bot.tipo} murió`, 'error');
+                }
+            });
+        }
+
+        function testRespawn() {
+            console.log('🔄 Función testRespawn() ejecutada');
+            
+            if (bots.length === 0) {
+                addDetail('⚠️ No hay bots para respawn', 'warning');
+                return;
+            }
+            
+            updateStatus('🔄 Simulando respawn...', 'success');
+            
+            bots.forEach(bot => {
+                if (!bot.vivo && bot.mesh) {
+                    bot.vivo = true;
+                    bot.vida = 100;
+                    
+                    // Restaurar opacidad (como en BotBase.js)
+                    bot.mesh.traverse((child) => {
+                        if (child.isMesh && child.material) {
+                            child.material.transparent = false;
+                            child.material.opacity = 1.0;
+                            child.material.needsUpdate = true;
+                        }
+                    });
+                    
+                    addDetail(`🔄 ${bot.tipo} reapareció con skin original`, 'success');
+                }
+            });
+        }
+
+        function reiniciar() {
+            console.log('🔄 Función reiniciar() ejecutada');
+            
+            // Detener animación
+            window.animacionActiva = false;
+            
+            // Limpiar bots
+            bots.forEach(bot => {
+                if (bot.mesh && bot.mesh.parent) {
+                    scene.remove(bot.mesh);
+                }
+            });
+            bots = [];
+            
+            // Limpiar detalles
+            detailsDiv.innerHTML = '';
+            
+            updateStatus('🔄 Reiniciado - Listo para crear bots', 'info');
+            addDetail('🎯 Haz click en "Crear Bots" para empezar', 'info');
+        }
+
+        function animate() {
+            if (window.animacionActiva) return; // Evitar múltiples loops
+            
+            window.animacionActiva = true;
+            console.log('🎬 Iniciando loop de animación');
+            
+            function loop() {
+                if (!window.animacionActiva) return;
+                
+                requestAnimationFrame(loop);
+                
+                // Rotar bots lentamente
+                bots.forEach((bot, index) => {
+                    if (bot.mesh && bot.mesh.parent) {
+                        bot.mesh.rotation.y += 0.005 * (index + 1);
+                    }
+                });
+                
+                // Mover cámara suavemente
+                const time = Date.now() * 0.0005;
+                camera.position.x = Math.cos(time) * 8;
+                camera.position.z = Math.sin(time) * 8;
+                camera.lookAt(0, 1, 0);
+                
+                renderer.render(scene, camera);
+            }
+            
+            loop();
+        }
+
+        // Manejar redimensionamiento
+        window.addEventListener('resize', () => {
+            camera.aspect = (window.innerWidth - 390) / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth - 390, window.innerHeight);
+        });
+
+        // Inicializar
+        init();
+
+        // Función para escalar bots
+        function escalarBots() {
+            console.log('📏 Función escalarBots() ejecutada');
+            
+            if (bots.length === 0) {
+                addDetail('⚠️ No hay bots para escalar', 'warning');
+                updateStatus('⚠️ Crea bots primero', 'warning');
+                return;
+            }
+            
+            updateStatus('📏 Escalando bots...', 'info');
+            
+            // Aumentar escala de todos los bots
+            const factorEscala = 1.5; // 50% más grande cada vez
+            
+            bots.forEach((bot, index) => {
+                if (bot.mesh) {
+                    // Aplicar nueva escala
+                    bot.mesh.scale.multiplyScalar(factorEscala);
+                    
+                    // Obtener nueva información de tamaño
+                    const box = new THREE.Box3().setFromObject(bot.mesh);
+                    const size = box.getSize(new THREE.Vector3());
+                    
+                    addDetail(`📏 ${bot.tipo} escalado x${factorEscala.toFixed(1)} - Nuevo tamaño: ${size.y.toFixed(1)} unidades`, 'success');
+                }
+            });
+            
+            updateStatus(`✅ Bots escalados x${factorEscala}`, 'success');
+            addDetail('🎯 Si aún se ven pequeños, haz click de nuevo', 'info');
+        }
+
+        // 🔧 CONFIGURAR EVENT LISTENERS PARA BOTONES
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔧 Configurando event listeners...');
+            
+            // Botón Crear Bots
+            const btnCrear = document.getElementById('btn-crear');
+            if (btnCrear) {
+                btnCrear.addEventListener('click', function() {
+                    console.log('🤖 Click en Crear Bots');
+                    crearBots();
+                });
+            }
+            
+            // Botón Escalar
+            const btnEscalar = document.getElementById('btn-escalar');
+            if (btnEscalar) {
+                btnEscalar.addEventListener('click', function() {
+                    console.log('📏 Click en Hacer Más Grandes');
+                    escalarBots();
+                });
+            }
+            
+            // Botón Test Daño
+            const btnDano = document.getElementById('btn-dano');
+            if (btnDano) {
+                btnDano.addEventListener('click', function() {
+                    console.log('💥 Click en Test Daño');
+                    testDaño();
+                });
+            }
+            
+            // Botón Test Muerte
+            const btnMuerte = document.getElementById('btn-muerte');
+            if (btnMuerte) {
+                btnMuerte.addEventListener('click', function() {
+                    console.log('💀 Click en Test Muerte');
+                    testMuerte();
+                });
+            }
+            
+            // Botón Test Respawn
+            const btnRespawn = document.getElementById('btn-respawn');
+            if (btnRespawn) {
+                btnRespawn.addEventListener('click', function() {
+                    console.log('🔄 Click en Test Respawn');
+                    testRespawn();
+                });
+            }
+            
+            // Botón Reiniciar
+            const btnReiniciar = document.getElementById('btn-reiniciar');
+            if (btnReiniciar) {
+                btnReiniciar.addEventListener('click', function() {
+                    console.log('🔄 Click en Reiniciar');
+                    reiniciar();
+                });
+            }
+            
+            // Botón Debug
+            const btnDebug = document.getElementById('btn-debug');
+            if (btnDebug) {
+                btnDebug.addEventListener('click', function() {
+                    console.log('🔧 Click en Debug');
+                    mostrarDebugInfo();
+                });
+            }
+            
+            console.log('✅ Event listeners configurados');
+        });
+
+        // 🔧 FUNCIÓN DE DEBUG ADICIONAL
+        function mostrarDebugInfo() {
+            console.log('🔧 === DEBUG INFO ===');
+            console.log('Scene:', scene);
+            console.log('Camera:', camera);
+            console.log('Renderer:', renderer);
+            console.log('Bots array:', bots);
+            console.log('Modelo oso:', modeloOso);
+            
+            addDetail('🔧 Debug info mostrado en consola', 'info');
+            
+            // Verificar si el modelo está cargado
+            if (modeloOso) {
+                addDetail('✅ Modelo de oso disponible', 'success');
+                
+                // Verificar bounding box del modelo original
+                const box = new THREE.Box3().setFromObject(modeloOso);
+                const size = box.getSize(new THREE.Vector3());
+                addDetail(`📏 Tamaño modelo: ${size.x.toFixed(2)}x${size.y.toFixed(2)}x${size.z.toFixed(2)}`, 'info');
+                
+                // Verificar visibilidad del modelo original
+                addDetail(`👁️ Modelo visible: ${modeloOso.visible}`, modeloOso.visible ? 'success' : 'error');
+                
+            } else {
+                addDetail('❌ Modelo de oso NO disponible', 'error');
+            }
+            
+            // Verificar bots
+            addDetail(`🤖 Bots creados: ${bots.length}`, bots.length > 0 ? 'success' : 'warning');
+            
+            // Verificar cada bot individualmente
+            bots.forEach((bot, index) => {
+                addDetail(`🤖 Bot ${index + 1} (${bot.tipo}):`, 'info');
+                addDetail(`  └ En escena: ${bot.mesh.parent ? 'Sí' : 'No'}`, bot.mesh.parent ? 'success' : 'error');
+                addDetail(`  └ Visible: ${bot.mesh.visible}`, bot.mesh.visible ? 'success' : 'error');
+                addDetail(`  └ Posición: (${bot.mesh.position.x}, ${bot.mesh.position.y}, ${bot.mesh.position.z})`, 'info');
+                addDetail(`  └ Escala: (${bot.mesh.scale.x}, ${bot.mesh.scale.y}, ${bot.mesh.scale.z})`, 'info');
+                
+                // Verificar bounding box del bot
+                const botBox = new THREE.Box3().setFromObject(bot.mesh);
+                const botSize = botBox.getSize(new THREE.Vector3());
+                addDetail(`  └ Tamaño: ${botSize.x.toFixed(2)}x${botSize.y.toFixed(2)}x${botSize.z.toFixed(2)}`, 'info');
+                
+                if (botSize.x === 0 || botSize.y === 0 || botSize.z === 0) {
+                    addDetail(`  └ ⚠️ PROBLEMA: Tamaño cero`, 'error');
+                }
+                
+                // Contar meshes visibles en el bot
+                let meshesVisibles = 0;
+                let meshesInvisibles = 0;
+                bot.mesh.traverse((child) => {
+                    if (child.isMesh) {
+                        if (child.visible && child.material && child.material.visible) {
+                            meshesVisibles++;
+                        } else {
+                            meshesInvisibles++;
+                        }
+                    }
+                });
+                addDetail(`  └ Meshes: ${meshesVisibles} visibles, ${meshesInvisibles} invisibles`, meshesVisibles > 0 ? 'success' : 'error');
+            });
+            
+            // Verificar objetos en la escena
+            let objetosEnEscena = 0;
+            scene.traverse(() => objetosEnEscena++);
+            addDetail(`🎬 Objetos en escena: ${objetosEnEscena}`, 'info');
+            
+            // Verificar posición de la cámara
+            addDetail(`📷 Cámara: (${camera.position.x.toFixed(2)}, ${camera.position.y.toFixed(2)}, ${camera.position.z.toFixed(2)})`, 'info');
+        }
+    </script>
+</body>
+</html>

@@ -12,6 +12,7 @@ import { BotMovil } from '../entidades/BotMovil.js';
 import { BotTirador } from '../entidades/BotTirador.js';
 import { ZonaEntrenamiento } from '../entidades/ZonaEntrenamiento.js';
 import { EstadisticasEntrenamiento } from '../entidades/EstadisticasEntrenamiento.js';
+import { precargarModeloOso } from '../sistemas/modeloCache.js';
 
 export class BotManager {
   /**
@@ -67,7 +68,7 @@ export class BotManager {
    * Property 1: Inicialización correcta del sistema de bots
    * Requirements: 1.1, 2.1, 3.1, 4.1, 4.2, 4.3
    */
-  inicializar() {
+  async inicializar() {
     if (this.inicializado) {
       console.warn('BotManager ya está inicializado');
       return;
@@ -75,10 +76,20 @@ export class BotManager {
 
     console.log('Inicializando sistema de bots de entrenamiento...');
 
+    // 🔥 PASO CRÍTICO: Precargar modelo de oso antes de crear bots
+    try {
+      console.log('🐻 Precargando modelo de oso...');
+      await precargarModeloOso();
+      console.log('✅ Modelo de oso precargado exitosamente');
+    } catch (error) {
+      console.error('❌ Error precargando modelo de oso:', error);
+      // Continuar con fallback si es necesario
+    }
+
     // Crear zonas de entrenamiento
     this.crearZonas();
 
-    // Crear bots en cada zona
+    // Crear bots en cada zona (ahora con modelo cacheado)
     this.crearBotsEnZonas();
 
     this.activo = true;
@@ -178,13 +189,27 @@ export class BotManager {
       case 'estatico':
         // Requirement 1.1: Crear bots estáticos
         bot = new BotEstatico(this.scene, x, y, z);
-        this.bots.estaticos.push(bot);
+        // Solo agregar si el mesh se creó correctamente
+        if (bot.mesh) {
+          this.bots.estaticos.push(bot);
+        } else {
+          console.error(`❌ Bot estático no se pudo crear - mesh es null`);
+          bot.destruir();
+          return null;
+        }
         break;
 
       case 'movil':
         // Requirement 2.1: Crear bots móviles
         bot = new BotMovil(this.scene, x, y, z);
-        this.bots.moviles.push(bot);
+        // Solo agregar si el mesh se creó correctamente
+        if (bot.mesh) {
+          this.bots.moviles.push(bot);
+        } else {
+          console.error(`❌ Bot móvil no se pudo crear - mesh es null`);
+          bot.destruir();
+          return null;
+        }
         break;
 
       case 'tirador':
@@ -193,7 +218,14 @@ export class BotManager {
           onDisparo: this.onDisparoBot,
           obstaculos: this.obstaculos
         });
-        this.bots.tiradores.push(bot);
+        // Solo agregar si el mesh se creó correctamente
+        if (bot.mesh) {
+          this.bots.tiradores.push(bot);
+        } else {
+          console.error(`❌ Bot tirador no se pudo crear - mesh es null`);
+          bot.destruir();
+          return null;
+        }
         break;
 
       default:

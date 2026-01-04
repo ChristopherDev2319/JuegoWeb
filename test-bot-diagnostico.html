@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 Diagnóstico Completo de Bots</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        #diagnostico {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: 400px;
+            max-height: 90vh;
+            background: rgba(0,0,0,0.9);
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #333;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        .warning { color: #ffaa00; }
+        .info { color: #00aaff; }
+        .step { margin: 10px 0; padding: 5px; border-left: 3px solid #333; padding-left: 10px; }
+        .step.success { border-color: #00ff00; }
+        .step.error { border-color: #ff0000; }
+        .step.warning { border-color: #ffaa00; }
+        #canvas-container {
+            margin-left: 420px;
+            width: calc(100% - 440px);
+            height: 100vh;
+        }
+        button {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 8px 12px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover { background: #555; }
+    </style>
+</head>
+<body>
+    <div id="diagnostico">
+        <h3>🤖 Diagnóstico de Bots</h3>
+        <div id="pasos"></div>
+        <div id="controles" style="margin-top: 20px;">
+            <button onclick="reiniciarTest()">🔄 Reiniciar Test</button>
+            <button onclick="probarRutaDirecta()">📁 Probar Ruta Directa</button>
+            <button onclick="crearBotManual()">🤖 Crear Bot Manual</button>
+        </div>
+    </div>
+    
+    <div id="canvas-container"></div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script>
+        // Variables globales
+        let scene, camera, renderer;
+        let pasosDiv = document.getElementById('pasos');
+        let pasoActual = 0;
+        let modeloOso = null;
+        let botsCreados = [];
+
+        function agregarPaso(mensaje, tipo = 'info') {
+            pasoActual++;
+            const div = document.createElement('div');
+            div.className = `step ${tipo}`;
+            div.innerHTML = `<strong>${pasoActual}.</strong> ${mensaje}`;
+            pasosDiv.appendChild(div);
+            console.log(`[${tipo.toUpperCase()}] ${mensaje}`);
+            
+            // Auto-scroll
+            pasosDiv.scrollTop = pasosDiv.scrollHeight;
+        }
+
+        function init() {
+            agregarPaso('🚀 Iniciando diagnóstico completo...', 'info');
+
+            // Crear escena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222);
+
+            // Crear cámara
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(5, 3, 8);
+
+            // Crear renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth - 440, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Iluminación
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            // Suelo con grid
+            const groundGeometry = new THREE.PlaneGeometry(30, 30);
+            const groundMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x228b22,
+                transparent: true,
+                opacity: 0.8
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Grid helper
+            const gridHelper = new THREE.GridHelper(30, 30, 0x444444, 0x444444);
+            scene.add(gridHelper);
+
+            agregarPaso('✅ Escena Three.js inicializada', 'success');
+            
+            // Iniciar diagnóstico
+            setTimeout(() => {
+                diagnosticarArchivos();
+            }, 500);
+        }
+
+        async function diagnosticarArchivos() {
+            agregarPaso('📁 Verificando archivos del modelo...', 'info');
+            
+            // Test 1: Verificar si el archivo existe
+            try {
+                const response = await fetch('/modelos/cubed_bear.glb', { method: 'HEAD' });
+                if (response.ok) {
+                    agregarPaso(`✅ Archivo cubed_bear.glb encontrado (${response.headers.get('content-length')} bytes)`, 'success');
+                } else {
+                    agregarPaso(`❌ Archivo cubed_bear.glb no encontrado (${response.status})`, 'error');
+                    return;
+                }
+            } catch (error) {
+                agregarPaso(`❌ Error verificando archivo: ${error.message}`, 'error');
+                return;
+            }
+
+            // Test 2: Cargar el modelo
+            cargarModeloCompleto();
+        }
+
+        function cargarModeloCompleto() {
+            agregarPaso('🐻 Cargando modelo cubed_bear.glb...', 'info');
+            
+            const loader = new THREE.GLTFLoader();
+            
+            loader.load('/modelos/cubed_bear.glb', 
+                (gltf) => {
+                    agregarPaso('✅ Modelo GLTF cargado exitosamente', 'success');
+                    modeloOso = gltf.scene;
+                    
+                    // Analizar el modelo
+                    analizarModelo(gltf);
+                    
+                    // Crear bots de prueba
+                    crearBotsDePrueba();
+                    
+                }, 
+                (progress) => {
+                    if (progress.total > 0) {
+                        const percent = Math.round((progress.loaded / progress.total) * 100);
+                        agregarPaso(`🔄 Progreso: ${percent}% (${progress.loaded}/${progress.total} bytes)`, 'info');
+                    }
+                }, 
+                (error) => {
+                    agregarPaso(`❌ ERROR CRÍTICO cargando modelo: ${error.message}`, 'error');
+                    agregarPaso(`📋 Detalles del error: ${error.toString()}`, 'error');
+                    
+                    // Intentar diagnóstico adicional
+                    diagnosticarErrorCarga(error);
+                }
+            );
+        }
+
+        function analizarModelo(gltf) {
+            agregarPaso('🔍 Analizando estructura del modelo...', 'info');
+            
+            const scene = gltf.scene;
+            let meshCount = 0;
+            let materialCount = 0;
+            let textureCount = 0;
+            let detalles = [];
+
+            scene.traverse((child) => {
+                if (child.isMesh) {
+                    meshCount++;
+                    const material = child.material;
+                    
+                    detalles.push({
+                        nombre: child.name || `Mesh_${meshCount}`,
+                        geometria: child.geometry.type,
+                        vertices: child.geometry.attributes.position?.count || 0,
+                        material: material.type,
+                        color: material.color ? `#${material.color.getHexString()}` : 'N/A',
+                        tieneTextura: !!material.map,
+                        texturaUrl: material.map ? (material.map.image?.src || 'Blob/DataURL') : 'Sin textura'
+                    });
+                    
+                    if (material.map) textureCount++;
+                    materialCount++;
+                }
+            });
+
+            agregarPaso(`📊 Análisis completado:`, 'success');
+            agregarPaso(`   • Meshes: ${meshCount}`, 'info');
+            agregarPaso(`   • Materiales: ${materialCount}`, 'info');
+            agregarPaso(`   • Texturas: ${textureCount}`, 'info');
+
+            // Mostrar detalles de cada mesh
+            detalles.forEach((detalle, index) => {
+                agregarPaso(`🔸 Mesh ${index + 1}: ${detalle.nombre}`, 'info');
+                agregarPaso(`   └ Geometría: ${detalle.geometria} (${detalle.vertices} vértices)`, 'info');
+                agregarPaso(`   └ Material: ${detalle.material}`, 'info');
+                agregarPaso(`   └ Color: ${detalle.color}`, 'info');
+                agregarPaso(`   └ Textura: ${detalle.tieneTextura ? '✅ Sí' : '❌ No'}`, detalle.tieneTextura ? 'success' : 'warning');
+            });
+        }
+
+        function crearBotsDePrueba() {
+            agregarPaso('🤖 Creando bots de prueba...', 'info');
+            
+            // Bot 1: Estático (rojo)
+            const botEstatico = crearBot('estatico', -3, 1, 0, 0xff0000);
+            if (botEstatico) {
+                agregarPaso('✅ Bot estático creado (rojo)', 'success');
+            }
+            
+            // Bot 2: Móvil (azul)  
+            const botMovil = crearBot('movil', 0, 1, 0, 0x0088ff);
+            if (botMovil) {
+                agregarPaso('✅ Bot móvil creado (azul)', 'success');
+            }
+            
+            // Bot 3: Tirador (naranja)
+            const botTirador = crearBot('tirador', 3, 1, 0, 0xff8800);
+            if (botTirador) {
+                agregarPaso('✅ Bot tirador creado (naranja)', 'success');
+            }
+
+            // Iniciar animación
+            animate();
+        }
+
+        function crearBot(tipo, x, y, z, color) {
+            if (!modeloOso) {
+                agregarPaso(`❌ No se puede crear bot ${tipo}: modelo no cargado`, 'error');
+                return null;
+            }
+
+            try {
+                // Clonar el modelo (como hace BotBase.js)
+                const bot = modeloOso.clone();
+                
+                // Configurar posición
+                bot.position.set(x, y, z);
+                bot.scale.set(1.0, 1.0, 1.0);
+                bot.castShadow = true;
+                bot.receiveShadow = true;
+                
+                // Aplicar color (como hace BotBase.js)
+                bot.traverse((child) => {
+                    if (child.isMesh) {
+                        // Clonar el material para no afectar otros bots
+                        child.material = child.material.clone();
+                        child.material.color.setHex(color);
+                        child.material.needsUpdate = true;
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+                
+                // Agregar etiqueta
+                const etiqueta = crearEtiqueta(tipo.toUpperCase(), color);
+                etiqueta.position.set(0, 3, 0);
+                bot.add(etiqueta);
+                
+                scene.add(bot);
+                botsCreados.push({ mesh: bot, tipo: tipo, color: color });
+                
+                return bot;
+                
+            } catch (error) {
+                agregarPaso(`❌ Error creando bot ${tipo}: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        function crearEtiqueta(texto, color) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(texto, canvas.width / 2, canvas.height / 2);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(2, 0.5, 1);
+            
+            return sprite;
+        }
+
+        function diagnosticarErrorCarga(error) {
+            agregarPaso('🔍 Diagnosticando error de carga...', 'warning');
+            
+            // Verificar tipo de error común
+            if (error.message.includes('404')) {
+                agregarPaso('❌ Error 404: Archivo no encontrado', 'error');
+                agregarPaso('💡 Solución: Verificar que modelos/cubed_bear.glb existe', 'warning');
+            } else if (error.message.includes('CORS')) {
+                agregarPaso('❌ Error CORS: Problema de permisos', 'error');
+                agregarPaso('💡 Solución: Ejecutar desde servidor HTTP, no file://', 'warning');
+            } else if (error.message.includes('parse')) {
+                agregarPaso('❌ Error de parsing: Archivo corrupto', 'error');
+                agregarPaso('💡 Solución: Re-descargar el archivo cubed_bear.glb', 'warning');
+            } else {
+                agregarPaso(`❌ Error desconocido: ${error.message}`, 'error');
+            }
+            
+            // Crear cubo fallback
+            crearCuboFallback();
+        }
+
+        function crearCuboFallback() {
+            agregarPaso('⚠️ Creando cubo fallback...', 'warning');
+            
+            const geometry = new THREE.BoxGeometry(1.5, 2, 1.5);
+            const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.set(0, 1, 0);
+            cube.castShadow = true;
+            cube.receiveShadow = true;
+            scene.add(cube);
+            
+            agregarPaso('✅ Cubo fallback creado', 'success');
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Rotar bots
+            botsCreados.forEach((bot, index) => {
+                bot.mesh.rotation.y += 0.01 * (index + 1);
+            });
+            
+            // Mover cámara
+            const time = Date.now() * 0.001;
+            camera.position.x = Math.cos(time * 0.3) * 8;
+            camera.position.z = Math.sin(time * 0.3) * 8;
+            camera.lookAt(0, 1, 0);
+            
+            renderer.render(scene, camera);
+        }
+
+        // Funciones de control
+        function reiniciarTest() {
+            location.reload();
+        }
+
+        function probarRutaDirecta() {
+            agregarPaso('🔗 Probando acceso directo al archivo...', 'info');
+            window.open('/modelos/cubed_bear.glb', '_blank');
+        }
+
+        function crearBotManual() {
+            if (modeloOso) {
+                const x = (Math.random() - 0.5) * 10;
+                const z = (Math.random() - 0.5) * 10;
+                const color = Math.random() * 0xffffff;
+                const bot = crearBot('manual', x, 1, z, color);
+                if (bot) {
+                    agregarPaso(`✅ Bot manual creado en (${x.toFixed(1)}, 1, ${z.toFixed(1)})`, 'success');
+                }
+            } else {
+                agregarPaso('❌ No se puede crear bot: modelo no cargado', 'error');
+            }
+        }
+
+        // Manejar redimensionamiento
+        window.addEventListener('resize', () => {
+            camera.aspect = (window.innerWidth - 440) / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth - 440, window.innerHeight);
+        });
+
+        // Inicializar
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚨 TEST CLICKS URGENTE</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+        }
+        button {
+            background: #ff0000;
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #ff4444;
+        }
+        #resultado {
+            margin-top: 20px;
+            padding: 20px;
+            background: #333;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚨 TEST CLICKS URGENTE</h1>
+    <p>Si estos botones NO funcionan, hay un error JavaScript crítico.</p>
+    
+    <button onclick="testClick1()">🔴 TEST 1</button>
+    <button onclick="testClick2()">🟡 TEST 2</button>
+    <button onclick="testClick3()">🟢 TEST 3</button>
+    
+    <div id="resultado">
+        <div id="status">Esperando clicks...</div>
+    </div>
+
+    <script>
+        let clickCount = 0;
+        
+        function testClick1() {
+            clickCount++;
+            document.getElementById('status').innerHTML = `✅ TEST 1 FUNCIONA (Click #${clickCount})`;
+            console.log('✅ Click 1 detectado');
+        }
+        
+        function testClick2() {
+            clickCount++;
+            document.getElementById('status').innerHTML = `✅ TEST 2 FUNCIONA (Click #${clickCount})`;
+            console.log('✅ Click 2 detectado');
+        }
+        
+        function testClick3() {
+            clickCount++;
+            document.getElementById('status').innerHTML = `✅ TEST 3 FUNCIONA (Click #${clickCount})`;
+            console.log('✅ Click 3 detectado');
+            alert('¡LOS CLICKS FUNCIONAN!');
+        }
+        
+        // Verificar que el script se carga
+        console.log('🔧 Script de test cargado');
+        document.getElementById('status').innerHTML = 'Script cargado - Haz click en los botones';
+    </script>
+</body>
+</html>

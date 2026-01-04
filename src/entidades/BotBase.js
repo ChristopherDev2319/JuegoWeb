@@ -8,6 +8,7 @@
  */
 
 import { CONFIG } from '../config.js';
+import { crearClonOso } from '../sistemas/modeloCache.js';
 
 export class BotBase {
   /**
@@ -40,34 +41,84 @@ export class BotBase {
     // Requirement 1.3: Reaparecer en posición inicial
     this.posicionInicial = { x: x, y: y, z: z };
 
-    // Crear mesh del bot
-    this.crearMesh(x, y, z);
+    // 🔥 IMPORTANTE: mesh e spriteBarraVida se inicializan como null
+    this.mesh = null;
+    this.spriteBarraVida = null;
 
-    // Crear barra de vida con indicador de tipo
-    // Requirement 5.4: Barra de vida con indicador de tipo
-    this.crearBarraVida();
+    // Crear mesh del bot de forma síncrona usando el modelo cacheado
+    // La barra de vida se crea después de que el mesh esté listo
+    this.crearMesh(x, y, z);
   }
 
 
   /**
-   * Crea el mesh 3D del bot
+   * Crea el mesh 3D del bot usando el modelo cubed_bear.glb cacheado
    * @param {number} x - Posición X
    * @param {number} y - Posición Y
    * @param {number} z - Posición Z
    */
   crearMesh(x, y, z) {
-    const geometria = new THREE.BoxGeometry(1.5, 2, 1.5);
-    const material = new THREE.MeshStandardMaterial({ color: this.color });
-    this.mesh = new THREE.Mesh(geometria, material);
+    console.log(`🐻 Creando bot ${this.tipo} con modelo de oso cacheado...`);
+    
+    // Obtener clon del modelo cacheado
+    this.mesh = crearClonOso();
+    
+    if (!this.mesh) {
+      console.error(`❌ No se pudo crear mesh para bot ${this.tipo} - modelo no cacheado`);
+      this.crearMeshFallback(x, y, z);
+      return;
+    }
+    
+    // Configurar posición y propiedades básicas
     this.mesh.position.set(x, y, z);
+    
+    // Guardar referencia al bot en el mesh para detección de impactos
+    this.mesh.userData.bot = this;
+    this.mesh.userData.tipo = this.tipo;
+    this.mesh.userData.esFallback = false; // Marcar como modelo real
+    
+    this.scene.add(this.mesh);
+    
+    // Crear barra de vida inmediatamente
+    this.crearBarraVida();
+    
+    console.log(`✅ Bot ${this.tipo} creado con modelo de oso`);
+  }
+
+  /**
+   * Crea un mesh de fallback (cubo) si falla la carga del modelo
+   * @param {number} x - Posición X
+   * @param {number} y - Posición Y
+   * @param {number} z - Posición Z
+   */
+  crearMeshFallback(x, y, z) {
+    console.log(`🟥 Creando bot ${this.tipo} con cubo fallback...`);
+    
+    const geometria = new THREE.BoxGeometry(2, 3, 2);
+    const material = new THREE.MeshStandardMaterial({ 
+      color: this.color,
+      transparent: false,
+      opacity: 1.0
+    });
+    
+    this.mesh = new THREE.Mesh(geometria, material);
+    this.mesh.position.set(x, y + 0.5, z);
     this.mesh.castShadow = true;
     this.mesh.receiveShadow = true;
     
     // Guardar referencia al bot en el mesh para detección de impactos
     this.mesh.userData.bot = this;
     this.mesh.userData.tipo = this.tipo;
+    this.mesh.userData.esFallback = true;
     
     this.scene.add(this.mesh);
+    
+    // Crear barra de vida
+    if (!this.spriteBarraVida) {
+      this.crearBarraVida();
+    }
+    
+    console.log(`✅ Bot ${this.tipo} creado con cubo fallback`);
   }
 
   /**
@@ -75,6 +126,12 @@ export class BotBase {
    * Requirement 5.4: Incluir indicador del tipo de bot
    */
   crearBarraVida() {
+    // Verificar que el mesh esté listo
+    if (!this.mesh) {
+      console.warn(`⚠️ Intentando crear barra de vida para bot ${this.tipo} sin mesh`);
+      return;
+    }
+
     // Crear canvas para la barra de vida
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -90,7 +147,7 @@ export class BotBase {
     });
     this.spriteBarraVida = new THREE.Sprite(materialBarraVida);
     this.spriteBarraVida.scale.set(3, 0.8, 1);
-    this.spriteBarraVida.position.set(0, 2, 0);
+    this.spriteBarraVida.position.set(0, 3, 0); // Subir un poco más para el modelo de oso
     this.mesh.add(this.spriteBarraVida);
 
     this.actualizarBarraVida();

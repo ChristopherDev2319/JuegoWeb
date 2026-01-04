@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Test Clicks Simple</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: 'Courier New', monospace;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        button {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 12px 20px;
+            margin: 10px 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 16px;
+            min-width: 150px;
+        }
+        button:hover { 
+            background: #555; 
+            transform: scale(1.05);
+        }
+        button:active {
+            background: #777;
+            transform: scale(0.95);
+        }
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        .warning { color: #ffaa00; }
+        .info { color: #00aaff; }
+        #log {
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #555;
+            padding-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Test de Clicks - Diagnóstico</h1>
+        <p>Este test verifica que los eventos de click funcionen correctamente.</p>
+        
+        <div>
+            <h3>🎯 Botones de Prueba:</h3>
+            <button id="btn-test1">🟢 Test 1</button>
+            <button id="btn-test2">🟡 Test 2</button>
+            <button id="btn-test3">🔴 Test 3</button>
+            <br>
+            <button id="btn-alert">⚠️ Alert</button>
+            <button id="btn-console">📝 Console</button>
+            <button id="btn-clear">🗑️ Limpiar</button>
+        </div>
+        
+        <div id="log">
+            <div class="log-entry info">🔄 Esperando clicks...</div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let clickCount = 0;
+        const logDiv = document.getElementById('log');
+
+        // Función para agregar logs
+        function addLog(message, type = 'info') {
+            const colors = {
+                info: '#00aaff',
+                success: '#00ff00',
+                error: '#ff0000',
+                warning: '#ffaa00'
+            };
+            
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.style.color = colors[type];
+            entry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            
+            // Mantener solo las últimas 20 entradas
+            while (logDiv.children.length > 20) {
+                logDiv.removeChild(logDiv.firstChild);
+            }
+            
+            console.log(message);
+        }
+
+        // Funciones de test
+        function test1() {
+            clickCount++;
+            addLog(`🟢 Test 1 ejecutado (Click #${clickCount})`, 'success');
+        }
+
+        function test2() {
+            clickCount++;
+            addLog(`🟡 Test 2 ejecutado (Click #${clickCount})`, 'warning');
+        }
+
+        function test3() {
+            clickCount++;
+            addLog(`🔴 Test 3 ejecutado (Click #${clickCount})`, 'error');
+        }
+
+        function testAlert() {
+            clickCount++;
+            addLog(`⚠️ Mostrando alert (Click #${clickCount})`, 'warning');
+            alert('¡Los clicks funcionan correctamente! ✅');
+        }
+
+        function testConsole() {
+            clickCount++;
+            addLog(`📝 Mensaje enviado a consola (Click #${clickCount})`, 'info');
+            console.log('🔧 Test de consola - Los clicks funcionan');
+            console.table({
+                'Total Clicks': clickCount,
+                'Timestamp': new Date().toISOString(),
+                'Status': 'Funcionando ✅'
+            });
+        }
+
+        function clearLog() {
+            logDiv.innerHTML = '<div class="log-entry info">🗑️ Log limpiado</div>';
+            clickCount = 0;
+            addLog('🔄 Contador reiniciado', 'info');
+        }
+
+        // Configurar event listeners cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            addLog('🚀 DOM cargado, configurando event listeners...', 'info');
+            
+            // Método 1: addEventListener (recomendado)
+            const btn1 = document.getElementById('btn-test1');
+            if (btn1) {
+                btn1.addEventListener('click', test1);
+                addLog('✅ Event listener para Test 1 configurado', 'success');
+            } else {
+                addLog('❌ No se encontró btn-test1', 'error');
+            }
+
+            const btn2 = document.getElementById('btn-test2');
+            if (btn2) {
+                btn2.addEventListener('click', test2);
+                addLog('✅ Event listener para Test 2 configurado', 'success');
+            }
+
+            const btn3 = document.getElementById('btn-test3');
+            if (btn3) {
+                btn3.addEventListener('click', test3);
+                addLog('✅ Event listener para Test 3 configurado', 'success');
+            }
+
+            const btnAlert = document.getElementById('btn-alert');
+            if (btnAlert) {
+                btnAlert.addEventListener('click', testAlert);
+                addLog('✅ Event listener para Alert configurado', 'success');
+            }
+
+            const btnConsole = document.getElementById('btn-console');
+            if (btnConsole) {
+                btnConsole.addEventListener('click', testConsole);
+                addLog('✅ Event listener para Console configurado', 'success');
+            }
+
+            const btnClear = document.getElementById('btn-clear');
+            if (btnClear) {
+                btnClear.addEventListener('click', clearLog);
+                addLog('✅ Event listener para Clear configurado', 'success');
+            }
+
+            addLog('🎯 Todos los event listeners configurados. ¡Prueba los botones!', 'success');
+        });
+
+        // También configurar con onclick como backup
+        window.onload = function() {
+            addLog('🔄 Window.onload ejecutado como backup', 'info');
+            
+            // Verificar que todos los botones existen
+            const botones = ['btn-test1', 'btn-test2', 'btn-test3', 'btn-alert', 'btn-console', 'btn-clear'];
+            let encontrados = 0;
+            
+            botones.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    encontrados++;
+                    addLog(`✅ Botón ${id} encontrado`, 'success');
+                } else {
+                    addLog(`❌ Botón ${id} NO encontrado`, 'error');
+                }
+            });
+            
+            addLog(`📊 Botones encontrados: ${encontrados}/${botones.length}`, encontrados === botones.length ? 'success' : 'warning');
+        };
+
+        // Función global para debug
+        window.debugClicks = function() {
+            console.log('🔧 === DEBUG CLICKS ===');
+            console.log('Click count:', clickCount);
+            console.log('Log div:', logDiv);
+            console.log('Botones:', {
+                'btn-test1': document.getElementById('btn-test1'),
+                'btn-test2': document.getElementById('btn-test2'),
+                'btn-test3': document.getElementById('btn-test3'),
+                'btn-alert': document.getElementById('btn-alert'),
+                'btn-console': document.getElementById('btn-console'),
+                'btn-clear': document.getElementById('btn-clear')
+            });
+        };
+
+        addLog('🔧 Script cargado, esperando DOM...', 'info');
+    </script>
+</body>
+</html>

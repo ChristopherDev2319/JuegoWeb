@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Simple</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #222;
+            color: white;
+        }
+        .button {
+            padding: 15px 30px;
+            margin: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 Test Simple del Juego</h1>
+    <p>Si puedes ver esta página, el servidor está funcionando.</p>
+    
+    <button class="button" onclick="irAlJuego()">Ir al Juego Principal</button>
+    <button class="button" onclick="testConsola()">Test Consola</button>
+    
+    <div id="output" style="margin-top: 20px; padding: 10px; background: #333; border-radius: 5px;">
+        <p>Logs aparecerán aquí...</p>
+    </div>
+
+    <script>
+        function log(message) {
+            const output = document.getElementById('output');
+            output.innerHTML += '<p>' + new Date().toLocaleTimeString() + ': ' + message + '</p>';
+            console.log(message);
+        }
+        
+        function irAlJuego() {
+            log('Redirigiendo al juego principal...');
+            window.location.href = '/';
+        }
+        
+        function testConsola() {
+            log('✅ JavaScript funcionando correctamente');
+            log('🌐 Servidor: ' + window.location.origin);
+            log('📍 Página actual: ' + window.location.pathname);
+        }
+        
+        // Test automático al cargar
+        window.onload = function() {
+            log('✅ Página cargada correctamente');
+            log('🔧 Servidor funcionando en: ' + window.location.origin);
+        };
+    </script>
+</body>
+</html>

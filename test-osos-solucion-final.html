@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Final - Osos con Skins</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        #gameContainer {
+            width: 100%;
+            height: 80vh;
+            border: 2px solid #333;
+            position: relative;
+        }
+        
+        #info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #333;
+            border-radius: 5px;
+        }
+        
+        .status {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        
+        .success { background: #2d5a2d; }
+        .error { background: #5a2d2d; }
+        .warning { background: #5a5a2d; }
+        
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>🐻 Test Final - Bots con Skins de Oso</h1>
+    
+    <div id="gameContainer"></div>
+    
+    <div id="info">
+        <h3>Estado del Sistema:</h3>
+        <div id="status-container"></div>
+        
+        <h3>Controles:</h3>
+        <button onclick="iniciarTest()">🚀 Iniciar Test</button>
+        <button onclick="verificarBots()">🔍 Verificar Bots</button>
+        <button onclick="limpiarConsola()">🧹 Limpiar Consola</button>
+    </div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script type="module">
+        import { BotManager } from './src/sistemas/botManager.js';
+        import { precargarModeloOso, crearClonOso } from './src/sistemas/modeloCache.js';
+        
+        let scene, camera, renderer;
+        let botManager = null;
+        let testIniciado = false;
+        
+        // Configuración básica de Three.js
+        function inicializarThreeJS() {
+            const container = document.getElementById('gameContainer');
+            
+            // Escena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // Cielo azul
+            
+            // Cámara
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 5, 15);
+            camera.lookAt(0, 0, 0);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+            
+            // Luces
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            // Suelo
+            const groundGeometry = new THREE.PlaneGeometry(50, 50);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            mostrarStatus('✅ Three.js inicializado correctamente', 'success');
+        }
+        
+        // Función principal de test
+        async function iniciarTest() {
+            if (testIniciado) {
+                mostrarStatus('⚠️ Test ya está en progreso', 'warning');
+                return;
+            }
+            
+            testIniciado = true;
+            mostrarStatus('🚀 Iniciando test de bots con skins...', 'success');
+            
+            try {
+                // Paso 1: Precargar modelo de oso
+                mostrarStatus('🐻 Precargando modelo de oso...', 'success');
+                await precargarModeloOso();
+                mostrarStatus('✅ Modelo de oso precargado exitosamente', 'success');
+                
+                // Paso 2: Crear BotManager
+                mostrarStatus('🤖 Creando BotManager...', 'success');
+                botManager = new BotManager(scene, {
+                    onEliminacion: (tipoBot, estadisticas) => {
+                        mostrarStatus(`📊 Bot ${tipoBot} eliminado`, 'success');
+                    },
+                    onEntrarZona: (nombreZona, tipoZona) => {
+                        mostrarStatus(`📍 Entrando en zona: ${nombreZona}`, 'success');
+                    }
+                });
+                
+                // Paso 3: Inicializar BotManager (esto creará los bots)
+                mostrarStatus('⚙️ Inicializando sistema de bots...', 'success');
+                await botManager.inicializar();
+                
+                // Paso 4: Verificar que los bots se crearon correctamente
+                const totalBots = botManager.obtenerTotalBots();
+                const botsVivos = botManager.obtenerBotsVivos().length;
+                const botsConMesh = botManager.obtenerTodosBots().filter(bot => bot.mesh !== null).length;
+                
+                mostrarStatus(`✅ Sistema inicializado: ${totalBots} bots creados`, 'success');
+                mostrarStatus(`✅ Bots vivos: ${botsVivos}`, 'success');
+                mostrarStatus(`✅ Bots con mesh: ${botsConMesh}`, 'success');
+                
+                if (botsConMesh === totalBots) {
+                    mostrarStatus('🎉 ¡ÉXITO! Todos los bots tienen mesh válido', 'success');
+                } else {
+                    mostrarStatus(`❌ ERROR: ${totalBots - botsConMesh} bots sin mesh`, 'error');
+                }
+                
+                // Iniciar bucle de renderizado
+                animate();
+                
+            } catch (error) {
+                mostrarStatus(`❌ Error en el test: ${error.message}`, 'error');
+                console.error('Error completo:', error);
+            }
+        }
+        
+        // Verificar estado de los bots
+        function verificarBots() {
+            if (!botManager) {
+                mostrarStatus('⚠️ BotManager no está inicializado', 'warning');
+                return;
+            }
+            
+            const bots = botManager.obtenerTodosBots();
+            mostrarStatus(`🔍 Verificando ${bots.length} bots...`, 'success');
+            
+            bots.forEach((bot, index) => {
+                const tienesMesh = bot.mesh !== null;
+                const estaVivo = bot.estaVivo();
+                const posicion = bot.obtenerPosicion();
+                
+                const status = tienesMesh ? '✅' : '❌';
+                mostrarStatus(
+                    `${status} Bot ${index + 1} (${bot.tipo}): mesh=${tienesMesh}, vivo=${estaVivo}, pos=(${posicion.x.toFixed(1)}, ${posicion.y.toFixed(1)}, ${posicion.z.toFixed(1)})`,
+                    tienesMesh ? 'success' : 'error'
+                );
+            });
+        }
+        
+        // Bucle de animación
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (botManager) {
+                botManager.actualizar(16); // ~60 FPS
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Utilidades de UI
+        function mostrarStatus(mensaje, tipo = 'success') {
+            const container = document.getElementById('status-container');
+            const div = document.createElement('div');
+            div.className = `status ${tipo}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${mensaje}`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            
+            console.log(mensaje);
+        }
+        
+        function limpiarConsola() {
+            document.getElementById('status-container').innerHTML = '';
+            console.clear();
+        }
+        
+        // Hacer funciones globales
+        window.iniciarTest = iniciarTest;
+        window.verificarBots = verificarBots;
+        window.limpiarConsola = limpiarConsola;
+        
+        // Inicializar Three.js al cargar
+        inicializarThreeJS();
+        
+        // Manejar redimensionamiento
+        window.addEventListener('resize', () => {
+            const container = document.getElementById('gameContainer');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+    </script>
+</body>
+</html>

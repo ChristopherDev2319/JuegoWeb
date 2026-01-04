@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Bot Skin - Diagnóstico</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+        }
+        #canvas-container {
+            width: 100%;
+            height: 80vh;
+            border: 2px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>🤖 Test de Carga de Bot con Modelo de Oso</h3>
+        <div id="status">Iniciando...</div>
+        <div id="errors"></div>
+    </div>
+    
+    <div id="canvas-container"></div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script>
+        // Variables globales
+        let scene, camera, renderer;
+        let statusDiv = document.getElementById('status');
+        let errorsDiv = document.getElementById('errors');
+
+        function updateStatus(message) {
+            console.log(message);
+            statusDiv.innerHTML = message;
+        }
+
+        function addError(error) {
+            console.error(error);
+            errorsDiv.innerHTML += `<div style="color: red;">❌ ${error}</div>`;
+        }
+
+        function init() {
+            updateStatus('🔄 Inicializando escena...');
+
+            // Crear escena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x333333);
+
+            // Crear cámara
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 2, 5);
+
+            // Crear renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth * 0.9, window.innerHeight * 0.8);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Iluminación
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            // Suelo simple
+            const groundGeometry = new THREE.PlaneGeometry(20, 20);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x228b22 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            updateStatus('✅ Escena creada. Cargando modelo del oso...');
+            cargarModeloOso();
+        }
+
+        function cargarModeloOso() {
+            const loader = new THREE.GLTFLoader();
+            
+            updateStatus('🐻 Cargando cubed_bear.glb...');
+            
+            loader.load('modelos/cubed_bear.glb', 
+                (gltf) => {
+                    updateStatus('✅ Modelo cargado exitosamente!');
+                    
+                    // Clonar el modelo (como hace BotBase.js)
+                    const modelo = gltf.scene.clone();
+                    
+                    // Configurar posición
+                    modelo.position.set(0, 1, 0);
+                    modelo.scale.set(1.0, 1.0, 1.0);
+                    modelo.castShadow = true;
+                    modelo.receiveShadow = true;
+                    
+                    // Analizar materiales y texturas
+                    let materialesInfo = [];
+                    modelo.traverse((child) => {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                            
+                            // Información del material
+                            const material = child.material;
+                            materialesInfo.push({
+                                nombre: child.name,
+                                tipoMaterial: material.type,
+                                tieneTextura: !!material.map,
+                                color: material.color ? material.color.getHexString() : 'N/A',
+                                texturaUrl: material.map ? material.map.image?.src || 'Blob/Data URL' : 'Sin textura'
+                            });
+                        }
+                    });
+                    
+                    scene.add(modelo);
+                    
+                    // Mostrar información detallada
+                    let infoHTML = `✅ Modelo cargado correctamente<br>`;
+                    infoHTML += `📊 Materiales encontrados: ${materialesInfo.length}<br><br>`;
+                    
+                    materialesInfo.forEach((info, index) => {
+                        infoHTML += `<strong>Material ${index + 1}:</strong><br>`;
+                        infoHTML += `- Mesh: ${info.nombre}<br>`;
+                        infoHTML += `- Tipo: ${info.tipoMaterial}<br>`;
+                        infoHTML += `- Color: #${info.color}<br>`;
+                        infoHTML += `- Textura: ${info.tieneTextura ? '✅ Sí' : '❌ No'}<br>`;
+                        if (info.tieneTextura) {
+                            infoHTML += `- URL: ${info.texturaUrl}<br>`;
+                        }
+                        infoHTML += `<br>`;
+                    });
+                    
+                    statusDiv.innerHTML = infoHTML;
+                    
+                    // Animar el modelo
+                    animarModelo(modelo);
+                    
+                }, 
+                (progress) => {
+                    const percent = Math.round((progress.loaded / progress.total) * 100);
+                    updateStatus(`🔄 Cargando: ${percent}%`);
+                }, 
+                (error) => {
+                    addError(`Error cargando modelo: ${error.message}`);
+                    updateStatus('❌ Error al cargar el modelo');
+                    
+                    // Crear cubo fallback
+                    crearCuboFallback();
+                }
+            );
+        }
+
+        function crearCuboFallback() {
+            updateStatus('⚠️ Creando cubo fallback...');
+            
+            const geometry = new THREE.BoxGeometry(1.5, 2, 1.5);
+            const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.set(0, 1, 0);
+            cube.castShadow = true;
+            cube.receiveShadow = true;
+            scene.add(cube);
+            
+            animarModelo(cube);
+        }
+
+        function animarModelo(modelo) {
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Rotar el modelo
+                modelo.rotation.y += 0.01;
+                
+                // Mover cámara alrededor
+                const time = Date.now() * 0.001;
+                camera.position.x = Math.cos(time * 0.5) * 5;
+                camera.position.z = Math.sin(time * 0.5) * 5;
+                camera.lookAt(modelo.position);
+                
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+
+        // Manejar redimensionamiento
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth * 0.9, window.innerHeight * 0.8);
+        });
+
+        // Inicializar cuando cargue la página
+        init();
+    </script>
+</body>
+</html>
