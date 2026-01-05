@@ -81,15 +81,16 @@ export function obtenerArmasDisponibles() {
 
 /**
  * Verifica si el cambio de arma está permitido
- * Retorna false cuando el jugador está en partida activa
- * 
- * Requirements: 2.3 - Deshabilitar cambio de arma durante partida
- * 
- * @returns {boolean} - true si se puede cambiar de arma, false si está en partida
+ * En modo local: siempre permitido
+ * En modo online: solo en menús de selección
  */
 export function cambioArmaPermitido() {
-  // No permitir cambio de arma si está en partida activa
-  // Solo se puede cambiar en el menú de selección o pantalla de muerte
+  // En modo local: siempre permitir cambio de armas
+  if (typeof window !== 'undefined' && window.modoJuegoActual === 'local') {
+    return true;
+  }
+  
+  // En modo online: no permitir cambio de arma si está en partida activa
   return !estadoSeleccion.enPartida || estadoSeleccion.menuVisible || estadoSeleccion.enPantallaMuerte;
 }
 

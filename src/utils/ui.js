@@ -26,10 +26,12 @@ export function actualizarMunicion(estadoMunicion) {
   const ammoDiv = document.getElementById('ammo');
   if (!ammoDiv) return;
 
-  // Verificar si es cuchillo - ocultar munición
+  // Verificar si es cuchillo o JuiceBox - ocultar munición
   // Requirements: 4.1, 4.2 - Ocultar contador de munición cuando cuchillo está equipado
   const esCuchillo = estadoMunicion.esCuchillo || estadoMunicion.tipoArma === 'KNIFE';
-  if (esCuchillo) {
+  const esJuiceBox = estadoMunicion.esJuiceBox;
+  
+  if (esCuchillo || esJuiceBox) {
     ammoDiv.classList.add('hidden');
     return;
   } else {
@@ -66,6 +68,12 @@ export function actualizarInfoArma(estadoArma) {
   const weaponNameDiv = document.getElementById('weapon-name');
   if (weaponNameDiv && estadoArma.nombre) {
     let nombreTexto = estadoArma.nombre;
+    
+    // Si el JuiceBox está equipado, mostrar "Botiquín"
+    if (estadoArma.esJuiceBox) {
+      nombreTexto = 'Botiquín';
+    }
+    
     if (estadoArma.estaApuntando) {
       nombreTexto += ' [APUNTANDO]';
     }
@@ -75,17 +83,19 @@ export function actualizarInfoArma(estadoArma) {
     weaponNameDiv.style.color = estadoArma.estaApuntando ? '#00ff00' : '#ffaa00';
   }
 
-  // Actualizar munición (valores del servidor) - incluir info de cuchillo
+  // Actualizar munición (valores del servidor) - incluir info de cuchillo y JuiceBox
   actualizarMunicion({
     ...estadoArma,
     esCuchillo: esCuchillo,
+    esJuiceBox: estadoArma.esJuiceBox,
     tipoArma: estadoArma.tipoActual
   });
 
   // Actualizar slots de arma
   // Requirements: 4.3, 4.4, 4.5 - Slots intercambiables
   const armaSecundaria = esCuchillo ? estadoArma.armaPrincipalPrevia : 'Cuchillo';
-  actualizarSlotsArma(estadoArma.nombre, armaSecundaria, esCuchillo);
+  const nombreArmaEquipada = estadoArma.esJuiceBox ? 'Botiquín' : estadoArma.nombre;
+  actualizarSlotsArma(nombreArmaEquipada, armaSecundaria, esCuchillo);
 
   // Actualizar crosshair
   actualizarCrosshair(estadoArma);
@@ -620,13 +630,18 @@ export function actualizarSlotsArma(armaEquipada, armaSecundaria, esCuchillo = f
   
   // Actualizar slot inferior (arma equipada)
   if (weaponName) {
-    weaponName.textContent = armaEquipada || 'Sin arma';
+    // Si es "Botiquín", mantener ese nombre, sino usar el nombre del arma
+    if (armaEquipada === 'Botiquín') {
+      weaponName.textContent = 'Botiquín';
+    } else {
+      weaponName.textContent = armaEquipada || 'Sin arma';
+    }
   }
   
-  // Ocultar munición si es cuchillo
+  // Ocultar munición si es cuchillo o JuiceBox
   // Requirements: 4.1, 4.2 - Ocultar contador de munición cuando cuchillo está equipado
   if (ammoDiv) {
-    if (esCuchillo) {
+    if (esCuchillo || armaEquipada === 'Botiquín') {
       ammoDiv.classList.add('hidden');
     } else {
       ammoDiv.classList.remove('hidden');

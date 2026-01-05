@@ -105,13 +105,13 @@ export const WEAPON_CONFIG = {
   },
 
   // Sniper (AWP): Rifle de francotirador de alto daño - ONE SHOT KILL
-  // Mata de un disparo al cuerpo (150 daño > 100 vida típica)
-  // Requisitos: 1.1, 1.3, 2.1, 2.2, 6.5 - Daño 150, velocidad 120, munición 10, cargador 1
+  // Mata de un disparo al cuerpo (200 daño = 200 vida)
+  // Requisitos: 1.1, 1.3, 2.1, 2.2, 6.5 - Daño 200, velocidad 120, munición 10, cargador 1
   SNIPER: {
-    damage: 150,             // Daño por bala - Actualizado: mata de un disparo (Requisito 2.1)
+    damage: 200,             // Daño por bala - 200 de daño (mata de un disparo)
     fireRate: 1333,          // Cadencia: 45 RPM (60000/1333) - muy lento
-    magazineSize: 1,         // Balas por cargador - Actualizado: 1 bala (Requisito 6.5)
-    totalAmmo: 10,           // Munición de reserva - Actualizado: 10 balas (Requisito 2.2)
+    magazineSize: 1,         // Balas por cargador - 1 bala por cargador
+    totalAmmo: 10,           // Munición de reserva - 10 balas máximo
     reloadTime: 3700,        // Tiempo de recarga: 3.7 segundos (Requisito 2.3)
     bulletSpeed: 120,        // Velocidad de bala - Actualizado: 120 (Requisito 1.3)
     headshotMultiplier: 2.5, // Daño x2.5 en headshot (375 daño - mata instantáneamente)
@@ -121,13 +121,13 @@ export const WEAPON_CONFIG = {
 
   // Escopeta: Arma de corto alcance con múltiples proyectiles
   // Daño máximo: 192 (8 perdigones × 24 daño)
-  // NO mata de un disparo - requiere 2 disparos mínimo
+  // Solo 3 disparos por cargador
   // Requisitos: 1.1, 6.3, 6.4 - Velocidad incrementada 50%, cargador 3, daño 24
   ESCOPETA: {
-    damage: 24,              // Daño por perdigón - Actualizado (no mata de un disparo)
+    damage: 24,              // Daño por perdigón (8 perdigones = 192 máximo)
     fireRate: 857,           // Cadencia: 70 RPM (60000/857) - lento
-    magazineSize: 3,         // Cartuchos por cargador
-    totalAmmo: 28,           // Munición de reserva
+    magazineSize: 3,         // Solo 3 cartuchos por cargador
+    totalAmmo: 24,           // Munición de reserva - 24 cartuchos máximo
     reloadTime: 3000,        // Tiempo de recarga: 3 segundos
     bulletSpeed: 38,         // Velocidad de perdigones
     projectiles: 8,          // Número de perdigones por disparo

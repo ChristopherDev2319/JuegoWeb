@@ -36,13 +36,26 @@ export const inventarioArmas = {
 };
 
 /**
- * Estado del cuchillo para controlar cadencia de ataque e intercambio con Q
+ * Estado unificado del sistema de equipamiento
+ * Garantiza que exactamente un item esté equipado en todo momento
+ * Requirements: 1.4, 3.1, 3.2, 3.3, 3.4
+ * 
+ * itemEquipado puede ser: 'ARMA' | 'CUCHILLO' | 'JUICEBOX'
+ */
+const estadoEquipamiento = {
+  itemEquipado: 'ARMA',           // Item actualmente equipado
+  armaPrincipal: null,            // Tipo de arma principal (ej: 'M4A1')
+  itemPrevioAJuiceBox: null       // Item a restaurar al desequipar JuiceBox
+};
+
+/**
+ * Estado del cuchillo para controlar cadencia de ataque
  * Requirements: 2.1, 2.2, 2.3, 4.1, 4.4, 4.5
- * Movido al inicio del archivo para que esté disponible en establecerArmaUnica
+ * NOTA: El campo 'equipado' está DEPRECADO - usar estadoEquipamiento.itemEquipado
  */
 const estadoCuchillo = {
-  equipado: false,              // true si el cuchillo está equipado actualmente
-  armaPrincipalPrevia: null,    // Arma a restaurar al presionar Q
+  equipado: false,              // DEPRECADO: usar estadoEquipamiento.itemEquipado === 'CUCHILLO'
+  armaPrincipalPrevia: null,    // DEPRECADO: usar estadoEquipamiento.armaPrincipal
   ultimoAtaque: 0,
   puedeAtacar: true
 };
@@ -50,10 +63,11 @@ const estadoCuchillo = {
 /**
  * Estado del sistema de curación (JuiceBox)
  * Requirements: 1.1, 2.1, 3.1, 4.1
+ * NOTA: El campo 'juiceBoxEquipado' está DEPRECADO - usar estadoEquipamiento.itemEquipado
  */
 const estadoCuracion = {
-  juiceBoxEquipado: false,      // Si el JuiceBox está equipado actualmente
-  armaPreviaACuracion: null,    // Arma/cuchillo a restaurar al desequipar JuiceBox
+  juiceBoxEquipado: false,      // DEPRECADO: usar estadoEquipamiento.itemEquipado === 'JUICEBOX'
+  armaPreviaACuracion: null,    // DEPRECADO: usar estadoEquipamiento.itemPrevioAJuiceBox
   curacionEnProgreso: false,    // Si hay una curación activa
   tiempoInicioCuracion: 0,      // Timestamp de inicio de curación
   modeloJuiceBox: null,         // Referencia al modelo cargado
@@ -64,6 +78,7 @@ const estadoCuracion = {
  * Establece el inventario con una única arma
  * Requirements: 2.2, 2.3 - El jugador solo puede usar el arma seleccionada
  * Requirements: 1.1, 2.1, 4.3 - Inicializar estado de cuchillo al cargar
+ * Requirements: 3.4 - Inicializar estadoEquipamiento correctamente
  * @param {string} tipoArma - Tipo de arma a establecer como única en el inventario
  * @param {THREE.Object3D} weaponContainer - Contenedor del arma (opcional)
  * @returns {boolean} - true si se estableció exitosamente
@@ -92,13 +107,20 @@ export function establecerArmaUnica(tipoArma, weaponContainer = null) {
   arma.disparosConsecutivos = 0;
   arma.inicializado = true; // Marcar como inicializado
   
-  // Inicializar estado del cuchillo - guardar arma principal para intercambio con Q
-  // Requirements: 1.1, 2.1, 4.3 - Inicializar estado de cuchillo al cargar
-  // Requirements: 2.3 - Recordar arma principal para intercambios posteriores
+  // Inicializar estado unificado de equipamiento
+  // Requirements: 3.4 - Establecer arma principal como item equipado por defecto
+  estadoEquipamiento.itemEquipado = 'ARMA';
+  estadoEquipamiento.armaPrincipal = tipoArma;
+  estadoEquipamiento.itemPrevioAJuiceBox = null;
+  
+  // Mantener compatibilidad con estados legacy (DEPRECADOS)
   estadoCuchillo.equipado = false;
   estadoCuchillo.armaPrincipalPrevia = tipoArma;
   estadoCuchillo.ultimoAtaque = 0;
   estadoCuchillo.puedeAtacar = true;
+  
+  estadoCuracion.juiceBoxEquipado = false;
+  estadoCuracion.armaPreviaACuracion = null;
   
   // Cambiar modelo si se proporciona el contenedor
   if (weaponContainer) {
@@ -106,7 +128,7 @@ export function establecerArmaUnica(tipoArma, weaponContainer = null) {
   }
   
   console.log(`🔫 Inventario establecido con arma única: ${configArma.nombre} - Munición: ${arma.municionActual}/${arma.municionTotal}`);
-  console.log(`🔪 Estado cuchillo inicializado - Arma principal: ${tipoArma}`);
+  console.log(`🎯 Estado equipamiento inicializado - Item: ${estadoEquipamiento.itemEquipado}, Arma principal: ${tipoArma}`);
   return true;
 }
 
@@ -116,6 +138,49 @@ export function establecerArmaUnica(tipoArma, weaponContainer = null) {
 let modeloArma = null;
 let modelosArmas = {}; // Cache de modelos cargados
 let cargandoModelo = false;
+
+/**
+ * Actualiza la visibilidad de los modelos según el item equipado
+ * Garantiza que exactamente un modelo sea visible (invariante de exclusividad)
+ * Requirements: 3.1, 3.2 - Mantener visible exactamente un modelo FPS
+ * 
+ * @param {string} itemEquipado - El item actualmente equipado ('ARMA', 'CUCHILLO', 'JUICEBOX')
+ */
+function actualizarVisibilidadModelos(itemEquipado) {
+  // Paso 1: Ocultar TODOS los modelos primero
+  // Requirements: 3.2 - Ocultar completamente el modelo anterior antes de mostrar el nuevo
+  if (modeloArma) {
+    modeloArma.visible = false;
+  }
+  if (estadoCuracion.modeloJuiceBox) {
+    estadoCuracion.modeloJuiceBox.visible = false;
+  }
+  
+  // Paso 2: Mostrar SOLO el modelo correspondiente al item equipado
+  // Requirements: 3.1 - Mantener visible exactamente un modelo FPS
+  switch (itemEquipado) {
+    case 'ARMA':
+    case 'CUCHILLO':
+      // Tanto arma como cuchillo usan modeloArma (se carga el modelo correspondiente)
+      if (modeloArma) {
+        modeloArma.visible = true;
+      }
+      break;
+    case 'JUICEBOX':
+      if (estadoCuracion.modeloJuiceBox) {
+        estadoCuracion.modeloJuiceBox.visible = true;
+      }
+      break;
+    default:
+      console.warn(`⚠️ Item equipado desconocido: ${itemEquipado}`);
+      // Por seguridad, mostrar el arma si el estado es inválido
+      if (modeloArma) {
+        modeloArma.visible = true;
+      }
+  }
+  
+  console.log(`👁️ Visibilidad actualizada - Item: ${itemEquipado}, modeloArma: ${modeloArma?.visible}, juiceBox: ${estadoCuracion.modeloJuiceBox?.visible}`);
+}
 
 /**
  * Sistema de animaciones del cuchillo
@@ -288,7 +353,12 @@ export function cargarModeloJuiceBox(weaponContainer) {
 
 /**
  * Alterna el equipamiento del JuiceBox con tecla C
- * Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3
+ * Requirements: 2.1, 2.2, 2.3, 2.4 - Transiciones C correctas usando estadoEquipamiento
+ * 
+ * Lógica de transiciones C:
+ * - Si itemEquipado !== 'JUICEBOX': guardar item actual en itemPrevioAJuiceBox, cambiar a 'JUICEBOX'
+ * - Si itemEquipado === 'JUICEBOX': restaurar itemPrevioAJuiceBox, limpiar memoria
+ * 
  * @param {THREE.Object3D} weaponContainer - Contenedor del arma FPS
  * @returns {Promise<boolean>} - true si se realizó el cambio
  */
@@ -299,63 +369,103 @@ export async function alternarJuiceBox(weaponContainer = null) {
     return false;
   }
 
-  // No permitir cambio durante curación en progreso
-  if (estadoCuracion.curacionEnProgreso) {
-    console.log('🧃 No se puede cambiar durante curación en progreso');
-    return false;
-  }
+  // No permitir cambio durante curación en progreso (excepto para cancelar)
+  // Si está curando y presiona C, se cancela la curación y se restaura el item previo
+  
+  // Usar el estado unificado para determinar la transición
+  const itemActual = estadoEquipamiento.itemEquipado;
+  
+  console.log(`🧃 alternarJuiceBox - Estado actual: ${itemActual}`);
 
-  if (estadoCuracion.juiceBoxEquipado) {
-    // Tiene JuiceBox equipado -> restaurar arma/cuchillo anterior
-    // Requirements: 1.3
-    const itemPrevio = estadoCuracion.armaPreviaACuracion;
+  if (itemActual === 'JUICEBOX') {
+    // Requirements: 2.3 - JUICEBOX -> restaurar item previo
+    const itemPrevio = estadoEquipamiento.itemPrevioAJuiceBox;
+    
+    // Cancelar curación si estaba en progreso
+    if (estadoCuracion.curacionEnProgreso) {
+      cancelarCuracion();
+    }
     
     if (!itemPrevio) {
-      console.warn('⚠️ No hay item previo para restaurar');
+      console.warn('⚠️ No hay item previo para restaurar, usando arma principal');
+      // Fallback: usar arma principal si no hay item previo
+      const armaPrincipal = estadoEquipamiento.armaPrincipal;
+      if (armaPrincipal && CONFIG.armas[armaPrincipal]) {
+        estadoEquipamiento.itemEquipado = 'ARMA';
+        estadoEquipamiento.itemPrevioAJuiceBox = null;
+        
+        // Mantener compatibilidad con estados legacy
+        estadoCuracion.juiceBoxEquipado = false;
+        estadoCuracion.armaPreviaACuracion = null;
+        estadoCuchillo.equipado = false;
+        
+        arma.tipoActual = armaPrincipal;
+        
+        if (weaponContainer) {
+          await cambiarModeloArma(armaPrincipal, weaponContainer);
+        }
+        
+        actualizarVisibilidadModelos(estadoEquipamiento.itemEquipado);
+        console.log(`🔫 Restaurado arma principal (fallback): ${armaPrincipal}`);
+        return true;
+      }
       return false;
     }
 
-    // Ocultar JuiceBox
-    if (estadoCuracion.modeloJuiceBox) {
-      estadoCuracion.modeloJuiceBox.visible = false;
-    }
-
     // Restaurar item previo
-    if (itemPrevio === 'KNIFE') {
-      // Restaurar cuchillo
-      arma.tipoActual = 'KNIFE';
+    if (itemPrevio === 'CUCHILLO') {
+      // Requirements: 2.3 - Restaurar cuchillo
+      estadoEquipamiento.itemEquipado = 'CUCHILLO';
+      estadoEquipamiento.itemPrevioAJuiceBox = null; // Limpiar memoria
+      
+      // Mantener compatibilidad con estados legacy
+      estadoCuracion.juiceBoxEquipado = false;
+      estadoCuracion.armaPreviaACuracion = null;
       estadoCuchillo.equipado = true;
+      
+      arma.tipoActual = 'KNIFE';
       
       if (weaponContainer) {
         await cambiarModeloArma('KNIFE', weaponContainer);
       }
+      
+      actualizarVisibilidadModelos(estadoEquipamiento.itemEquipado);
       console.log('🔪 Restaurado cuchillo desde JuiceBox');
+      return true;
+      
     } else {
-      // Restaurar arma
-      arma.tipoActual = itemPrevio;
+      // Requirements: 2.3 - Restaurar arma
+      estadoEquipamiento.itemEquipado = 'ARMA';
+      estadoEquipamiento.itemPrevioAJuiceBox = null; // Limpiar memoria
+      
+      // Mantener compatibilidad con estados legacy
+      estadoCuracion.juiceBoxEquipado = false;
+      estadoCuracion.armaPreviaACuracion = null;
       estadoCuchillo.equipado = false;
+      
+      arma.tipoActual = itemPrevio;
       
       if (weaponContainer) {
         await cambiarModeloArma(itemPrevio, weaponContainer);
       }
+      
+      actualizarVisibilidadModelos(estadoEquipamiento.itemEquipado);
       console.log(`🔫 Restaurado arma ${itemPrevio} desde JuiceBox`);
+      return true;
     }
-
-    estadoCuracion.juiceBoxEquipado = false;
-    estadoCuracion.armaPreviaACuracion = null;
     
-    return true;
   } else {
-    // No tiene JuiceBox equipado -> guardar item actual y equipar JuiceBox
-    // Requirements: 1.1, 1.2, 2.1, 2.2, 2.3
+    // Requirements: 2.1, 2.2, 2.4 - Equipar JuiceBox y guardar item actual
     
-    // Guardar item actual (arma o cuchillo)
-    if (estadoCuchillo.equipado || arma.tipoActual === 'KNIFE') {
-      estadoCuracion.armaPreviaACuracion = 'KNIFE';
+    // Guardar item actual en itemPrevioAJuiceBox
+    // Requirements: 2.4 - Recordar qué item tenía equipado previamente
+    if (itemActual === 'CUCHILLO') {
+      estadoEquipamiento.itemPrevioAJuiceBox = 'CUCHILLO';
     } else {
-      estadoCuracion.armaPreviaACuracion = arma.tipoActual;
+      // itemActual === 'ARMA'
+      estadoEquipamiento.itemPrevioAJuiceBox = arma.tipoActual;
     }
-
+    
     // Cargar modelo si no está cargado
     if (!estadoCuracion.modeloCargado && weaponContainer) {
       try {
@@ -365,16 +475,6 @@ export async function alternarJuiceBox(weaponContainer = null) {
         console.error('❌ Error cargando JuiceBox:', error);
         return false;
       }
-    }
-
-    // Ocultar arma/cuchillo actual
-    if (modeloArma) {
-      modeloArma.visible = false;
-    }
-
-    // Mostrar JuiceBox
-    if (estadoCuracion.modeloJuiceBox) {
-      estadoCuracion.modeloJuiceBox.visible = true;
     }
 
     // Desactivar apuntado si estaba activo
@@ -388,21 +488,29 @@ export async function alternarJuiceBox(weaponContainer = null) {
       }
     }
 
+    // Actualizar estado unificado
+    estadoEquipamiento.itemEquipado = 'JUICEBOX';
+    
+    // Mantener compatibilidad con estados legacy
     estadoCuracion.juiceBoxEquipado = true;
+    estadoCuracion.armaPreviaACuracion = estadoEquipamiento.itemPrevioAJuiceBox === 'CUCHILLO' ? 'KNIFE' : estadoEquipamiento.itemPrevioAJuiceBox;
     estadoCuchillo.equipado = false;
     
-    console.log(`🧃 JuiceBox equipado - Item guardado: ${estadoCuracion.armaPreviaACuracion}`);
+    // Actualizar visibilidad de modelos
+    actualizarVisibilidadModelos(estadoEquipamiento.itemEquipado);
+    
+    console.log(`🧃 JuiceBox equipado - Item guardado: ${estadoEquipamiento.itemPrevioAJuiceBox}`);
     return true;
   }
 }
 
 /**
  * Verifica si el JuiceBox está equipado
- * Requirements: 4.1
+ * Requirements: 1.4 - Usar estadoEquipamiento.itemEquipado para verificación
  * @returns {boolean}
  */
 export function esJuiceBoxEquipado() {
-  return estadoCuracion.juiceBoxEquipado;
+  return estadoEquipamiento.itemEquipado === 'JUICEBOX';
 }
 
 /**
@@ -614,6 +722,13 @@ export function cambiarArma(tipoArma, weaponContainer = null) {
   // Reiniciar munición al cambiar arma
   arma.municionActual = configArma.tamañoCargador;
   arma.municionTotal = configArma.municionTotal;
+  
+  // En modo local: configurar munición infinita
+  if (typeof window !== 'undefined' && window.modoJuegoActual === 'local') {
+    arma.municionTotal = Infinity;
+    console.log(`🔫 Modo local: ${tipoArma} configurada con munición infinita ${arma.municionActual}/∞`);
+  }
+  
   arma.estaRecargando = false;
   arma.ultimoDisparo = 0;
   arma.estaApuntando = false;
@@ -1032,6 +1147,9 @@ export function disparar(camera, enemigos, balas, scene, onImpacto = null) {
 
   arma.ultimoDisparo = ahora;
   arma.municionActual--;
+  
+  // En modo local: NO restaurar munición automáticamente
+  // Las balas deben bajar normalmente, solo la munición total es infinita
 
   // Calcular posición inicial de la bala
   const posicionBala = camera.position.clone();
@@ -1095,11 +1213,29 @@ export function disparar(camera, enemigos, balas, scene, onImpacto = null) {
 export function recargar(onRecargaCompleta = null) {
   const configArma = obtenerConfigArmaActual();
   
-  if (
-    arma.estaRecargando ||
-    arma.municionActual === configArma.tamañoCargador ||
-    arma.municionTotal <= 0
-  ) {
+  if (arma.estaRecargando || arma.municionActual === configArma.tamañoCargador) {
+    return false;
+  }
+  
+  // En modo local con munición infinita: recarga normal pero sin consumir munición total
+  if (typeof window !== 'undefined' && window.modoJuegoActual === 'local' && arma.municionTotal === Infinity) {
+    arma.estaRecargando = true;
+    
+    setTimeout(() => {
+      arma.municionActual = configArma.tamañoCargador;
+      arma.estaRecargando = false;
+      console.log(`🔫 Recarga completada en modo local: ${arma.municionActual}/∞`);
+      
+      if (onRecargaCompleta) {
+        onRecargaCompleta();
+      }
+    }, configArma.tiempoRecarga * 1000);
+    
+    return true;
+  }
+  
+  // Modo online: comportamiento original
+  if (arma.municionTotal <= 0) {
     return false;
   }
 
@@ -1170,6 +1306,7 @@ export function animarRetroceso() {
 
 /**
  * Obtiene el estado actual del arma
+ * Requirements: 3.3 - Incluir itemEquipado para estado consistente
  * Requirements: 4.3, 4.4, 4.5 - Incluir info de cuchillo para UI
  * Requirements: 3.1 - Incluir info de JuiceBox para UI
  * @returns {Object} - Estado del arma
@@ -1188,11 +1325,15 @@ export function obtenerEstado() {
     factorApuntado: arma.transicionApuntado,
     tieneApuntado: !!configArma?.apuntado,
     inicializado: arma.inicializado,
-    // Info del cuchillo para UI de slots
-    esCuchillo: estadoCuchillo.equipado,
+    // Estado unificado de equipamiento (Requirements: 3.3)
+    itemEquipado: estadoEquipamiento.itemEquipado,
+    armaPrincipal: estadoEquipamiento.armaPrincipal,
+    itemPrevioAJuiceBox: estadoEquipamiento.itemPrevioAJuiceBox,
+    // Info del cuchillo para UI de slots (legacy, usar itemEquipado preferentemente)
+    esCuchillo: estadoEquipamiento.itemEquipado === 'CUCHILLO',
     armaPrincipalPrevia: estadoCuchillo.armaPrincipalPrevia,
-    // Info del JuiceBox para UI
-    esJuiceBox: estadoCuracion.juiceBoxEquipado,
+    // Info del JuiceBox para UI (legacy, usar itemEquipado preferentemente)
+    esJuiceBox: estadoEquipamiento.itemEquipado === 'JUICEBOX',
     curacionEnProgreso: estadoCuracion.curacionEnProgreso,
     progresoCuracion: obtenerProgresoCuracion()
   };
@@ -1552,13 +1693,13 @@ export function esCuchillo() {
 
 /**
  * Verifica si el cuchillo está equipado actualmente
- * Requirements: 2.1, 2.2
+ * Requirements: 1.4 - Usar estadoEquipamiento.itemEquipado para verificación
  * @returns {boolean}
  */
 export function esCuchilloEquipado() {
-  // Verificar tanto el estado del cuchillo como el tipo de arma actual
-  const equipado = estadoCuchillo.equipado || arma.tipoActual === 'KNIFE';
-  console.log(`🔪 esCuchilloEquipado: ${equipado} (estado: ${estadoCuchillo.equipado}, arma: ${arma.tipoActual})`);
+  // Usar el estado unificado de equipamiento
+  const equipado = estadoEquipamiento.itemEquipado === 'CUCHILLO';
+  console.log(`🔪 esCuchilloEquipado: ${equipado} (itemEquipado: ${estadoEquipamiento.itemEquipado})`);
   return equipado;
 }
 
@@ -1573,11 +1714,12 @@ export function obtenerArmaPrincipalPrevia() {
 
 /**
  * Alterna entre el cuchillo y el arma principal con la tecla Q
- * Requirements: 2.1, 2.2, 5.3
- * Requirements: 2.4 - Desequipar JuiceBox al cambiar a cuchillo
+ * Requirements: 1.1, 1.2, 1.3, 1.4 - Transiciones Q correctas usando estadoEquipamiento
  * 
- * Si tiene arma principal equipada: guarda el arma y equipa el cuchillo
- * Si tiene cuchillo equipado: restaura el arma principal guardada
+ * Lógica de transiciones Q:
+ * - Si itemEquipado === 'ARMA': cambiar a 'CUCHILLO'
+ * - Si itemEquipado === 'CUCHILLO': cambiar a 'ARMA'
+ * - Si itemEquipado === 'JUICEBOX': cambiar a 'ARMA' (siempre va a arma, no a cuchillo)
  * 
  * @param {THREE.Object3D} weaponContainer - Contenedor del arma para cambiar el modelo
  * @returns {boolean} - true si se realizó el cambio exitosamente
@@ -1589,74 +1731,33 @@ export async function alternarCuchillo(weaponContainer = null) {
     return false;
   }
 
-  // Requirements: 2.4 - Desequipar JuiceBox al cambiar a cuchillo
-  if (estadoCuracion.juiceBoxEquipado) {
-    if (estadoCuracion.modeloJuiceBox) {
-      estadoCuracion.modeloJuiceBox.visible = false;
-    }
-    estadoCuracion.juiceBoxEquipado = false;
-    estadoCuracion.armaPreviaACuracion = null;
-    if (estadoCuracion.curacionEnProgreso) {
-      cancelarCuracion();
-    }
-    console.log('🧃 JuiceBox desequipado por cambio a cuchillo');
-  }
+  // Usar el estado unificado para determinar la transición
+  const itemActual = estadoEquipamiento.itemEquipado;
+  
+  console.log(`🔪 alternarCuchillo - Estado actual: ${itemActual}`);
 
-  if (estadoCuchillo.equipado) {
-    // Tiene cuchillo equipado -> restaurar arma principal
-    const armaPrincipal = estadoCuchillo.armaPrincipalPrevia;
-    
-    if (!armaPrincipal || !CONFIG.armas[armaPrincipal]) {
-      console.warn('⚠️ No hay arma principal previa para restaurar');
-      return false;
-    }
-
-    // Restaurar arma principal
-    arma.tipoActual = armaPrincipal;
-    const configArma = CONFIG.armas[armaPrincipal];
-    
-    // Restaurar munición del arma principal (mantener valores actuales si existen)
-    if (arma.municionActual === 0 && arma.municionTotal === 0) {
-      arma.municionActual = configArma.tamañoCargador;
-      arma.municionTotal = configArma.municionTotal;
+  if (itemActual === 'ARMA') {
+    // Requirements: 1.1 - ARMA -> CUCHILLO
+    // Guardar arma principal si no está guardada
+    if (!estadoEquipamiento.armaPrincipal) {
+      estadoEquipamiento.armaPrincipal = arma.tipoActual;
     }
     
-    arma.estaRecargando = false;
-    estadoCuchillo.equipado = false;
+    // Actualizar estado unificado
+    estadoEquipamiento.itemEquipado = 'CUCHILLO';
     
-    // Requirements: 5.3 - Al cambiar de cuchillo a arma principal, el apuntado funciona normalmente
-    // El estado de apuntado se mantiene en false, permitiendo que el jugador apunte cuando quiera
-
-    // Cambiar modelo si se proporciona el contenedor
-    if (weaponContainer) {
-      await cambiarModeloArma(armaPrincipal, weaponContainer);
-    }
-
-    console.log(`🔫 Restaurado arma principal: ${configArma.nombre} - Apuntado disponible`);
-    return true;
-  } else {
-    // Tiene arma principal equipada -> guardar y equipar cuchillo
-    const armaActual = arma.tipoActual;
-    
-    // No guardar si ya es el cuchillo
-    if (armaActual === 'KNIFE') {
-      return false;
-    }
-
-    // Guardar arma principal actual
-    estadoCuchillo.armaPrincipalPrevia = armaActual;
+    // Mantener compatibilidad con estados legacy
+    estadoCuchillo.equipado = true;
+    estadoCuchillo.armaPrincipalPrevia = estadoEquipamiento.armaPrincipal;
     
     // Equipar cuchillo
     arma.tipoActual = 'KNIFE';
-    estadoCuchillo.equipado = true;
     
-    // Requirements: 5.1, 5.4 - Desactivar apuntado al equipar cuchillo
-    // Si estaba apuntando, desactivar y restaurar FOV
+    // Requirements: 1.4 - Desactivar apuntado al equipar cuchillo
     if (arma.estaApuntando) {
       arma.estaApuntando = false;
       arma.transicionApuntado = 0;
       
-      // Restaurar FOV de la cámara si existe
       if (camera) {
         camera.fov = fovOriginal;
         camera.updateProjectionMatrix();
@@ -1665,15 +1766,96 @@ export async function alternarCuchillo(weaponContainer = null) {
       console.log('🔪 Apuntado desactivado al equipar cuchillo');
     }
     
-    // El cuchillo no tiene munición
-    // No modificamos municionActual/municionTotal para preservar los valores del arma principal
-
-    // Cambiar modelo si se proporciona el contenedor
+    // Cargar modelo del cuchillo
     if (weaponContainer) {
       await cambiarModeloArma('KNIFE', weaponContainer);
     }
-
-    console.log(`🔪 Cuchillo equipado - Arma guardada: ${armaActual}`);
+    
+    // Actualizar visibilidad de modelos
+    actualizarVisibilidadModelos(estadoEquipamiento.itemEquipado);
+    
+    console.log(`🔪 Cuchillo equipado - Arma guardada: ${estadoEquipamiento.armaPrincipal}`);
+    return true;
+    
+  } else if (itemActual === 'CUCHILLO') {
+    // Requirements: 1.2 - CUCHILLO -> ARMA
+    const armaPrincipal = estadoEquipamiento.armaPrincipal;
+    
+    if (!armaPrincipal || !CONFIG.armas[armaPrincipal]) {
+      console.warn('⚠️ No hay arma principal para restaurar');
+      return false;
+    }
+    
+    // Actualizar estado unificado
+    estadoEquipamiento.itemEquipado = 'ARMA';
+    
+    // Mantener compatibilidad con estados legacy
+    estadoCuchillo.equipado = false;
+    
+    // Restaurar arma principal
+    arma.tipoActual = armaPrincipal;
+    const configArma = CONFIG.armas[armaPrincipal];
+    
+    // Restaurar munición si es necesario
+    if (arma.municionActual === 0 && arma.municionTotal === 0) {
+      arma.municionActual = configArma.tamañoCargador;
+      arma.municionTotal = configArma.municionTotal;
+    }
+    
+    arma.estaRecargando = false;
+    
+    // Cargar modelo del arma
+    if (weaponContainer) {
+      await cambiarModeloArma(armaPrincipal, weaponContainer);
+    }
+    
+    // Actualizar visibilidad de modelos
+    actualizarVisibilidadModelos(estadoEquipamiento.itemEquipado);
+    
+    console.log(`🔫 Restaurado arma principal: ${configArma.nombre}`);
+    return true;
+    
+  } else if (itemActual === 'JUICEBOX') {
+    // Requirements: 1.3 - JUICEBOX -> ARMA (siempre va a arma, no a cuchillo)
+    const armaPrincipal = estadoEquipamiento.armaPrincipal;
+    
+    if (!armaPrincipal || !CONFIG.armas[armaPrincipal]) {
+      console.warn('⚠️ No hay arma principal para restaurar desde JuiceBox');
+      return false;
+    }
+    
+    // Cancelar curación si estaba en progreso
+    if (estadoCuracion.curacionEnProgreso) {
+      cancelarCuracion();
+    }
+    
+    // Actualizar estado unificado
+    estadoEquipamiento.itemEquipado = 'ARMA';
+    estadoEquipamiento.itemPrevioAJuiceBox = null; // Limpiar memoria
+    
+    // Mantener compatibilidad con estados legacy
+    estadoCuracion.juiceBoxEquipado = false;
+    estadoCuracion.armaPreviaACuracion = null;
+    estadoCuchillo.equipado = false;
+    
+    // Restaurar arma principal
+    arma.tipoActual = armaPrincipal;
+    const configArma = CONFIG.armas[armaPrincipal];
+    
+    arma.estaRecargando = false;
+    
+    // Cargar modelo del arma
+    if (weaponContainer) {
+      await cambiarModeloArma(armaPrincipal, weaponContainer);
+    }
+    
+    // Actualizar visibilidad de modelos
+    actualizarVisibilidadModelos(estadoEquipamiento.itemEquipado);
+    
+    console.log(`🔫 Restaurado arma principal desde JuiceBox: ${configArma.nombre}`);
     return true;
   }
+  
+  console.warn(`⚠️ Estado de equipamiento desconocido: ${itemActual}`);
+  return false;
 }
