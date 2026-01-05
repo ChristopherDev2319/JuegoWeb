@@ -137,12 +137,10 @@ import { BotManager } from './sistemas/botManager.js';
 import { AmmoSpawn } from './entidades/AmmoSpawn.js';
 
 // UI de estadísticas de entrenamiento
-// Requirements: 6.1, 6.2, 4.4
+// Requirements: 6.1, 6.2
 import {
   inicializarEntrenamientoUI,
   actualizarEstadisticasUI,
-  mostrarIndicadorZona,
-  ocultarIndicadorZona,
   destruirEntrenamientoUI
 } from './ui/entrenamientoUI.js';
 
@@ -507,10 +505,11 @@ function inicializarBotManager() {
   console.log('🤖 Inicializando sistema de bots de entrenamiento...');
 
   // Inicializar UI de entrenamiento
-  // Requirements: 6.1, 6.2, 4.4
+  // Requirements: 6.1, 6.2
   inicializarEntrenamientoUI();
 
   // Crear instancia del BotManager con callbacks de UI
+  // Requirements: 6.1, 6.2, 6.3 - Sin sistema de zonas
   botManager = new BotManager(scene, {
     onDisparoBot: (posicion, direccion, daño) => {
       // Callback cuando un bot tirador dispara al jugador
@@ -521,15 +520,6 @@ function inicializarBotManager() {
     onEliminacion: (tipoBot, estadisticas) => {
       console.log(`📊 Bot ${tipoBot} eliminado - Actualizando UI`);
       actualizarEstadisticasUI(estadisticas);
-    },
-    // Requirement 4.4: Mostrar nombre de zona cuando el jugador entra
-    onEntrarZona: (nombreZona, tipoZona) => {
-      console.log(`📍 Entrando en zona: ${nombreZona}`);
-      mostrarIndicadorZona(nombreZona, tipoZona);
-    },
-    onSalirZona: (nombreZona, tipoZona) => {
-      console.log(`📍 Saliendo de zona: ${nombreZona}`);
-      ocultarIndicadorZona();
     },
     // Actualizar estadísticas en UI
     onEstadisticasActualizadas: (estadisticas) => {
@@ -1161,16 +1151,24 @@ async function inicializarJuegoCompleto() {
   actualizarDisplayMunicion();
   actualizarDisplayDash();
 
-  actualizarCarga(90, 'Conectando al servidor...');
-
   // Initialize network connection (Requirement 2.1)
   // Solo conectar si es modo online
+  console.log(`🔍 Modo de juego actual: ${modoJuegoActual}`);
+  
   if (modoJuegoActual === 'online') {
+    actualizarCarga(90, 'Conectando al servidor...');
     await inicializarRed();
   } else {
+    actualizarCarga(90, 'Iniciando modo local...');
+    
     // Modo local - mostrar indicador
     mostrarIndicadorModoLocal();
     console.log('🎮 Modo local iniciado - Sin conexión al servidor');
+    
+    // Reposicionar jugador para modo local (Z=5, mirando hacia +Z)
+    jugador.posicion.set(0, CONFIG.jugador.alturaOjos, 5);
+    jugador.rotacion.set(0, Math.PI, 0); // Mirando hacia +Z (180 grados)
+    // La cámara se sincronizará automáticamente en el bucle del juego
     
     // Inicializar sistema de bots de entrenamiento
     // Requirements: 1.1, 2.1, 3.1, 4.4
@@ -2131,19 +2129,36 @@ function calcularDireccionDash() {
 function verificarImpactoBots(bala, bots) {
   if (bala.haImpactado) return null;
 
-  const raycaster = new THREE.Raycaster();
-  raycaster.set(bala.mesh.position, bala.direccion);
+  const posicionBala = bala.mesh.position;
 
   for (const bot of bots) {
     if (!bot.estaVivo()) continue;
 
-    const intersecciones = raycaster.intersectObject(bot.mesh);
+    // Verificar colisión con la hitbox del bot
+    const hitbox = bot.obtenerHitbox();
+    if (!hitbox) continue;
 
-    if (intersecciones.length > 0 && intersecciones[0].distance < 0.5) {
+    // Obtener posición mundial de la hitbox
+    const hitboxWorldPos = new THREE.Vector3();
+    hitbox.getWorldPosition(hitboxWorldPos);
+
+    // Calcular distancia entre bala y centro de hitbox
+    const distancia = posicionBala.distanceTo(hitboxWorldPos);
+
+    // Radio de colisión aproximado (diagonal de la hitbox / 2)
+    const radioColision = 1.5; // Aproximación basada en hitbox 1.4 x 2.0 x 1.2
+
+    if (distancia < radioColision) {
       bala.haImpactado = true;
       
       // Aplicar daño al bot
-      bot.recibirDaño(bala.dañoBala);
+      const daño = bala.dañoBala || 33; // Daño por defecto si no está definido
+      bot.recibirDaño(daño);
+      
+      // Mostrar indicador de daño en pantalla (igual que modo online)
+      mostrarDañoCausado(daño);
+      
+      console.log(`🎯 Bala impactó bot ${bot.tipo} - Daño: ${daño}`);
       
       // Crear efecto de impacto
       bala.crearEfectoImpacto(bala.mesh.position);
@@ -2437,18 +2452,25 @@ function actualizarDisplayMunicion() {
 
 /**
  * Actualiza el display de cargas de dash en la UI
+ * Exactamente igual que en modo multijugador - solo muestra cargas llenas o vacías
  */
 function actualizarDisplayDash() {
   const icons = document.querySelectorAll('.dash-icon');
   if (!icons.length) return;
 
   for (let i = 0; i < icons.length; i++) {
+    const icon = icons[i];
+    
     if (i < sistemaDash.cargasActuales) {
-      icons[i].className = 'dash-icon';
-    } else if (sistemaDash.cargasRecargando[i]) {
-      icons[i].className = 'dash-icon recharging';
+      // Carga disponible - verde
+      icon.className = 'dash-icon';
+      icon.style.background = '';
+      icon.style.opacity = '';
     } else {
-      icons[i].className = 'dash-icon empty';
+      // Carga vacía - gris
+      icon.className = 'dash-icon empty';
+      icon.style.background = '';
+      icon.style.opacity = '';
     }
   }
 }

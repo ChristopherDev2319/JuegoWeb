@@ -2750,35 +2750,21 @@ canvas {
 
 .modo-local-indicator {
   position: fixed;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, rgba(79, 172, 254, 0.9) 0%, rgba(0, 242, 254, 0.9) 100%);
-  color: white;
-  padding: 8px 20px;
-  border-radius: 20px;
-  font-size: 14px;
+  top: 15px;
+  left: 15px;
+  background: rgba(255, 170, 0, 0.2);
+  border: 1px solid rgba(255, 170, 0, 0.5);
+  border-radius: 8px;
+  padding: 8px 15px;
+  color: #ffaa00;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 1px;
-  z-index: 1000;
-  box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
-  animation: slideDown 0.3s ease;
+  z-index: 200;
   display: none;
 }
 
 .modo-local-indicator.visible {
   display: block;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
 }
 
 /* ==================== NUEVO LAYOUT DEL LOBBY ==================== */

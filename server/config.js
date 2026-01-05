@@ -120,19 +120,19 @@ export const WEAPON_CONFIG = {
   },
 
   // Escopeta: Arma de corto alcance con múltiples proyectiles
-  // Daño máximo: 208 (8 perdigones × 26 daño)
-  // Puede matar de un disparo a corta distancia si impactan todos los perdigones
-  // Requisitos: 1.1, 6.3, 6.4 - Velocidad incrementada 50%, cargador 3, daño 26
+  // Daño máximo: 192 (8 perdigones × 24 daño)
+  // NO mata de un disparo - requiere 2 disparos mínimo
+  // Requisitos: 1.1, 6.3, 6.4 - Velocidad incrementada 50%, cargador 3, daño 24
   ESCOPETA: {
-    damage: 26,              // Daño por perdigón - Actualizado (Requisito 6.4)
+    damage: 24,              // Daño por perdigón - Actualizado (no mata de un disparo)
     fireRate: 857,           // Cadencia: 70 RPM (60000/857) - lento
-    magazineSize: 3,         // Cartuchos por cargador - Actualizado (Requisito 6.3)
+    magazineSize: 3,         // Cartuchos por cargador
     totalAmmo: 28,           // Munición de reserva
     reloadTime: 3000,        // Tiempo de recarga: 3 segundos
-    bulletSpeed: 38,         // Velocidad de perdigones - Actualizado: 18 → 38 (incremento 50%, Requisito 1.1)
+    bulletSpeed: 38,         // Velocidad de perdigones
     projectiles: 8,          // Número de perdigones por disparo
     spread: 0.45,            // Dispersión de los perdigones
-    headshotMultiplier: 1.5  // Daño x1.5 en headshot (39 daño por perdigón)
+    headshotMultiplier: 1.5  // Daño x1.5 en headshot (36 daño por perdigón)
   },
 
   // MP5: Subfusil para combate cercano-medio

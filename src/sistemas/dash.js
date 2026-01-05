@@ -17,8 +17,9 @@ import { shapeCastDash, verificarPosicionValida, estaActivo as colisionesActivas
 export const sistemaDash = {
   cargasActuales: CONFIG.dash.cargasMaximas,
   estaEnDash: false,
-  cargasRecargando: [false, false, false],
-  inicioRecarga: [0, 0, 0],
+  ultimaRecarga: 0, // Tiempo de la última recarga (igual que servidor)
+  cargasRecargando: [false, false, false], // Mantenido por compatibilidad
+  inicioRecarga: [0, 0, 0], // Mantenido por compatibilidad
   // Campos para interpolación suave del dash
   // Requirements: 1.1, 1.2
   dashEnProgreso: false,
@@ -77,9 +78,13 @@ export function ejecutarDash(jugador, teclas, onDashEjecutado = null) {
 
   direccionDash.normalize();
 
-  // Consumir carga
+  // Consumir carga e iniciar timer de recarga (igual que servidor)
   sistemaDash.cargasActuales--;
   sistemaDash.estaEnDash = true;
+  // Iniciar recarga desde ahora si no hay otra recarga en progreso
+  if (sistemaDash.cargasActuales === CONFIG.dash.cargasMaximas - 1) {
+    sistemaDash.ultimaRecarga = performance.now();
+  }
 
   // Calcular posición final del dash usando shape cast
   // Requirements: 4.1, 4.2, 4.3, 4.4
@@ -134,29 +139,29 @@ export function ejecutarDash(jugador, teclas, onDashEjecutado = null) {
 
 /**
  * Actualiza el sistema de recarga de cargas de dash
+ * Funciona exactamente igual que el servidor: una carga a la vez cada 3 segundos
  */
 export function actualizarRecargaDash() {
-  const ahora = performance.now();
-
-  // Verificar cargas que terminaron de recargar
-  for (let i = 0; i < CONFIG.dash.cargasMaximas; i++) {
-    if (sistemaDash.cargasRecargando[i]) {
-      const tiempoTranscurrido = ahora - sistemaDash.inicioRecarga[i];
-
-      if (tiempoTranscurrido >= CONFIG.dash.tiempoRecarga) {
-        sistemaDash.cargasActuales++;
-        sistemaDash.cargasRecargando[i] = false;
-      }
-    }
+  // Si ya tenemos todas las cargas, no hacer nada
+  if (sistemaDash.cargasActuales >= CONFIG.dash.cargasMaximas) {
+    sistemaDash.ultimaRecarga = performance.now();
+    return;
   }
 
-  // Iniciar recarga de la siguiente carga si es necesario
-  if (sistemaDash.cargasActuales < CONFIG.dash.cargasMaximas) {
-    const indiceSiguienteCarga = sistemaDash.cargasActuales;
-    if (!sistemaDash.cargasRecargando[indiceSiguienteCarga]) {
-      sistemaDash.cargasRecargando[indiceSiguienteCarga] = true;
-      sistemaDash.inicioRecarga[indiceSiguienteCarga] = ahora;
-    }
+  const ahora = performance.now();
+  
+  // Inicializar tiempo de última recarga si no existe
+  if (!sistemaDash.ultimaRecarga) {
+    sistemaDash.ultimaRecarga = ahora;
+  }
+
+  // Verificar si pasó el tiempo de recarga (3 segundos)
+  const tiempoTranscurrido = ahora - sistemaDash.ultimaRecarga;
+  
+  if (tiempoTranscurrido >= CONFIG.dash.tiempoRecarga) {
+    // Agregar una carga
+    sistemaDash.cargasActuales++;
+    sistemaDash.ultimaRecarga = ahora;
   }
 }
 
@@ -209,6 +214,7 @@ export function obtenerProgresoRecarga() {
 export function reiniciarDash() {
   sistemaDash.cargasActuales = CONFIG.dash.cargasMaximas;
   sistemaDash.estaEnDash = false;
+  sistemaDash.ultimaRecarga = performance.now();
   sistemaDash.cargasRecargando = [false, false, false];
   sistemaDash.inicioRecarga = [0, 0, 0];
   // Reiniciar campos de interpolación
@@ -437,10 +443,14 @@ export function ejecutarDashInterpolado(jugador, teclas, onDashEjecutado = null)
 
   direccionDash.normalize();
 
-  // Consumir carga
+  // Consumir carga e iniciar timer de recarga (igual que servidor)
   sistemaDash.cargasActuales--;
   sistemaDash.estaEnDash = true;
   sistemaDash.dashEnProgreso = true;
+  // Iniciar recarga desde ahora si no hay otra recarga en progreso
+  if (sistemaDash.cargasActuales === CONFIG.dash.cargasMaximas - 1) {
+    sistemaDash.ultimaRecarga = performance.now();
+  }
 
   // Guardar posición inicial
   // Requirement 1.1: Interpolar desde punto inicial

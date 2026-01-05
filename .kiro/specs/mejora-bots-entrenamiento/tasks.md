@@ -1,0 +1,128 @@
+# Implementation Plan
+
+- [x] 1. Modificar BotBase para usar modelo GLB
+  - [x] 1.1 Agregar configuración del modelo bear en BotBase
+    - Definir constante BOT_MODEL_CONFIG con modelPath, scale (7.0), rotationOffset
+    - Importar GLTFLoader y AnimadorPersonaje
+    - _Requirements: 1.1, 1.2_
+  - [x] 1.2 Reemplazar crearMesh por crearModelo con carga GLB
+    - Crear método asíncrono cargarModeloBear()
+    - Usar GLTFLoader para cargar `modelos/animaciones/idle_tps.glb`
+    - Aplicar escala 7.0 y rotación correcta
+    - Crear mesh de fallback si falla la carga
+    - _Requirements: 1.1, 1.2_
+  - [x] 1.3 Integrar sistema de animaciones en BotBase
+    - Instanciar AnimadorPersonaje para cada bot
+    - Cargar animaciones idle y walk
+    - Método reproducirAnimacion(nombre)
+    - _Requirements: 3.2, 5.4_
+  - [x] 1.4 Ajustar barra de vida para modelo bear
+    - Reposicionar sprite de barra de vida sobre el modelo
+    - Ajustar altura según escala del modelo
+    - _Requirements: 7.1_
+  - [ ]* 1.5 Write property test para modelo correcto
+    - **Property 1: Modelo correcto para bots**
+    - **Validates: Requirements 1.1, 1.2**
+
+- [x] 2. Modificar BotManager para distribución por mapa
+  - [x] 2.1 Eliminar sistema de zonas de BotManager
+    - Remover array de zonas y métodos relacionados
+    - Eliminar callbacks onEntrarZona y onSalirZona
+    - Eliminar importación de ZonaEntrenamiento
+    - _Requirements: 6.1, 6.2, 6.3_
+  - [x] 2.2 Implementar generación de posiciones aleatorias
+    - Crear método generarPosicionAleatoria() usando límites del mapa
+    - Respetar margen desde bordes (CONFIG.limitesMapa)
+    - _Requirements: 2.1_
+  - [x] 2.3 Implementar validación de distancia mínima entre bots
+    - Verificar que nueva posición esté a distancia mínima de bots existentes
+    - Reintentar generación si no cumple distancia
+    - _Requirements: 2.3_
+  - [x] 2.4 Actualizar método crearBots para distribución global
+    - Crear bots de cada tipo con posiciones aleatorias válidas
+    - Usar configuración de cantidad desde CONFIG
+    - _Requirements: 2.1, 2.3_
+  - [ ]* 2.5 Write property test para posiciones dentro de límites
+    - **Property 2: Posiciones dentro de límites del mapa**
+    - **Validates: Requirements 2.1**
+  - [ ]* 2.6 Write property test para distancia mínima
+    - **Property 3: Distancia mínima entre bots**
+    - **Validates: Requirements 2.3**
+  - [ ]* 2.7 Write property test para sin lógica de zonas
+    - **Property 9: Sin lógica de zonas**
+    - **Validates: Requirements 6.1, 6.2, 6.3**
+
+- [x] 3. Checkpoint - Verificar carga de modelos
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 4. Modificar BotEstatico para animación idle
+  - [x] 4.1 Actualizar BotEstatico para reproducir animación idle
+    - Llamar reproducirAnimacion('idle') al crear
+    - Mantener animación durante vida del bot
+    - _Requirements: 3.1, 3.2_
+  - [ ]* 4.2 Write property test para inmovilidad
+    - **Property 4: Inmovilidad de bots estáticos**
+    - **Validates: Requirements 3.1**
+  - [ ]* 4.3 Write property test para restauración de posición
+    - **Property 5: Restauración de posición al reaparecer**
+    - **Validates: Requirements 3.3**
+
+- [x] 5. Modificar BotMovil para animación walk
+  - [x] 5.1 Actualizar BotMovil para reproducir animación walk
+    - Llamar reproducirAnimacion('walk') al moverse
+    - Cambiar a idle si está detenido
+    - _Requirements: 5.2, 5.4_
+  - [x] 5.2 Ajustar rotación del modelo según dirección
+    - Rotar modelo para mirar en dirección de movimiento
+    - _Requirements: 5.1, 5.2_
+  - [ ]* 5.3 Write property test para movimiento dentro de rango
+    - **Property 8: Movimiento lateral dentro de rango**
+    - **Validates: Requirements 5.3**
+
+- [x] 6. Modificar BotTirador para disparo hacia adelante
+  - [x] 6.1 Simplificar lógica de disparo
+    - Eliminar verificación de línea de visión al jugador
+    - Disparar en dirección frontal del bot (rotación Y)
+    - _Requirements: 4.1, 4.2_
+  - [x] 6.2 Crear efecto visual de disparo
+    - Crear proyectil visual que viaja hacia adelante
+    - Usar tracer similar al existente
+    - _Requirements: 4.2_
+  - [ ]* 6.3 Write property test para dirección de disparo
+    - **Property 6: Dirección de disparo consistente con rotación**
+    - **Validates: Requirements 4.1**
+  - [ ]* 6.4 Write property test para bots muertos no disparan
+    - **Property 7: Bots muertos no disparan**
+    - **Validates: Requirements 4.4**
+
+- [x] 7. Checkpoint - Verificar comportamientos de bots
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 8. Actualizar configuración en CONFIG
+  - [x] 8.1 Agregar configuración de distribución
+    - Añadir distanciaMinima y margenBorde en CONFIG.botsEntrenamiento
+    - Remover configuración de zonas
+    - _Requirements: 2.1, 2.3, 6.2_
+  - [x] 8.2 Ajustar cantidades de bots
+    - Configurar cantidad de cada tipo de bot
+    - _Requirements: 2.1_
+
+- [x] 9. Limpiar código obsoleto
+  - [x] 9.1 Eliminar ZonaEntrenamiento si no se usa en otro lugar
+    - Verificar dependencias antes de eliminar
+    - _Requirements: 6.2_
+  - [x] 9.2 Limpiar imports y referencias obsoletas
+    - Remover imports de zonas en BotManager
+    - _Requirements: 6.1, 6.2_
+
+- [x] 10. Integración y pruebas finales
+  - [x] 10.1 Verificar integración con sistema de daño existente
+    - Probar que los bots reciben daño correctamente
+    - Verificar actualización de barra de vida
+    - _Requirements: 1.3, 7.2_
+  - [ ]* 10.2 Write property test para sincronización de barra de vida
+    - **Property 10: Sincronización de barra de vida**
+    - **Validates: Requirements 7.2, 7.3**
+
+- [x] 11. Final Checkpoint - Verificar todo funciona
+  - Ensure all tests pass, ask the user if questions arise.

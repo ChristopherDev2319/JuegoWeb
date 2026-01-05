@@ -131,37 +131,33 @@ export class Bala {
    * @param {THREE.Vector3} posicion - Posición del impacto
    */
   crearEfectoImpacto(posicion) {
-    const particulas = 8;
-    for (let i = 0; i < particulas; i++) {
-      const geometria = new THREE.SphereGeometry(0.05, 4, 4);
-      const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-      const particula = new THREE.Mesh(geometria, material);
+    // Sin partículas rojas - solo un destello simple
+    const geometriaDestello = new THREE.SphereGeometry(0.1, 6, 6);
+    const materialDestello = new THREE.MeshBasicMaterial({
+      color: 0xffff00,
+      transparent: true,
+      opacity: 0.8
+    });
+    const destello = new THREE.Mesh(geometriaDestello, materialDestello);
+    destello.position.copy(posicion);
+    this.scene.add(destello);
 
-      particula.position.copy(posicion);
+    // Desvanecer el destello
+    let vida = 0;
+    const animar = () => {
+      vida += 0.05;
+      materialDestello.opacity = 0.8 - vida;
+      destello.scale.setScalar(1 + vida);
 
-      const velocidad = new THREE.Vector3(
-        (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 2
-      );
-
-      this.scene.add(particula);
-
-      let vida = 0;
-      const animar = () => {
-        vida += 0.016;
-        particula.position.add(velocidad.clone().multiplyScalar(0.05));
-
-        if (vida > 0.5) {
-          this.scene.remove(particula);
-          geometria.dispose();
-          material.dispose();
-        } else {
-          requestAnimationFrame(animar);
-        }
-      };
-      animar();
-    }
+      if (vida > 0.8) {
+        this.scene.remove(destello);
+        geometriaDestello.dispose();
+        materialDestello.dispose();
+      } else {
+        requestAnimationFrame(animar);
+      }
+    };
+    animar();
   }
 
   /**

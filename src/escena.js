@@ -48,6 +48,9 @@ export function inicializarEscena(onProgresoMapa = null) {
   // Configurar iluminación
   configurarIluminacion();
 
+  // Crear grid y ejes de coordenadas para debug
+  crearGridYEjes();
+
   // Cargar mapa (ahora retorna promesa)
   mapaPromise = cargarMapa(onProgresoMapa);
 
@@ -88,6 +91,57 @@ function configurarIluminacion() {
   const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
   fillLight.position.set(-50, 50, -50);
   scene.add(fillLight);
+}
+
+/**
+ * Crea un grid helper y ejes de coordenadas para debug
+ * Grid: cada cuadro = 5 unidades, total 100x100 unidades
+ * Ejes: Rojo = +X (derecha), Verde = +Y (arriba), Azul = +Z (adelante)
+ */
+function crearGridYEjes() {
+  // Grid en el suelo (100x100 unidades, divisiones de 5)
+  const gridHelper = new THREE.GridHelper(100, 20, 0x444444, 0x222222);
+  gridHelper.position.y = 0.01; // Ligeramente sobre el suelo
+  scene.add(gridHelper);
+  
+  // Ejes de coordenadas en el origen
+  // Rojo = +X, Verde = +Y, Azul = +Z
+  const axesHelper = new THREE.AxesHelper(20);
+  axesHelper.position.y = 0.02;
+  scene.add(axesHelper);
+  
+  // Etiquetas de ejes (usando sprites de texto)
+  crearEtiquetaEje('+X', 22, 0.5, 0, 0xff0000);
+  crearEtiquetaEje('+Z', 0, 0.5, 22, 0x0000ff);
+  crearEtiquetaEje('-X', -22, 0.5, 0, 0xff0000);
+  crearEtiquetaEje('-Z', 0, 0.5, -22, 0x0000ff);
+  
+  console.log('📐 Grid y ejes de coordenadas añadidos');
+  console.log('   Rojo (+X) = Derecha, Azul (+Z) = Adelante');
+  console.log('   Cada cuadro del grid = 5 unidades');
+}
+
+/**
+ * Crea una etiqueta de texto para los ejes
+ */
+function crearEtiquetaEje(texto, x, y, z, color) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 32;
+  const ctx = canvas.getContext('2d');
+  
+  ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
+  ctx.font = 'bold 24px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(texto, 32, 16);
+  
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({ map: texture });
+  const sprite = new THREE.Sprite(material);
+  sprite.position.set(x, y, z);
+  sprite.scale.set(4, 2, 1);
+  scene.add(sprite);
 }
 
 /**

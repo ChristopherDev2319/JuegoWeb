@@ -27,11 +27,11 @@ export const CONFIG = {
       descripcion: "Rifle de asalto versátil con buen equilibrio entre daño y precisión",
       tipo: "rifle",
       cadenciaDisparo: 666, // 666 RPM (como CS:GO)
-      daño: 33, // 4 balas al cuerpo, 1 headshot
+      daño: 30, // Igual que servidor (200 vida / 30 daño = 7 balas para matar)
       tamañoCargador: 30,
-      municionTotal: 210, // Actualizado: 210 balas para rifles
-      tiempoRecarga: 3.1, // Recarga lenta para balancear
-      velocidadBala: 60.0, // Actualizado: 40 → 60 (incremento 50%)
+      municionTotal: 210,
+      tiempoRecarga: 2.0, // 2 segundos como servidor
+      velocidadBala: 60.0,
       modelo: "modelos/FBX/Weapons/M4A1.fbx",
       sonidoDisparo: "sonidos/M4A1.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
@@ -58,11 +58,11 @@ export const CONFIG = {
       descripcion: "Rifle de asalto potente con alto retroceso pero gran daño",
       tipo: "rifle",
       cadenciaDisparo: 600, // 600 RPM (como CS:GO)
-      daño: 36, // 3 balas al cuerpo, 1 headshot
+      daño: 45, // Igual que servidor (200 vida / 45 daño = 5 balas para matar)
       tamañoCargador: 30,
-      municionTotal: 210, // Actualizado: 210 balas para rifles
+      municionTotal: 210,
       tiempoRecarga: 2.5,
-      velocidadBala: 63.0, // Actualizado: 42 → 63 (incremento 50%)
+      velocidadBala: 63.0,
       modelo: "modelos/FBX/Weapons/AK47.fbx",
       sonidoDisparo: "sonidos/AK47.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
@@ -89,11 +89,11 @@ export const CONFIG = {
       descripcion: "Pistola semiautomática precisa y confiable para combate cercano",
       tipo: "pistola",
       cadenciaDisparo: 267, // 267 RPM (semi-auto realista)
-      daño: 35, // 3 balas al cuerpo, 1 headshot de cerca
+      daño: 20, // Igual que servidor (200 vida / 20 daño = 10 balas para matar)
       tamañoCargador: 7,
       municionTotal: 35,
-      tiempoRecarga: 2.2,
-      velocidadBala: 45.0, // Actualizado: 30 → 45 (incremento 50%)
+      tiempoRecarga: 1.5, // 1.5 segundos como servidor
+      velocidadBala: 45.0,
       modelo: "modelos/FBX/Weapons/1911.fbx",
       sonidoDisparo: "sonidos/pistola.mp3",
       posicion: { x: 0.2, y: -0.4, z: -0.3 },
@@ -161,11 +161,11 @@ export const CONFIG = {
       descripcion: "Escopeta devastadora en combate cercano con múltiples perdigones",
       tipo: "escopeta",
       cadenciaDisparo: 68, // 68 RPM (lenta como debe ser)
-      daño: 26, // Por perdigón (8 perdigones = 208 máximo) - mantenido
-      tamañoCargador: 3, // Actualizado: 3 cartuchos por cargador
+      daño: 24, // Por perdigón (8 perdigones = 192 máximo, no mata de un disparo)
+      tamañoCargador: 3,
       municionTotal: 28,
-      tiempoRecarga: 4.2, // Recarga muy lenta
-      velocidadBala: 38.0, // Actualizado: 25 → 38 (incremento 50%)
+      tiempoRecarga: 3.0, // 3 segundos
+      velocidadBala: 38.0,
       modelo: "modelos/FBX/Weapons/Pump Shotgun.fbx",
       sonidoDisparo: "sonidos/ESCOPETA.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
@@ -198,12 +198,12 @@ export const CONFIG = {
       nombre: "MP5",
       descripcion: "Subfusil de alta cadencia ideal para combate rápido y móvil",
       tipo: "subfusil",
-      cadenciaDisparo: 800, // 800 RPM (alta cadencia)
-      daño: 26, // 4 balas al cuerpo, 2 headshots
+      cadenciaDisparo: 850, // 850 RPM como servidor
+      daño: 24, // Igual que servidor (200 vida / 24 daño = 9 balas para matar)
       tamañoCargador: 30,
-      municionTotal: 240, // Actualizado: 240 balas para subfusiles
-      tiempoRecarga: 2.6,
-      velocidadBala: 48.0, // Actualizado: 32 → 48 (incremento 50%)
+      municionTotal: 240,
+      tiempoRecarga: 2.0, // 2 segundos como servidor
+      velocidadBala: 48.0,
       modelo: "modelos/FBX/Weapons/MP5.fbx",
       sonidoDisparo: "sonidos/MP5.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
@@ -314,55 +314,43 @@ export const CONFIG = {
   },
 
   // Configuración del sistema de bots de entrenamiento
-  // Requirements: 1.1, 2.1, 3.1, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3
+  // Requirements: 1.1, 2.1, 2.3, 3.1, 5.1, 5.2, 5.3, 6.1, 6.2, 6.3
+  // NOTA: Sistema sin zonas - bots distribuidos aleatoriamente por todo el mapa
   botsEntrenamiento: {
     // Bot estático: para práctica de puntería básica
-    // Requirements: 1.1, 5.1
+    // Requirements: 1.1, 3.1, 3.2, 3.3
     estatico: {
-      vida: 100,
+      vida: 200,
       tiempoRespawn: 3000,      // ms antes de reaparecer
-      color: 0xff0000,          // Rojo distintivo
-      cantidad: 5               // Bots por zona
+      color: 0xff0000,          // Rojo distintivo (fallback si modelo no carga)
+      cantidad: 5               // Cantidad de bots estáticos en el mapa
     },
     // Bot móvil: para práctica de tracking
-    // Requirements: 2.1, 5.2
+    // Requirements: 5.1, 5.2, 5.3, 5.4
     movil: {
-      vida: 100,
+      vida: 200,
       tiempoRespawn: 3000,
-      color: 0x0088ff,          // Azul distintivo
+      color: 0x0088ff,          // Azul distintivo (fallback si modelo no carga)
       velocidad: 2,             // Unidades por segundo
-      rangoMovimiento: 8,       // Distancia máxima desde posición inicial
-      cantidad: 4
+      rangoMovimiento: 4,       // Distancia máxima desde posición inicial (reducido para evitar colisiones)
+      cantidad: 4               // Cantidad de bots móviles en el mapa
     },
     // Bot tirador: para práctica de reacción
-    // Requirements: 3.1, 5.3
+    // Requirements: 4.1, 4.2, 4.3, 4.4
     tirador: {
-      vida: 150,
+      vida: 200,
       tiempoRespawn: 5000,
-      color: 0xff8800,          // Naranja distintivo
-      cadenciaDisparo: 1500,    // ms entre disparos
+      color: 0xff8800,          // Naranja distintivo (fallback si modelo no carga)
+      cadenciaDisparo: 2000,    // ms entre disparos (Requirement 4.3)
       dañoReducido: 10,         // Daño de entrenamiento (menor que armas normales)
-      rangoVision: 30,          // Distancia máxima de detección del jugador
-      cantidad: 3
+      velocidadBala: 30,        // Velocidad del proyectil (unidades/segundo)
+      cantidad: 3               // Cantidad de bots tiradores en el mapa
     },
-    // Zonas de entrenamiento separadas
-    // Requirements: 4.1, 4.2, 4.3
-    zonas: {
-      estaticos: { 
-        centro: { x: -20, y: 1, z: 0 }, 
-        radio: 15,
-        nombre: 'Zona de Puntería'
-      },
-      moviles: { 
-        centro: { x: 20, y: 1, z: 0 }, 
-        radio: 15,
-        nombre: 'Zona de Tracking'
-      },
-      tiradores: { 
-        centro: { x: 0, y: 1, z: -30 }, 
-        radio: 15,
-        nombre: 'Zona de Reacción'
-      }
+    // Configuración de distribución por el mapa (sin zonas)
+    // Requirements: 2.1, 2.3, 6.1, 6.2, 6.3
+    distribucion: {
+      distanciaMinima: 5,       // Distancia mínima entre bots (evita superposición)
+      margenBorde: 10           // Margen desde los límites del mapa (CONFIG.limitesMapa)
     }
   },
 
