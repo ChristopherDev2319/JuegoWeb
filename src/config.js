@@ -26,7 +26,7 @@ export const CONFIG = {
       nombre: "M4A1",
       descripcion: "Rifle de asalto versátil con buen equilibrio entre daño y precisión",
       tipo: "rifle",
-      cadenciaDisparo: 666, // 666 RPM (como CS:GO)
+      cadenciaDisparo: 800, // 800 RPM (sincronizado con servidor: 60000/75ms)
       daño: 30, // Igual que servidor (200 vida / 30 daño = 7 balas para matar)
       tamañoCargador: 30,
       municionTotal: 210,
@@ -57,7 +57,7 @@ export const CONFIG = {
       nombre: "AK-47",
       descripcion: "Rifle de asalto potente con alto retroceso pero gran daño",
       tipo: "rifle",
-      cadenciaDisparo: 600, // 600 RPM (como CS:GO)
+      cadenciaDisparo: 550, // 550 RPM (sincronizado con servidor: 60000/109ms)
       daño: 45, // Igual que servidor (200 vida / 45 daño = 5 balas para matar)
       tamañoCargador: 30,
       municionTotal: 210,
@@ -88,7 +88,7 @@ export const CONFIG = {
       nombre: "Colt 1911",
       descripcion: "Pistola semiautomática precisa y confiable para combate cercano",
       tipo: "pistola",
-      cadenciaDisparo: 267, // 267 RPM (semi-auto realista)
+      cadenciaDisparo: 400, // 400 RPM (sincronizado con servidor: 60000/150ms)
       daño: 20, // Igual que servidor (200 vida / 20 daño = 10 balas para matar)
       tamañoCargador: 7,
       municionTotal: 35,
@@ -125,7 +125,7 @@ export const CONFIG = {
       nombre: "AWP",
       descripcion: "Rifle de francotirador de alta precisión con potencial letal",
       tipo: "francotirador",
-      cadenciaDisparo: 41, // 41 RPM (muy lento como CS:GO)
+      cadenciaDisparo: 45, // 45 RPM (sincronizado con servidor: 60000/1333ms)
       daño: 150, // Actualizado: mata de un disparo al cuerpo
       tamañoCargador: 5, // Aumentado: 5 balas por cargador
       municionTotal: 30, // Aumentado: 30 balas máximo
@@ -160,7 +160,7 @@ export const CONFIG = {
       nombre: "Pump Shotgun",
       descripcion: "Escopeta devastadora en combate cercano con múltiples perdigones",
       tipo: "escopeta",
-      cadenciaDisparo: 68, // 68 RPM (lenta como debe ser)
+      cadenciaDisparo: 70, // 70 RPM (sincronizado con servidor: 60000/857ms)
       daño: 24, // Por perdigón (8 perdigones = 192 máximo, no mata de un disparo)
       tamañoCargador: 8, // Aumentado: 8 cartuchos por cargador
       municionTotal: 64, // Aumentado: 64 cartuchos máximo
