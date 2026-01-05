@@ -27,11 +27,11 @@ export const CONFIG = {
       descripcion: "Rifle de asalto versátil con buen equilibrio entre daño y precisión",
       tipo: "rifle",
       cadenciaDisparo: 666, // 666 RPM (como CS:GO)
-      daño: 33, // 4 balas al cuerpo, 1 headshot
+      daño: 30, // Igual que servidor (200 vida / 30 daño = 7 balas para matar)
       tamañoCargador: 30,
-      municionTotal: 120,
-      tiempoRecarga: 3.1, // Recarga lenta para balancear
-      velocidadBala: 40.0,
+      municionTotal: 210,
+      tiempoRecarga: 2.0, // 2 segundos como servidor
+      velocidadBala: 60.0,
       modelo: "modelos/FBX/Weapons/M4A1.fbx",
       sonidoDisparo: "sonidos/M4A1.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
@@ -58,11 +58,11 @@ export const CONFIG = {
       descripcion: "Rifle de asalto potente con alto retroceso pero gran daño",
       tipo: "rifle",
       cadenciaDisparo: 600, // 600 RPM (como CS:GO)
-      daño: 36, // 3 balas al cuerpo, 1 headshot
+      daño: 45, // Igual que servidor (200 vida / 45 daño = 5 balas para matar)
       tamañoCargador: 30,
-      municionTotal: 90,
+      municionTotal: 210,
       tiempoRecarga: 2.5,
-      velocidadBala: 42.0,
+      velocidadBala: 63.0,
       modelo: "modelos/FBX/Weapons/AK47.fbx",
       sonidoDisparo: "sonidos/AK47.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
@@ -89,11 +89,11 @@ export const CONFIG = {
       descripcion: "Pistola semiautomática precisa y confiable para combate cercano",
       tipo: "pistola",
       cadenciaDisparo: 267, // 267 RPM (semi-auto realista)
-      daño: 35, // 3 balas al cuerpo, 1 headshot de cerca
+      daño: 20, // Igual que servidor (200 vida / 20 daño = 10 balas para matar)
       tamañoCargador: 7,
       municionTotal: 35,
-      tiempoRecarga: 2.2,
-      velocidadBala: 30.0,
+      tiempoRecarga: 1.5, // 1.5 segundos como servidor
+      velocidadBala: 45.0,
       modelo: "modelos/FBX/Weapons/1911.fbx",
       sonidoDisparo: "sonidos/pistola.mp3",
       posicion: { x: 0.2, y: -0.4, z: -0.3 },
@@ -126,11 +126,11 @@ export const CONFIG = {
       descripcion: "Rifle de francotirador de alta precisión con potencial letal",
       tipo: "francotirador",
       cadenciaDisparo: 41, // 41 RPM (muy lento como CS:GO)
-      daño: 115, // 1 shot kill al cuerpo, siempre letal headshot
-      tamañoCargador: 10,
-      municionTotal: 30,
+      daño: 150, // Actualizado: mata de un disparo al cuerpo
+      tamañoCargador: 1, // Actualizado: 1 bala por cargador
+      municionTotal: 10, // Actualizado: 10 balas máximo
       tiempoRecarga: 3.7, // Recarga muy lenta
-      velocidadBala: 85.0, // Muy rápida
+      velocidadBala: 120.0, // Actualizado: velocidad máxima de 120
       modelo: "modelos/FBX/Weapons/AWP.fbx",
       sonidoDisparo: "sonidos/SNIPER.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
@@ -161,11 +161,11 @@ export const CONFIG = {
       descripcion: "Escopeta devastadora en combate cercano con múltiples perdigones",
       tipo: "escopeta",
       cadenciaDisparo: 68, // 68 RPM (lenta como debe ser)
-      daño: 26, // Por perdigón (8 perdigones = 208 máximo)
-      tamañoCargador: 7, // Menos munición
+      daño: 24, // Por perdigón (8 perdigones = 192 máximo, no mata de un disparo)
+      tamañoCargador: 3,
       municionTotal: 28,
-      tiempoRecarga: 4.2, // Recarga muy lenta
-      velocidadBala: 25.0, // Lenta
+      tiempoRecarga: 3.0, // 3 segundos
+      velocidadBala: 38.0,
       modelo: "modelos/FBX/Weapons/Pump Shotgun.fbx",
       sonidoDisparo: "sonidos/ESCOPETA.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
@@ -198,12 +198,12 @@ export const CONFIG = {
       nombre: "MP5",
       descripcion: "Subfusil de alta cadencia ideal para combate rápido y móvil",
       tipo: "subfusil",
-      cadenciaDisparo: 800, // 800 RPM (alta cadencia)
-      daño: 26, // 4 balas al cuerpo, 2 headshots
+      cadenciaDisparo: 850, // 850 RPM como servidor
+      daño: 24, // Igual que servidor (200 vida / 24 daño = 9 balas para matar)
       tamañoCargador: 30,
-      municionTotal: 120,
-      tiempoRecarga: 2.6,
-      velocidadBala: 32.0,
+      municionTotal: 240,
+      tiempoRecarga: 2.0, // 2 segundos como servidor
+      velocidadBala: 48.0,
       modelo: "modelos/FBX/Weapons/MP5.fbx",
       sonidoDisparo: "sonidos/MP5.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
@@ -229,36 +229,26 @@ export const CONFIG = {
         reduccionDispersion: 0.4
       }
     },
-    
-    // SCAR: Rifle de batalla pesado - Daño alto, cadencia media
-    "SCAR": {
-      nombre: "SCAR-H",
-      descripcion: "Rifle de batalla pesado con gran poder de parada y alcance",
-      tipo: "rifle",
-      cadenciaDisparo: 625, // 625 RPM (entre M4A1 y AK47)
-      daño: 40, // Más daño que M4A1 pero menos que AK47
-      tamañoCargador: 20, // Cargador más pequeño
-      municionTotal: 80,
-      tiempoRecarga: 2.8,
-      velocidadBala: 45.0,
-      modelo: "modelos/FBX/Weapons/SCAR.fbx",
-      sonidoDisparo: "sonidos/SCAR.mp3",
-      posicion: { x: 0.3, y: -0.3, z: -0.5 },
-      rotacion: { x: 0, y: Math.PI, z: 0 },
-      retroceso: {
-        cantidad: 0.09, // Retroceso moderado-alto
-        arriba: 0.05,
-        duracion: 75
-      },
-      multiplicadorHeadshot: 4.0, // Headshot letal
-      dispersion: 0.025, // Precisión buena pero no perfecta
-      apuntado: {
-        zoom: 1.6,
-        reduccionRetroceso: 0.45,
-        tiempoTransicion: 0.28,
-        posicionArma: { x: 0, y: -0.08, z: -0.18 },
-        reduccionDispersion: 0.35
-      }
+
+    // KNIFE: Cuchillo táctico para combate cuerpo a cuerpo
+    // Requirements: 4.1, 4.2, 4.5, 5.1, 5.2, 5.3
+    "KNIFE": {
+      nombre: "Knife",
+      descripcion: "Cuchillo táctico para combate cuerpo a cuerpo",
+      tipo: "melee",
+      semiAutomatica: true,        // Solo un ataque por click (evita ataques múltiples)
+      daño: 30,                    // 30 puntos de daño por ataque (balanceado)
+      rangoAtaque: 3.0,            // 3 unidades de distancia (aumentado para mejor alcance)
+      cadenciaAtaque: 350,         // ms entre ataques (más rápido)
+      modelo: "modelos/valorants_knife_low_poly.glb",
+      animacionAtaque: "modelos/animaciones/knife_attack_tps.glb",
+      animacionAtaqueTPS: "modelos/animaciones/knife_attack_tps.glb",
+      // Posición FPS: más alejado y a la derecha para verse bien
+      posicion: { x: 0.35, y: -0.4, z: -0.5 },
+      // Rotación FPS: agarre natural diagonal
+      rotacion: { x: -0.2, y: Math.PI * 0.7, z: 0.15 },
+      // Escala para tamaño apropiado en pantalla
+      escala: { x: 0.6, y: 0.6, z: 0.6 }
     }
   },
 
@@ -324,55 +314,81 @@ export const CONFIG = {
   },
 
   // Configuración del sistema de bots de entrenamiento
-  // Requirements: 1.1, 2.1, 3.1, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3
+  // Requirements: 1.1, 2.1, 2.3, 3.1, 5.1, 5.2, 5.3, 6.1, 6.2, 6.3
+  // NOTA: Sistema sin zonas - bots distribuidos aleatoriamente por todo el mapa
   botsEntrenamiento: {
     // Bot estático: para práctica de puntería básica
-    // Requirements: 1.1, 5.1
+    // Requirements: 1.1, 3.1, 3.2, 3.3
     estatico: {
-      vida: 100,
+      vida: 200,
       tiempoRespawn: 3000,      // ms antes de reaparecer
-      color: 0xff0000,          // Rojo distintivo
-      cantidad: 5               // Bots por zona
+      color: 0xff0000,          // Rojo distintivo (fallback si modelo no carga)
+      cantidad: 5               // Cantidad de bots estáticos en el mapa
     },
     // Bot móvil: para práctica de tracking
-    // Requirements: 2.1, 5.2
+    // Requirements: 5.1, 5.2, 5.3, 5.4
     movil: {
-      vida: 100,
+      vida: 200,
       tiempoRespawn: 3000,
-      color: 0x0088ff,          // Azul distintivo
+      color: 0x0088ff,          // Azul distintivo (fallback si modelo no carga)
       velocidad: 2,             // Unidades por segundo
-      rangoMovimiento: 8,       // Distancia máxima desde posición inicial
-      cantidad: 4
+      rangoMovimiento: 4,       // Distancia máxima desde posición inicial (reducido para evitar colisiones)
+      cantidad: 4               // Cantidad de bots móviles en el mapa
     },
     // Bot tirador: para práctica de reacción
-    // Requirements: 3.1, 5.3
+    // Requirements: 4.1, 4.2, 4.3, 4.4
     tirador: {
-      vida: 150,
+      vida: 200,
       tiempoRespawn: 5000,
-      color: 0xff8800,          // Naranja distintivo
-      cadenciaDisparo: 1500,    // ms entre disparos
+      color: 0xff8800,          // Naranja distintivo (fallback si modelo no carga)
+      cadenciaDisparo: 2000,    // ms entre disparos (Requirement 4.3)
       dañoReducido: 10,         // Daño de entrenamiento (menor que armas normales)
-      rangoVision: 30,          // Distancia máxima de detección del jugador
-      cantidad: 3
+      velocidadBala: 30,        // Velocidad del proyectil (unidades/segundo)
+      cantidad: 3               // Cantidad de bots tiradores en el mapa
     },
-    // Zonas de entrenamiento separadas
-    // Requirements: 4.1, 4.2, 4.3
-    zonas: {
-      estaticos: { 
-        centro: { x: -20, y: 1, z: 0 }, 
-        radio: 15,
-        nombre: 'Zona de Puntería'
-      },
-      moviles: { 
-        centro: { x: 20, y: 1, z: 0 }, 
-        radio: 15,
-        nombre: 'Zona de Tracking'
-      },
-      tiradores: { 
-        centro: { x: 0, y: 1, z: -30 }, 
-        radio: 15,
-        nombre: 'Zona de Reacción'
-      }
+    // Configuración de distribución por el mapa (sin zonas)
+    // Requirements: 2.1, 2.3, 6.1, 6.2, 6.3
+    distribucion: {
+      distanciaMinima: 5,       // Distancia mínima entre bots (evita superposición)
+      margenBorde: 10           // Margen desde los límites del mapa (CONFIG.limitesMapa)
     }
+  },
+
+  // Configuración del sistema de curación (JuiceBox)
+  // Requirements: 6.1, 6.2
+  curacion: {
+    modelo: "modelos/stylized_juicebox.glb",
+    vidaCurada: 50,              // HP restaurados al completar curación
+    tiempoCuracion: 2000,        // 2 segundos en ms
+    // Posición FPS (primera persona)
+    posicion: { x: 0.25, y: -0.35, z: -0.4 },
+    rotacion: { x: 0, y: Math.PI * 0.3, z: 0.1 },
+    escala: { x: 0.15, y: 0.15, z: 0.15 },
+    // Configuración TPS (tercera persona para jugadores remotos)
+    tps: {
+      escala: 0.15,
+      posicionOffset: { x: 0.02, y: 0.01, z: 0.03 },
+      rotacionOffset: { x: 0, y: Math.PI * 0.5, z: 0 },
+      nombresHuesoMano: ['hand_r', 'Hand_R', 'RightHand', 'mixamorigRightHand', 'hand.R']
+    }
+  },
+
+  // Configuración del sistema de spawns de munición
+  // Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
+  spawnsAmmo: {
+    porcentajeMunicion: 0.35,      // 35% de munición máxima del arma equipada
+    tiempoRecarga: 10000,          // 10 segundos en ms para reactivar
+    modelo: "modelos/ammo_pack.glb",
+    escala: 0.04,
+    radioRecoleccion: 1.5,         // Distancia para recoger (unidades)
+    // Posiciones estratégicas de spawns en el mapa
+    posiciones: [
+      { x: 10, y: 0, z: 10 },
+      { x: -10, y: 0, z: 10 },
+      { x: 10, y: 0, z: -10 },
+      { x: -10, y: 0, z: -10 },
+      { x: 0, y: 0, z: 20 },
+      { x: 0, y: 0, z: -20 }
+    ]
   }
 };

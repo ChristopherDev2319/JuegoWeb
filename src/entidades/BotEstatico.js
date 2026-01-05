@@ -3,7 +3,7 @@
  * Bot de entrenamiento que permanece inmóvil para práctica de puntería básica
  * Extiende BotBase con tipo 'estatico' y color rojo
  * 
- * Requirements: 1.1, 1.2, 1.3, 1.4, 5.1
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 3.1, 3.2, 5.1
  * @requires THREE - Three.js debe estar disponible globalmente
  */
 
@@ -14,6 +14,8 @@ export class BotEstatico extends BotBase {
   /**
    * Crea un bot estático en la posición especificada
    * Requirement 1.1: Crear bots estáticos en posiciones predefinidas
+   * Requirement 3.1: Mantener al bot inmóvil en su posición inicial
+   * Requirement 3.2: Reproducir animación idle del Modelo_Bear
    * Requirement 5.1: Asignar color distintivo rojo
    * 
    * @param {THREE.Scene} scene - Escena de Three.js
@@ -39,14 +41,10 @@ export class BotEstatico extends BotBase {
    * Actualiza el estado del bot estático
    * Solo verifica si debe reaparecer (sin movimiento)
    * 
-   * Requirement 1.3: Reaparecer después de tiempo configurable
-   * 
-   * @param {number} deltaTime - Tiempo desde la última actualización en ms
+   * @param {number} deltaTime - Tiempo desde la última actualización en segundos
    */
   actualizar(deltaTime) {
-    // El bot estático solo necesita verificar respawn
-    // No tiene movimiento ni comportamiento adicional
-    // Llamar al método padre que maneja la lógica de respawn
+    // El bot estático solo necesita verificar respawn y actualizar animaciones
     super.actualizar(deltaTime);
   }
 }

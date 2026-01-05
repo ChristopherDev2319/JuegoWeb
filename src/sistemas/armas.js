@@ -11,31 +11,59 @@ import { Bala } from '../entidades/Bala.js';
 
 /**
  * Estado del arma actual
+ * NOTA: Los valores se inicializan a null y se establecen cuando el jugador selecciona un arma
  */
 export const arma = {
-  tipoActual: CONFIG.armaActual,
-  municionActual: CONFIG.armas[CONFIG.armaActual].tamañoCargador,
-  municionTotal: CONFIG.armas[CONFIG.armaActual].municionTotal,
+  tipoActual: null,
+  municionActual: 0,
+  municionTotal: 0,
   estaRecargando: false,
   puedeDisparar: true,
   ultimoDisparo: 0,
   estaApuntando: false,
   transicionApuntado: 0, // 0 = no apuntando, 1 = completamente apuntando
   retrocesoacumulado: 0, // Retroceso acumulado que afecta precisión
-  disparosConsecutivos: 0 // Contador de disparos consecutivos
+  disparosConsecutivos: 0, // Contador de disparos consecutivos
+  inicializado: false // Flag para saber si el arma fue inicializada por el jugador
 };
 
 /**
  * Inventario de armas disponibles
  */
 export const inventarioArmas = {
-  armasDisponibles: [CONFIG.armaActual], // Empezamos solo con el arma por defecto
+  armasDisponibles: [], // Se establece cuando el jugador selecciona un arma
   armaSeleccionada: 0 // Índice del arma actual
 };
 
 /**
+ * Estado del cuchillo para controlar cadencia de ataque e intercambio con Q
+ * Requirements: 2.1, 2.2, 2.3, 4.1, 4.4, 4.5
+ * Movido al inicio del archivo para que esté disponible en establecerArmaUnica
+ */
+const estadoCuchillo = {
+  equipado: false,              // true si el cuchillo está equipado actualmente
+  armaPrincipalPrevia: null,    // Arma a restaurar al presionar Q
+  ultimoAtaque: 0,
+  puedeAtacar: true
+};
+
+/**
+ * Estado del sistema de curación (JuiceBox)
+ * Requirements: 1.1, 2.1, 3.1, 4.1
+ */
+const estadoCuracion = {
+  juiceBoxEquipado: false,      // Si el JuiceBox está equipado actualmente
+  armaPreviaACuracion: null,    // Arma/cuchillo a restaurar al desequipar JuiceBox
+  curacionEnProgreso: false,    // Si hay una curación activa
+  tiempoInicioCuracion: 0,      // Timestamp de inicio de curación
+  modeloJuiceBox: null,         // Referencia al modelo cargado
+  modeloCargado: false          // Si el modelo ya fue cargado
+};
+
+/**
  * Establece el inventario con una única arma
- * Requirements: 2.2 - El jugador solo puede usar el arma seleccionada
+ * Requirements: 2.2, 2.3 - El jugador solo puede usar el arma seleccionada
+ * Requirements: 1.1, 2.1, 4.3 - Inicializar estado de cuchillo al cargar
  * @param {string} tipoArma - Tipo de arma a establecer como única en el inventario
  * @param {THREE.Object3D} weaponContainer - Contenedor del arma (opcional)
  * @returns {boolean} - true si se estableció exitosamente
@@ -54,7 +82,7 @@ export function establecerArmaUnica(tipoArma, weaponContainer = null) {
   arma.tipoActual = tipoArma;
   const configArma = CONFIG.armas[tipoArma];
   
-  // Reiniciar munición
+  // Reiniciar munición con los valores del arma seleccionada
   arma.municionActual = configArma.tamañoCargador;
   arma.municionTotal = configArma.municionTotal;
   arma.estaRecargando = false;
@@ -62,13 +90,23 @@ export function establecerArmaUnica(tipoArma, weaponContainer = null) {
   arma.estaApuntando = false;
   arma.transicionApuntado = 0;
   arma.disparosConsecutivos = 0;
+  arma.inicializado = true; // Marcar como inicializado
+  
+  // Inicializar estado del cuchillo - guardar arma principal para intercambio con Q
+  // Requirements: 1.1, 2.1, 4.3 - Inicializar estado de cuchillo al cargar
+  // Requirements: 2.3 - Recordar arma principal para intercambios posteriores
+  estadoCuchillo.equipado = false;
+  estadoCuchillo.armaPrincipalPrevia = tipoArma;
+  estadoCuchillo.ultimoAtaque = 0;
+  estadoCuchillo.puedeAtacar = true;
   
   // Cambiar modelo si se proporciona el contenedor
   if (weaponContainer) {
     cambiarModeloArma(tipoArma, weaponContainer);
   }
   
-  console.log(`🔫 Inventario establecido con arma única: ${configArma.nombre}`);
+  console.log(`🔫 Inventario establecido con arma única: ${configArma.nombre} - Munición: ${arma.municionActual}/${arma.municionTotal}`);
+  console.log(`🔪 Estado cuchillo inicializado - Arma principal: ${tipoArma}`);
   return true;
 }
 
@@ -78,6 +116,413 @@ export function establecerArmaUnica(tipoArma, weaponContainer = null) {
 let modeloArma = null;
 let modelosArmas = {}; // Cache de modelos cargados
 let cargandoModelo = false;
+
+/**
+ * Sistema de animaciones del cuchillo
+ * Requirements: 4.3
+ */
+let animacionesCuchillo = {
+  mixer: null,
+  clipAtaque: null,
+  accionAtaque: null,
+  cargada: false
+};
+
+/**
+ * Carga la animación de ataque del cuchillo
+ * Requirements: 4.3
+ * @returns {Promise<void>}
+ */
+export function cargarAnimacionCuchillo() {
+  return new Promise((resolve, reject) => {
+    const configCuchillo = CONFIG.armas["KNIFE"];
+    if (!configCuchillo || !configCuchillo.animacionAtaque) {
+      console.warn("⚠️ No se encontró configuración de animación del cuchillo");
+      resolve();
+      return;
+    }
+
+    if (animacionesCuchillo.cargada) {
+      resolve();
+      return;
+    }
+
+    const gltfLoader = new THREE.GLTFLoader();
+    
+    console.log(`🎬 Cargando animación de cuchillo: ${configCuchillo.animacionAtaque}`);
+
+    gltfLoader.load(
+      configCuchillo.animacionAtaque,
+      (gltf) => {
+        if (gltf.animations && gltf.animations.length > 0) {
+          animacionesCuchillo.clipAtaque = gltf.animations[0];
+          animacionesCuchillo.cargada = true;
+          console.log(`✅ Animación de cuchillo cargada: ${animacionesCuchillo.clipAtaque.name}`);
+        } else {
+          console.warn("⚠️ El archivo de animación no contiene animaciones");
+        }
+        resolve();
+      },
+      (progress) => {
+        if (progress.total > 0) {
+          console.log(`📦 Cargando animación: ${Math.round((progress.loaded / progress.total) * 100)}%`);
+        }
+      },
+      (error) => {
+        console.error(`❌ Error cargando animación del cuchillo:`, error);
+        // No rechazar, solo advertir - la animación fallback funcionará
+        resolve();
+      }
+    );
+  });
+}
+
+/**
+ * Configura el mixer de animación para el modelo del cuchillo
+ * @param {THREE.Object3D} modelo - Modelo del cuchillo
+ */
+function configurarMixerCuchillo(modelo) {
+  if (!modelo) return;
+  
+  animacionesCuchillo.mixer = new THREE.AnimationMixer(modelo);
+  
+  if (animacionesCuchillo.clipAtaque) {
+    animacionesCuchillo.accionAtaque = animacionesCuchillo.mixer.clipAction(animacionesCuchillo.clipAtaque);
+    animacionesCuchillo.accionAtaque.setLoop(THREE.LoopOnce);
+    animacionesCuchillo.accionAtaque.clampWhenFinished = true;
+  }
+}
+
+/**
+ * Reproduce la animación de ataque del cuchillo
+ * Requirements: 4.3
+ */
+export function reproducirAnimacionAtaqueCuchillo() {
+  if (animacionesCuchillo.accionAtaque && animacionesCuchillo.mixer) {
+    animacionesCuchillo.accionAtaque.reset();
+    animacionesCuchillo.accionAtaque.play();
+    console.log("🎬 Reproduciendo animación de ataque del cuchillo");
+  }
+}
+
+/**
+ * Actualiza las animaciones del cuchillo (llamar cada frame)
+ * @param {number} deltaTime - Tiempo desde el último frame en segundos
+ */
+export function actualizarAnimacionesCuchillo(deltaTime) {
+  if (animacionesCuchillo.mixer) {
+    animacionesCuchillo.mixer.update(deltaTime);
+  }
+}
+
+/**
+ * Carga el modelo del JuiceBox para vista FPS
+ * Requirements: 1.4, 6.1
+ * @param {THREE.Object3D} weaponContainer - Contenedor del arma FPS
+ * @returns {Promise<THREE.Object3D>} - Modelo cargado
+ */
+export function cargarModeloJuiceBox(weaponContainer) {
+  return new Promise((resolve, reject) => {
+    const configCuracion = CONFIG.curacion;
+    if (!configCuracion || !configCuracion.modelo) {
+      reject(new Error('No se encontró configuración del JuiceBox'));
+      return;
+    }
+
+    // Si ya está cargado, devolverlo
+    if (estadoCuracion.modeloCargado && estadoCuracion.modeloJuiceBox) {
+      resolve(estadoCuracion.modeloJuiceBox);
+      return;
+    }
+
+    const gltfLoader = new THREE.GLTFLoader();
+    
+    console.log(`🧃 Cargando modelo JuiceBox: ${configCuracion.modelo}`);
+
+    gltfLoader.load(
+      configCuracion.modelo,
+      (gltf) => {
+        const juiceBox = gltf.scene;
+        
+        // Aplicar escala de configuración
+        const escala = configCuracion.escala || { x: 0.15, y: 0.15, z: 0.15 };
+        juiceBox.scale.set(escala.x, escala.y, escala.z);
+
+        // Aplicar posición FPS
+        const posConfig = configCuracion.posicion || { x: 0.25, y: -0.35, z: -0.4 };
+        const rotConfig = configCuracion.rotacion || { x: 0, y: Math.PI * 0.3, z: 0.1 };
+        
+        juiceBox.position.set(posConfig.x, posConfig.y, posConfig.z);
+        juiceBox.rotation.set(rotConfig.x, rotConfig.y, rotConfig.z);
+
+        // Sin sombras
+        juiceBox.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = false;
+            child.receiveShadow = false;
+          }
+        });
+
+        // Ocultar inicialmente
+        juiceBox.visible = false;
+
+        // Guardar referencia
+        estadoCuracion.modeloJuiceBox = juiceBox;
+        estadoCuracion.modeloCargado = true;
+        
+        console.log(`✅ Modelo JuiceBox cargado correctamente`);
+        resolve(juiceBox);
+      },
+      (progress) => {
+        if (progress.total > 0) {
+          console.log(`📦 Cargando JuiceBox: ${Math.round((progress.loaded / progress.total) * 100)}%`);
+        }
+      },
+      (error) => {
+        console.error(`❌ Error cargando modelo JuiceBox:`, error);
+        reject(error);
+      }
+    );
+  });
+}
+
+/**
+ * Alterna el equipamiento del JuiceBox con tecla C
+ * Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3
+ * @param {THREE.Object3D} weaponContainer - Contenedor del arma FPS
+ * @returns {Promise<boolean>} - true si se realizó el cambio
+ */
+export async function alternarJuiceBox(weaponContainer = null) {
+  // No permitir cambio durante recarga
+  if (arma.estaRecargando) {
+    console.log('🧃 No se puede cambiar al JuiceBox durante recarga');
+    return false;
+  }
+
+  // No permitir cambio durante curación en progreso
+  if (estadoCuracion.curacionEnProgreso) {
+    console.log('🧃 No se puede cambiar durante curación en progreso');
+    return false;
+  }
+
+  if (estadoCuracion.juiceBoxEquipado) {
+    // Tiene JuiceBox equipado -> restaurar arma/cuchillo anterior
+    // Requirements: 1.3
+    const itemPrevio = estadoCuracion.armaPreviaACuracion;
+    
+    if (!itemPrevio) {
+      console.warn('⚠️ No hay item previo para restaurar');
+      return false;
+    }
+
+    // Ocultar JuiceBox
+    if (estadoCuracion.modeloJuiceBox) {
+      estadoCuracion.modeloJuiceBox.visible = false;
+    }
+
+    // Restaurar item previo
+    if (itemPrevio === 'KNIFE') {
+      // Restaurar cuchillo
+      arma.tipoActual = 'KNIFE';
+      estadoCuchillo.equipado = true;
+      
+      if (weaponContainer) {
+        await cambiarModeloArma('KNIFE', weaponContainer);
+      }
+      console.log('🔪 Restaurado cuchillo desde JuiceBox');
+    } else {
+      // Restaurar arma
+      arma.tipoActual = itemPrevio;
+      estadoCuchillo.equipado = false;
+      
+      if (weaponContainer) {
+        await cambiarModeloArma(itemPrevio, weaponContainer);
+      }
+      console.log(`🔫 Restaurado arma ${itemPrevio} desde JuiceBox`);
+    }
+
+    estadoCuracion.juiceBoxEquipado = false;
+    estadoCuracion.armaPreviaACuracion = null;
+    
+    return true;
+  } else {
+    // No tiene JuiceBox equipado -> guardar item actual y equipar JuiceBox
+    // Requirements: 1.1, 1.2, 2.1, 2.2, 2.3
+    
+    // Guardar item actual (arma o cuchillo)
+    if (estadoCuchillo.equipado || arma.tipoActual === 'KNIFE') {
+      estadoCuracion.armaPreviaACuracion = 'KNIFE';
+    } else {
+      estadoCuracion.armaPreviaACuracion = arma.tipoActual;
+    }
+
+    // Cargar modelo si no está cargado
+    if (!estadoCuracion.modeloCargado && weaponContainer) {
+      try {
+        const juiceBox = await cargarModeloJuiceBox(weaponContainer);
+        weaponContainer.add(juiceBox);
+      } catch (error) {
+        console.error('❌ Error cargando JuiceBox:', error);
+        return false;
+      }
+    }
+
+    // Ocultar arma/cuchillo actual
+    if (modeloArma) {
+      modeloArma.visible = false;
+    }
+
+    // Mostrar JuiceBox
+    if (estadoCuracion.modeloJuiceBox) {
+      estadoCuracion.modeloJuiceBox.visible = true;
+    }
+
+    // Desactivar apuntado si estaba activo
+    if (arma.estaApuntando) {
+      arma.estaApuntando = false;
+      arma.transicionApuntado = 0;
+      
+      if (camera) {
+        camera.fov = fovOriginal;
+        camera.updateProjectionMatrix();
+      }
+    }
+
+    estadoCuracion.juiceBoxEquipado = true;
+    estadoCuchillo.equipado = false;
+    
+    console.log(`🧃 JuiceBox equipado - Item guardado: ${estadoCuracion.armaPreviaACuracion}`);
+    return true;
+  }
+}
+
+/**
+ * Verifica si el JuiceBox está equipado
+ * Requirements: 4.1
+ * @returns {boolean}
+ */
+export function esJuiceBoxEquipado() {
+  return estadoCuracion.juiceBoxEquipado;
+}
+
+/**
+ * Verifica si hay curación en progreso
+ * Requirements: 3.4
+ * @returns {boolean}
+ */
+export function estaCurando() {
+  return estadoCuracion.curacionEnProgreso;
+}
+
+/**
+ * Inicia el proceso de curación al hacer clic
+ * Requirements: 3.1
+ * @returns {boolean} - true si se inició la curación
+ */
+export function iniciarCuracion() {
+  // Verificar que JuiceBox está equipado
+  if (!estadoCuracion.juiceBoxEquipado) {
+    console.log('🧃 No se puede curar sin JuiceBox equipado');
+    return false;
+  }
+
+  // Verificar que no hay curación en progreso
+  if (estadoCuracion.curacionEnProgreso) {
+    console.log('🧃 Ya hay una curación en progreso');
+    return false;
+  }
+
+  // Iniciar curación
+  estadoCuracion.curacionEnProgreso = true;
+  estadoCuracion.tiempoInicioCuracion = performance.now();
+  
+  console.log('🧃 Curación iniciada - 2 segundos para completar');
+  return true;
+}
+
+/**
+ * Actualiza el estado de curación (llamar cada frame)
+ * Requirements: 3.2, 3.5
+ * @param {Object} jugador - Referencia al jugador para aplicar curación
+ * @returns {Object} - { completada: boolean, vidaCurada: number }
+ */
+export function actualizarCuracion(jugador = null) {
+  if (!estadoCuracion.curacionEnProgreso) {
+    return { completada: false, vidaCurada: 0 };
+  }
+
+  const ahora = performance.now();
+  const tiempoTranscurrido = ahora - estadoCuracion.tiempoInicioCuracion;
+  const tiempoCuracion = CONFIG.curacion?.tiempoCuracion || 2000;
+
+  // Verificar si se completó el tiempo de curación
+  if (tiempoTranscurrido >= tiempoCuracion) {
+    // Curación completada
+    estadoCuracion.curacionEnProgreso = false;
+    estadoCuracion.tiempoInicioCuracion = 0;
+
+    const vidaCurada = CONFIG.curacion?.vidaCurada || 50;
+    
+    // Aplicar curación al jugador si se proporciona
+    if (jugador) {
+      // El objeto jugador usa 'health' y 'maxHealth', no 'vida' y 'vidaMaxima'
+      const vidaMaxima = jugador.maxHealth || jugador.vidaMaxima || 200;
+      const vidaActual = jugador.health || jugador.vida || jugador.vidaActual || 0;
+      const nuevaVida = Math.min(vidaActual + vidaCurada, vidaMaxima);
+      const vidaRealCurada = nuevaVida - vidaActual;
+      
+      // Actualizar vida del jugador (soportar ambas nomenclaturas)
+      if (typeof jugador.health !== 'undefined') {
+        jugador.health = nuevaVida;
+      } else if (typeof jugador.vida !== 'undefined') {
+        jugador.vida = nuevaVida;
+      } else if (typeof jugador.vidaActual !== 'undefined') {
+        jugador.vidaActual = nuevaVida;
+      }
+      
+      console.log(`🧃 Curación completada - Vida restaurada: ${vidaRealCurada} HP (${vidaActual} -> ${nuevaVida})`);
+      return { completada: true, vidaCurada: vidaRealCurada };
+    }
+
+    console.log(`🧃 Curación completada - ${vidaCurada} HP`);
+    return { completada: true, vidaCurada: vidaCurada };
+  }
+
+  return { completada: false, vidaCurada: 0 };
+}
+
+/**
+ * Obtiene el progreso de curación actual (0-1)
+ * @returns {number} - Progreso de 0 a 1
+ */
+export function obtenerProgresoCuracion() {
+  if (!estadoCuracion.curacionEnProgreso) {
+    return 0;
+  }
+
+  const ahora = performance.now();
+  const tiempoTranscurrido = ahora - estadoCuracion.tiempoInicioCuracion;
+  const tiempoCuracion = CONFIG.curacion?.tiempoCuracion || 2000;
+
+  return Math.min(tiempoTranscurrido / tiempoCuracion, 1);
+}
+
+/**
+ * Cancela la curación en progreso
+ * Requirements: 3.3
+ * @returns {boolean} - true si se canceló una curación en progreso, false si no había curación
+ */
+export function cancelarCuracion() {
+  if (!estadoCuracion.curacionEnProgreso) {
+    return false;
+  }
+
+  estadoCuracion.curacionEnProgreso = false;
+  estadoCuracion.tiempoInicioCuracion = 0;
+  
+  console.log('🧃 Curación cancelada');
+  return true;
+}
 
 /**
  * Referencias para el sistema de apuntado
@@ -92,7 +537,9 @@ let animacionApuntado = null;
  * @returns {Object} - Configuración del arma actual
  */
 function obtenerConfigArmaActual() {
-  return CONFIG.armas[arma.tipoActual];
+  // Si el arma no está inicializada, usar M4A1 como fallback temporal
+  const tipoArma = arma.tipoActual || 'M4A1';
+  return CONFIG.armas[tipoArma];
 }
 
 /**
@@ -144,6 +591,23 @@ export function cambiarArma(tipoArma, weaponContainer = null) {
     return false;
   }
 
+  // Requirements: 2.4 - Desequipar JuiceBox al cambiar de arma
+  if (estadoCuracion.juiceBoxEquipado) {
+    // Ocultar JuiceBox
+    if (estadoCuracion.modeloJuiceBox) {
+      estadoCuracion.modeloJuiceBox.visible = false;
+    }
+    estadoCuracion.juiceBoxEquipado = false;
+    estadoCuracion.armaPreviaACuracion = null;
+    
+    // Cancelar curación si estaba en progreso
+    if (estadoCuracion.curacionEnProgreso) {
+      cancelarCuracion();
+    }
+    
+    console.log('🧃 JuiceBox desequipado por cambio de arma');
+  }
+
   arma.tipoActual = tipoArma;
   const configArma = obtenerConfigArmaActual();
   
@@ -154,6 +618,7 @@ export function cambiarArma(tipoArma, weaponContainer = null) {
   arma.ultimoDisparo = 0;
   arma.estaApuntando = false;
   arma.transicionApuntado = 0;
+  arma.inicializado = true; // Marcar como inicializado
 
   // Cambiar modelo si se proporciona el contenedor
   if (weaponContainer) {
@@ -179,10 +644,24 @@ export function agregarArma(tipoArma) {
 
 /**
  * Selecciona la siguiente arma en el inventario
+ * Requirements: 2.4 - Desequipar JuiceBox al cambiar de arma
  * @param {THREE.Object3D} weaponContainer - Contenedor del arma (opcional)
  */
 export function siguienteArma(weaponContainer = null) {
   if (inventarioArmas.armasDisponibles.length <= 1) return;
+
+  // Requirements: 2.4 - Desequipar JuiceBox al cambiar de arma
+  if (estadoCuracion.juiceBoxEquipado) {
+    if (estadoCuracion.modeloJuiceBox) {
+      estadoCuracion.modeloJuiceBox.visible = false;
+    }
+    estadoCuracion.juiceBoxEquipado = false;
+    estadoCuracion.armaPreviaACuracion = null;
+    if (estadoCuracion.curacionEnProgreso) {
+      cancelarCuracion();
+    }
+    console.log('🧃 JuiceBox desequipado por cambio de arma');
+  }
 
   inventarioArmas.armaSeleccionada = (inventarioArmas.armaSeleccionada + 1) % inventarioArmas.armasDisponibles.length;
   const nuevaArma = inventarioArmas.armasDisponibles[inventarioArmas.armaSeleccionada];
@@ -191,10 +670,24 @@ export function siguienteArma(weaponContainer = null) {
 
 /**
  * Selecciona la arma anterior en el inventario
+ * Requirements: 2.4 - Desequipar JuiceBox al cambiar de arma
  * @param {THREE.Object3D} weaponContainer - Contenedor del arma (opcional)
  */
 export function armaAnterior(weaponContainer = null) {
   if (inventarioArmas.armasDisponibles.length <= 1) return;
+
+  // Requirements: 2.4 - Desequipar JuiceBox al cambiar de arma
+  if (estadoCuracion.juiceBoxEquipado) {
+    if (estadoCuracion.modeloJuiceBox) {
+      estadoCuracion.modeloJuiceBox.visible = false;
+    }
+    estadoCuracion.juiceBoxEquipado = false;
+    estadoCuracion.armaPreviaACuracion = null;
+    if (estadoCuracion.curacionEnProgreso) {
+      cancelarCuracion();
+    }
+    console.log('🧃 JuiceBox desequipado por cambio de arma');
+  }
 
   inventarioArmas.armaSeleccionada = inventarioArmas.armaSeleccionada - 1;
   if (inventarioArmas.armaSeleccionada < 0) {
@@ -206,6 +699,7 @@ export function armaAnterior(weaponContainer = null) {
 
 /**
  * Carga un modelo de arma específico
+ * Soporta modelos FBX y GLB/GLTF
  * @param {string} tipoArma - Tipo de arma a cargar
  * @param {THREE.Object3D} weaponContainer - Contenedor del arma
  * @returns {Promise<THREE.Object3D>} - Modelo cargado
@@ -231,53 +725,117 @@ export function cargarModeloArma(tipoArma, weaponContainer) {
     }
 
     cargandoModelo = true;
-    const fbxLoader = new THREE.FBXLoader();
+    
+    // Determinar el tipo de loader basado en la extensión del archivo
+    const esGLB = configArma.modelo.toLowerCase().endsWith('.glb') || 
+                  configArma.modelo.toLowerCase().endsWith('.gltf');
 
-    console.log(`🔫 Cargando modelo: ${configArma.modelo}`);
+    console.log(`🔫 Cargando modelo: ${configArma.modelo} (${esGLB ? 'GLB/GLTF' : 'FBX'})`);
 
-    fbxLoader.load(
-      configArma.modelo,
-      (armaCaregada) => {
-        // Calcular escala
-        const box = new THREE.Box3().setFromObject(armaCaregada);
-        const size = new THREE.Vector3();
-        box.getSize(size);
+    if (esGLB) {
+      // Usar GLTFLoader para archivos GLB/GLTF
+      const gltfLoader = new THREE.GLTFLoader();
+      
+      gltfLoader.load(
+        configArma.modelo,
+        (gltf) => {
+          const armaCargada = gltf.scene;
+          
+          // Calcular escala
+          const box = new THREE.Box3().setFromObject(armaCargada);
+          const size = new THREE.Vector3();
+          box.getSize(size);
 
-        const longitudDeseada = 0.8;
-        const escala = longitudDeseada / Math.max(size.x, size.y, size.z);
-        armaCaregada.scale.setScalar(escala);
-
-        // Posicionar el arma usando la configuración específica
-        const posConfig = configArma.posicion || { x: 0.3, y: -0.3, z: -0.5 };
-        const rotConfig = configArma.rotacion || { x: 0, y: Math.PI, z: 0 };
-        
-        armaCaregada.position.set(posConfig.x, posConfig.y, posConfig.z);
-        armaCaregada.rotation.set(rotConfig.x, rotConfig.y, rotConfig.z);
-
-        // Sin sombras
-        armaCaregada.traverse((child) => {
-          if (child.isMesh) {
-            child.castShadow = false;
-            child.receiveShadow = false;
+          // Usar escala de configuración si existe, sino calcular
+          if (configArma.escala) {
+            armaCargada.scale.set(configArma.escala.x, configArma.escala.y, configArma.escala.z);
+          } else {
+            const longitudDeseada = 0.8;
+            const escala = longitudDeseada / Math.max(size.x, size.y, size.z);
+            armaCargada.scale.setScalar(escala);
           }
-        });
 
-        // Guardar en cache
-        modelosArmas[tipoArma] = armaCaregada.clone();
-        
-        cargandoModelo = false;
-        console.log(`✅ Modelo cargado: ${configArma.nombre}`);
-        resolve(armaCaregada);
-      },
-      (progress) => {
-        console.log(`📦 Cargando ${configArma.nombre}: ${Math.round((progress.loaded / progress.total) * 100)}%`);
-      },
-      (error) => {
-        cargandoModelo = false;
-        console.error(`❌ Error cargando modelo ${configArma.modelo}:`, error);
-        reject(error);
-      }
-    );
+          // Posicionar el arma usando la configuración específica
+          const posConfig = configArma.posicion || { x: 0.3, y: -0.3, z: -0.5 };
+          const rotConfig = configArma.rotacion || { x: 0, y: Math.PI, z: 0 };
+          
+          armaCargada.position.set(posConfig.x, posConfig.y, posConfig.z);
+          armaCargada.rotation.set(rotConfig.x, rotConfig.y, rotConfig.z);
+
+          // Sin sombras
+          armaCargada.traverse((child) => {
+            if (child.isMesh) {
+              child.castShadow = false;
+              child.receiveShadow = false;
+            }
+          });
+
+          // Guardar en cache
+          modelosArmas[tipoArma] = armaCargada.clone();
+          
+          cargandoModelo = false;
+          console.log(`✅ Modelo GLB cargado: ${configArma.nombre}`);
+          resolve(armaCargada);
+        },
+        (progress) => {
+          if (progress.total > 0) {
+            console.log(`📦 Cargando ${configArma.nombre}: ${Math.round((progress.loaded / progress.total) * 100)}%`);
+          }
+        },
+        (error) => {
+          cargandoModelo = false;
+          console.error(`❌ Error cargando modelo GLB ${configArma.modelo}:`, error);
+          reject(error);
+        }
+      );
+    } else {
+      // Usar FBXLoader para archivos FBX
+      const fbxLoader = new THREE.FBXLoader();
+
+      fbxLoader.load(
+        configArma.modelo,
+        (armaCargada) => {
+          // Calcular escala
+          const box = new THREE.Box3().setFromObject(armaCargada);
+          const size = new THREE.Vector3();
+          box.getSize(size);
+
+          const longitudDeseada = 0.8;
+          const escala = longitudDeseada / Math.max(size.x, size.y, size.z);
+          armaCargada.scale.setScalar(escala);
+
+          // Posicionar el arma usando la configuración específica
+          const posConfig = configArma.posicion || { x: 0.3, y: -0.3, z: -0.5 };
+          const rotConfig = configArma.rotacion || { x: 0, y: Math.PI, z: 0 };
+          
+          armaCargada.position.set(posConfig.x, posConfig.y, posConfig.z);
+          armaCargada.rotation.set(rotConfig.x, rotConfig.y, rotConfig.z);
+
+          // Sin sombras
+          armaCargada.traverse((child) => {
+            if (child.isMesh) {
+              child.castShadow = false;
+              child.receiveShadow = false;
+            }
+          });
+
+          // Guardar en cache
+          modelosArmas[tipoArma] = armaCargada.clone();
+          
+          cargandoModelo = false;
+          console.log(`✅ Modelo FBX cargado: ${configArma.nombre}`);
+          resolve(armaCargada);
+        },
+        (progress) => {
+          console.log(`📦 Cargando ${configArma.nombre}: ${Math.round((progress.loaded / progress.total) * 100)}%`);
+        },
+        (error) => {
+          cargandoModelo = false;
+          console.error(`❌ Error cargando modelo FBX ${configArma.modelo}:`, error);
+          reject(error);
+        }
+      );
+    }
   });
 }
 
@@ -300,6 +858,11 @@ export async function cambiarModeloArma(tipoArma, weaponContainer) {
     // Agregar al contenedor
     weaponContainer.add(modeloArma);
     
+    // Asegurar que el modelo sea visible (puede estar oculto si viene del cache)
+    if (modeloArma) {
+      modeloArma.visible = true;
+    }
+    
     // Guardar posición original para apuntado
     if (modeloArma) {
       posicionArmaOriginal = {
@@ -307,6 +870,12 @@ export async function cambiarModeloArma(tipoArma, weaponContainer) {
         y: modeloArma.position.y,
         z: modeloArma.position.z
       };
+    }
+
+    // Si es el cuchillo, cargar y configurar animación
+    if (tipoArma === "KNIFE") {
+      await cargarAnimacionCuchillo();
+      configurarMixerCuchillo(modeloArma);
     }
 
     console.log(`🔄 Modelo cambiado a: ${CONFIG.armas[tipoArma].nombre}`);
@@ -328,9 +897,26 @@ export function establecerCamara(cameraRef) {
 
 /**
  * Inicia o detiene el apuntado
+ * Requirements: 5.1, 5.2, 5.4 - Bloquear apuntado cuando el cuchillo está equipado
+ * Requirements: 4.1 - Bloquear apuntado cuando JuiceBox está equipado
  * @param {boolean} apuntar - true para apuntar, false para dejar de apuntar
  */
 export function alternarApuntado(apuntar = null) {
+  // Requirements: 5.1, 5.2, 5.4 - Bloquear apuntado si el cuchillo está equipado
+  if (arma.tipoActual === 'KNIFE') {
+    return; // No permitir apuntado con cuchillo
+  }
+  
+  // Requirements: 4.1 - Bloquear apuntado si el JuiceBox está equipado
+  if (estadoCuracion.juiceBoxEquipado) {
+    return; // No permitir apuntado con JuiceBox
+  }
+  
+  // Requirements: 3.4 - Bloquear apuntado durante curación en progreso
+  if (estadoCuracion.curacionEnProgreso) {
+    return; // No permitir apuntado durante curación
+  }
+  
   if (apuntar === null) {
     apuntar = !arma.estaApuntando;
   }
@@ -584,13 +1170,15 @@ export function animarRetroceso() {
 
 /**
  * Obtiene el estado actual del arma
+ * Requirements: 4.3, 4.4, 4.5 - Incluir info de cuchillo para UI
+ * Requirements: 3.1 - Incluir info de JuiceBox para UI
  * @returns {Object} - Estado del arma
  */
 export function obtenerEstado() {
   const configArma = obtenerConfigArmaActual();
   return {
-    tipoActual: arma.tipoActual,
-    nombre: configArma.nombre,
+    tipoActual: arma.tipoActual || 'M4A1',
+    nombre: configArma?.nombre || 'Sin arma',
     municionActual: arma.municionActual,
     municionTotal: arma.municionTotal,
     estaRecargando: arma.estaRecargando,
@@ -598,7 +1186,15 @@ export function obtenerEstado() {
     armasDisponibles: inventarioArmas.armasDisponibles,
     estaApuntando: arma.estaApuntando,
     factorApuntado: arma.transicionApuntado,
-    tieneApuntado: !!configArma.apuntado
+    tieneApuntado: !!configArma?.apuntado,
+    inicializado: arma.inicializado,
+    // Info del cuchillo para UI de slots
+    esCuchillo: estadoCuchillo.equipado,
+    armaPrincipalPrevia: estadoCuchillo.armaPrincipalPrevia,
+    // Info del JuiceBox para UI
+    esJuiceBox: estadoCuracion.juiceBoxEquipado,
+    curacionEnProgreso: estadoCuracion.curacionEnProgreso,
+    progresoCuracion: obtenerProgresoCuracion()
   };
 }
 
@@ -633,12 +1229,29 @@ export function reiniciarArma() {
 
 /**
  * Update weapon state from server (Requirement 6.5)
+ * IMPORTANTE: Solo actualiza si el arma del servidor coincide con la local
+ * para evitar sobrescribir valores cuando el servidor aún no procesó el cambio de arma
  * @param {Object} serverState - Player state from server containing ammo info
  */
 export function actualizarDesdeServidor(serverState) {
   if (!serverState) return;
   
-  // Update ammo from server (authoritative)
+  // Si el arma no está inicializada localmente, no actualizar desde el servidor
+  if (!arma.inicializado) {
+    console.log('🔫 [actualizarDesdeServidor] Arma no inicializada, ignorando estado del servidor');
+    return;
+  }
+  
+  // Verificar si el arma del servidor coincide con la local
+  const armaServidor = serverState.currentWeapon;
+  if (armaServidor && armaServidor !== arma.tipoActual) {
+    // El servidor tiene un arma diferente, no actualizar munición
+    // Esto puede pasar si el servidor aún no procesó el weaponChange
+    console.log(`🔫 [actualizarDesdeServidor] Arma diferente: servidor=${armaServidor}, local=${arma.tipoActual} - Ignorando`);
+    return;
+  }
+  
+  // Update ammo from server (authoritative) solo si el arma coincide
   if (typeof serverState.ammo === 'number') {
     arma.municionActual = serverState.ammo;
   }
@@ -651,5 +1264,416 @@ export function actualizarDesdeServidor(serverState) {
   // Update reload state from server
   if (typeof serverState.isReloading === 'boolean') {
     arma.estaRecargando = serverState.isReloading;
+  }
+}
+
+/**
+ * Ataca con el cuchillo (arma cuerpo a cuerpo)
+ * Requirements: 2.1, 2.2, 4.1, 4.5
+ * 
+ * @param {THREE.Camera} camera - Cámara del jugador para obtener posición y dirección
+ * @param {Array} enemigos - Array de enemigos/jugadores en la escena
+ * @param {THREE.Scene} scene - Escena de Three.js
+ * @param {Function} onImpacto - Callback cuando el cuchillo impacta un enemigo
+ * @returns {Object} - { impacto: boolean, enemigosGolpeados: Array }
+ */
+export function atacarConCuchillo(camera, enemigos, scene, onImpacto = null) {
+  // Requirements: 2.1 - Validar array de enemigos al inicio
+  // Convertir null/undefined a array vacío para evitar crashes
+  if (!enemigos || !Array.isArray(enemigos)) {
+    enemigos = [];
+  }
+
+  const configCuchillo = CONFIG.armas["KNIFE"];
+  if (!configCuchillo) {
+    console.warn("⚠️ Configuración del cuchillo no encontrada");
+    return { impacto: false, enemigosGolpeados: [] };
+  }
+
+  const ahora = performance.now();
+  const cadenciaAtaque = configCuchillo.cadenciaAtaque || 350;
+
+  // Verificar si puede atacar (cadencia)
+  if (ahora - estadoCuchillo.ultimoAtaque < cadenciaAtaque) {
+    // No mostrar log para evitar spam
+    return { impacto: false, enemigosGolpeados: [] };
+  }
+
+  estadoCuchillo.ultimoAtaque = ahora;
+  
+  console.log(`🔪 ATAQUE EJECUTADO - modeloArma: ${modeloArma ? 'existe' : 'NULL'}, arma.tipoActual: ${arma.tipoActual}`);
+
+  // SIEMPRE animar el ataque, haya o no enemigos
+  if (modeloArma && arma.tipoActual === "KNIFE") {
+    console.log('🔪 Ejecutando animación FPS');
+    animarAtaqueCuchillo();
+  } else {
+    console.log(`🔪 NO se ejecuta animación - modeloArma: ${!!modeloArma}, tipoActual: ${arma.tipoActual}`);
+  }
+
+  // Obtener posición y dirección del jugador
+  const posicionJugador = camera.position.clone();
+  const direccionMirada = new THREE.Vector3(0, 0, -1);
+  direccionMirada.applyQuaternion(camera.quaternion);
+  direccionMirada.normalize();
+
+  const rangoAtaque = configCuchillo.rangoAtaque || 3;
+  const daño = configCuchillo.daño || 50;
+
+  const enemigosGolpeados = [];
+
+  console.log(`🔪 Buscando enemigos - Disponibles: ${enemigos.length}, Rango: ${rangoAtaque}`);
+
+  // Detectar enemigos en rango
+  // Requirements: 2.1, 2.2 - Agregar try-catch alrededor del procesamiento de cada enemigo
+  for (const enemigo of enemigos) {
+    // Requirements: 2.2 - Saltar enemigos null/undefined sin crashear
+    if (!enemigo) continue;
+    
+    try {
+      // Obtener posición del enemigo (soportar diferentes estructuras)
+      // Requirements: 2.2 - Validar posición de enemigos
+      let posicionEnemigo = null;
+      
+      try {
+        if (enemigo.mesh && enemigo.mesh.position) {
+          posicionEnemigo = enemigo.mesh.position.clone();
+        } else if (enemigo.obtenerPosicion) {
+          posicionEnemigo = enemigo.obtenerPosicion();
+        } else if (enemigo.position) {
+          posicionEnemigo = new THREE.Vector3(enemigo.position.x, enemigo.position.y, enemigo.position.z);
+        } else if (enemigo.group && enemigo.group.position) {
+          posicionEnemigo = enemigo.group.position.clone();
+        }
+      } catch (errorPosicion) {
+        console.warn('🔪 Error obteniendo posición de enemigo:', errorPosicion);
+        continue; // Saltar este enemigo y continuar con los demás
+      }
+      
+      // Requirements: 2.2 - Verificar que posicionEnemigo no sea null antes de usar
+      if (!posicionEnemigo) {
+        console.log('🔪 Enemigo sin posición válida, saltando');
+        continue;
+      }
+
+      // Verificar si el enemigo está vivo
+      const estaVivo = enemigo.estaVivo ? enemigo.estaVivo() : 
+                       (enemigo.datos ? enemigo.datos.estaVivo : 
+                       (enemigo.isAlive !== undefined ? enemigo.isAlive() : true));
+      
+      if (!estaVivo) continue;
+
+      // Calcular distancia al enemigo
+      const distancia = posicionJugador.distanceTo(posicionEnemigo);
+
+      console.log(`🔪 Enemigo a distancia: ${distancia.toFixed(2)} (rango: ${rangoAtaque})`);
+
+      // Verificar si está en rango
+      if (distancia <= rangoAtaque) {
+        // Verificar que el enemigo está aproximadamente frente al jugador
+        const direccionAlEnemigo = posicionEnemigo.clone().sub(posicionJugador).normalize();
+        const angulo = direccionMirada.dot(direccionAlEnemigo);
+
+        console.log(`🔪 Ángulo con enemigo: ${angulo.toFixed(2)} (necesita > -0.3)`);
+
+        // Aceptar enemigos en un cono amplio (casi 180 grados)
+        if (angulo > -0.3) {
+          // Aplicar daño al enemigo
+          let dañoAplicado = false;
+          
+          if (typeof enemigo.recibirDaño === 'function') {
+            enemigo.recibirDaño(daño);
+            dañoAplicado = true;
+          } else if (enemigo.datos && enemigo.datos.vidaActual !== undefined) {
+            enemigo.datos.vidaActual -= daño;
+            dañoAplicado = true;
+          } else if (enemigo.vida !== undefined) {
+            enemigo.vida -= daño;
+            dañoAplicado = true;
+          }
+
+          if (dañoAplicado) {
+            enemigosGolpeados.push({
+              enemigo: enemigo,
+              distancia: distancia,
+              daño: daño
+            });
+
+            // Callback de impacto
+            if (onImpacto) {
+              onImpacto({
+                tipo: 'melee',
+                enemigo: enemigo,
+                daño: daño,
+                posicion: posicionEnemigo
+              });
+            }
+
+            console.log(`🔪 ¡IMPACTO! Cuchillo golpeó enemigo a ${distancia.toFixed(2)} unidades - Daño: ${daño}`);
+          }
+        }
+      }
+    } catch (errorEnemigo) {
+      // Requirements: 2.1, 2.2 - Manejar errores sin crashear, continuar con otros enemigos
+      console.warn('🔪 Error procesando enemigo, continuando con los demás:', errorEnemigo);
+      continue;
+    }
+  }
+
+  return {
+    impacto: enemigosGolpeados.length > 0,
+    enemigosGolpeados: enemigosGolpeados
+  };
+}
+
+/**
+ * Anima el ataque del cuchillo
+ * Requirements: 4.3
+ * Usa la animación cargada si está disponible, sino usa animación fallback mejorada
+ */
+function animarAtaqueCuchillo() {
+  if (!modeloArma) {
+    console.log('🔪 No hay modelo de arma para animar');
+    return;
+  }
+
+  console.log('🔪 Iniciando animación de ataque FPS');
+
+  // Intentar usar la animación cargada primero
+  if (animacionesCuchillo.accionAtaque && animacionesCuchillo.mixer) {
+    reproducirAnimacionAtaqueCuchillo();
+    return;
+  }
+
+  // Animación fallback mejorada - movimiento de slash horizontal
+  // Guardar posición y rotación original
+  const posOriginal = {
+    x: modeloArma.position.x,
+    y: modeloArma.position.y,
+    z: modeloArma.position.z
+  };
+  const rotOriginal = {
+    x: modeloArma.rotation.x,
+    y: modeloArma.rotation.y,
+    z: modeloArma.rotation.z
+  };
+
+  // Parámetros de animación más dramáticos
+  const duracionPreparacion = 40;   // ms - preparar el golpe
+  const duracionAtaque = 80;        // ms - slash rápido
+  const duracionRetorno = 180;      // ms - volver a posición
+
+  // Fase 1: Preparación - mover a la derecha y rotar
+  modeloArma.position.x += 0.15;
+  modeloArma.position.z += 0.1;
+  modeloArma.rotation.z -= 0.4;
+  modeloArma.rotation.y -= 0.3;
+
+  // Fase 2: Ataque - slash hacia la izquierda y adelante
+  setTimeout(() => {
+    if (!modeloArma) return;
+    modeloArma.position.x = posOriginal.x - 0.25;  // Mover a la izquierda
+    modeloArma.position.z = posOriginal.z - 0.35;  // Empujar hacia adelante
+    modeloArma.position.y = posOriginal.y - 0.1;   // Bajar un poco
+    modeloArma.rotation.z = rotOriginal.z + 0.6;   // Rotar en el slash
+    modeloArma.rotation.x = rotOriginal.x + 0.3;   // Inclinar hacia abajo
+  }, duracionPreparacion);
+
+  // Fase 3: Retorno suave a posición original
+  setTimeout(() => {
+    if (!modeloArma) return;
+    
+    const pasos = 12;
+    const intervalo = duracionRetorno / pasos;
+    let paso = 0;
+    
+    // Posición después del ataque
+    const posAtaque = {
+      x: posOriginal.x - 0.25,
+      y: posOriginal.y - 0.1,
+      z: posOriginal.z - 0.35
+    };
+    const rotAtaque = {
+      x: rotOriginal.x + 0.3,
+      y: rotOriginal.y,
+      z: rotOriginal.z + 0.6
+    };
+    
+    const animarRetorno = setInterval(() => {
+      paso++;
+      const progreso = paso / pasos;
+      const easeOut = 1 - Math.pow(1 - progreso, 3); // Ease out cubic
+      
+      if (modeloArma) {
+        modeloArma.position.x = posAtaque.x + (posOriginal.x - posAtaque.x) * easeOut;
+        modeloArma.position.y = posAtaque.y + (posOriginal.y - posAtaque.y) * easeOut;
+        modeloArma.position.z = posAtaque.z + (posOriginal.z - posAtaque.z) * easeOut;
+        modeloArma.rotation.x = rotAtaque.x + (rotOriginal.x - rotAtaque.x) * easeOut;
+        modeloArma.rotation.y = rotAtaque.y + (rotOriginal.y - rotAtaque.y) * easeOut;
+        modeloArma.rotation.z = rotAtaque.z + (rotOriginal.z - rotAtaque.z) * easeOut;
+      }
+      
+      if (paso >= pasos) {
+        clearInterval(animarRetorno);
+        // Asegurar posición final exacta
+        if (modeloArma) {
+          modeloArma.position.set(posOriginal.x, posOriginal.y, posOriginal.z);
+          modeloArma.rotation.set(rotOriginal.x, rotOriginal.y, rotOriginal.z);
+        }
+      }
+    }, intervalo);
+  }, duracionPreparacion + duracionAtaque);
+  
+  console.log('🔪 Animación de ataque FPS ejecutada');
+}
+
+/**
+ * Verifica si el cuchillo puede atacar (no requiere munición)
+ * Requirements: 4.4
+ * @returns {boolean} - Siempre true para el cuchillo (no requiere munición)
+ */
+export function cuchilloPuedeAtacar() {
+  const configCuchillo = CONFIG.armas["KNIFE"];
+  if (!configCuchillo) return false;
+
+  const ahora = performance.now();
+  const cadenciaAtaque = configCuchillo.cadenciaAtaque || 500;
+
+  return ahora - estadoCuchillo.ultimoAtaque >= cadenciaAtaque;
+}
+
+/**
+ * Verifica si el arma actual es el cuchillo
+ * @returns {boolean}
+ */
+export function esCuchillo() {
+  return arma.tipoActual === "KNIFE";
+}
+
+/**
+ * Verifica si el cuchillo está equipado actualmente
+ * Requirements: 2.1, 2.2
+ * @returns {boolean}
+ */
+export function esCuchilloEquipado() {
+  // Verificar tanto el estado del cuchillo como el tipo de arma actual
+  const equipado = estadoCuchillo.equipado || arma.tipoActual === 'KNIFE';
+  console.log(`🔪 esCuchilloEquipado: ${equipado} (estado: ${estadoCuchillo.equipado}, arma: ${arma.tipoActual})`);
+  return equipado;
+}
+
+/**
+ * Obtiene el arma principal previa guardada
+ * Requirements: 2.3
+ * @returns {string|null} - Tipo de arma principal o null si no hay
+ */
+export function obtenerArmaPrincipalPrevia() {
+  return estadoCuchillo.armaPrincipalPrevia;
+}
+
+/**
+ * Alterna entre el cuchillo y el arma principal con la tecla Q
+ * Requirements: 2.1, 2.2, 5.3
+ * Requirements: 2.4 - Desequipar JuiceBox al cambiar a cuchillo
+ * 
+ * Si tiene arma principal equipada: guarda el arma y equipa el cuchillo
+ * Si tiene cuchillo equipado: restaura el arma principal guardada
+ * 
+ * @param {THREE.Object3D} weaponContainer - Contenedor del arma para cambiar el modelo
+ * @returns {boolean} - true si se realizó el cambio exitosamente
+ */
+export async function alternarCuchillo(weaponContainer = null) {
+  // No permitir cambio durante recarga
+  if (arma.estaRecargando) {
+    console.log('🔪 No se puede cambiar al cuchillo durante recarga');
+    return false;
+  }
+
+  // Requirements: 2.4 - Desequipar JuiceBox al cambiar a cuchillo
+  if (estadoCuracion.juiceBoxEquipado) {
+    if (estadoCuracion.modeloJuiceBox) {
+      estadoCuracion.modeloJuiceBox.visible = false;
+    }
+    estadoCuracion.juiceBoxEquipado = false;
+    estadoCuracion.armaPreviaACuracion = null;
+    if (estadoCuracion.curacionEnProgreso) {
+      cancelarCuracion();
+    }
+    console.log('🧃 JuiceBox desequipado por cambio a cuchillo');
+  }
+
+  if (estadoCuchillo.equipado) {
+    // Tiene cuchillo equipado -> restaurar arma principal
+    const armaPrincipal = estadoCuchillo.armaPrincipalPrevia;
+    
+    if (!armaPrincipal || !CONFIG.armas[armaPrincipal]) {
+      console.warn('⚠️ No hay arma principal previa para restaurar');
+      return false;
+    }
+
+    // Restaurar arma principal
+    arma.tipoActual = armaPrincipal;
+    const configArma = CONFIG.armas[armaPrincipal];
+    
+    // Restaurar munición del arma principal (mantener valores actuales si existen)
+    if (arma.municionActual === 0 && arma.municionTotal === 0) {
+      arma.municionActual = configArma.tamañoCargador;
+      arma.municionTotal = configArma.municionTotal;
+    }
+    
+    arma.estaRecargando = false;
+    estadoCuchillo.equipado = false;
+    
+    // Requirements: 5.3 - Al cambiar de cuchillo a arma principal, el apuntado funciona normalmente
+    // El estado de apuntado se mantiene en false, permitiendo que el jugador apunte cuando quiera
+
+    // Cambiar modelo si se proporciona el contenedor
+    if (weaponContainer) {
+      await cambiarModeloArma(armaPrincipal, weaponContainer);
+    }
+
+    console.log(`🔫 Restaurado arma principal: ${configArma.nombre} - Apuntado disponible`);
+    return true;
+  } else {
+    // Tiene arma principal equipada -> guardar y equipar cuchillo
+    const armaActual = arma.tipoActual;
+    
+    // No guardar si ya es el cuchillo
+    if (armaActual === 'KNIFE') {
+      return false;
+    }
+
+    // Guardar arma principal actual
+    estadoCuchillo.armaPrincipalPrevia = armaActual;
+    
+    // Equipar cuchillo
+    arma.tipoActual = 'KNIFE';
+    estadoCuchillo.equipado = true;
+    
+    // Requirements: 5.1, 5.4 - Desactivar apuntado al equipar cuchillo
+    // Si estaba apuntando, desactivar y restaurar FOV
+    if (arma.estaApuntando) {
+      arma.estaApuntando = false;
+      arma.transicionApuntado = 0;
+      
+      // Restaurar FOV de la cámara si existe
+      if (camera) {
+        camera.fov = fovOriginal;
+        camera.updateProjectionMatrix();
+      }
+      
+      console.log('🔪 Apuntado desactivado al equipar cuchillo');
+    }
+    
+    // El cuchillo no tiene munición
+    // No modificamos municionActual/municionTotal para preservar los valores del arma principal
+
+    // Cambiar modelo si se proporciona el contenedor
+    if (weaponContainer) {
+      await cambiarModeloArma('KNIFE', weaponContainer);
+    }
+
+    console.log(`🔪 Cuchillo equipado - Arma guardada: ${armaActual}`);
+    return true;
   }
 }

@@ -557,7 +557,8 @@ export function shapeCastDash(posicionInicial, direccionDash, distanciaDash) {
 
 /**
  * Shape cast para dash usando raycasting manual (fallback)
- * Mejorado para detectar colisiones con raycast directo
+ * Mejorado para detectar colisiones y DETENER el dash antes de atravesar estructuras
+ * Requirements: 3.1, 3.3, 3.4 - No permite atravesar estructuras bajo ninguna circunstancia
  * @param {THREE.Vector3} posicionInicial - Posición inicial
  * @param {THREE.Vector3} direccionDash - Dirección del dash
  * @param {number} distanciaDash - Distancia del dash
@@ -581,14 +582,18 @@ function shapeCastDashFallback(posicionInicial, direccionDash, distanciaDash) {
   const config = getColisionesConfig();
   const radio = config.radioJugador || 0.4;
   const margen = config.margenPared || 0.1;
+  // Margen de seguridad adicional para garantizar que no atravesamos
+  const margenSeguridad = 0.15;
   const alturaOjos = CONFIG.jugador?.alturaOjos || 1.7;
   const posicionPies = posicionInicial.y - alturaOjos;
 
   // Hacer múltiples raycasts en la dirección del dash a diferentes alturas
   // para detectar colisiones con paredes
+  // Requirement 3.3: Respetar colisiones en diagonal (múltiples alturas)
   const alturas = [
     posicionPies + 0.3, // Cerca de los pies
-    posicionPies + 0.8, // Rodillas
+    posicionPies + 0.6, // Espinillas
+    posicionPies + 0.9, // Rodillas
     posicionPies + 1.2, // Cintura
     posicionPies + 1.5  // Pecho
   ];
@@ -597,10 +602,13 @@ function shapeCastDashFallback(posicionInicial, direccionDash, distanciaDash) {
   let hayColision = false;
   let puntoImpacto = null;
 
+  // Normalizar dirección del dash en el plano horizontal
+  const direccionNormalizada = new THREE.Vector3(direccionDash.x, 0, direccionDash.z).normalize();
+
   // Raycast central en la dirección del dash
   for (const altura of alturas) {
     _posicionRayo.set(posicionInicial.x, altura, posicionInicial.z);
-    _direccionRayo.set(direccionDash.x, 0, direccionDash.z).normalize();
+    _direccionRayo.copy(direccionNormalizada);
 
     raycaster.set(_posicionRayo, _direccionRayo);
     raycaster.far = distanciaDash + radio + margen;
@@ -617,9 +625,10 @@ function shapeCastDashFallback(posicionInicial, direccionDash, distanciaDash) {
         normalMundo.normalize();
 
         // Si la normal es mayormente horizontal, es una pared
+        // Requirement 3.1: Detener dash antes de atravesar la estructura
         if (Math.abs(normalMundo.y) < 0.5) {
-          // Calcular distancia segura (antes de la pared)
-          const distanciaSegura = Math.max(0, hit.distance - radio - margen);
+          // Calcular distancia segura (antes de la pared con margen de seguridad)
+          const distanciaSegura = Math.max(0, hit.distance - radio - margen - margenSeguridad);
           
           if (distanciaSegura < distanciaMinima) {
             distanciaMinima = distanciaSegura;
@@ -632,8 +641,9 @@ function shapeCastDashFallback(posicionInicial, direccionDash, distanciaDash) {
   }
 
   // También hacer raycasts laterales para detectar colisiones con el cuerpo del jugador
-  const direccionLateral = new THREE.Vector3(-direccionDash.z, 0, direccionDash.x).normalize();
-  const offsetsLaterales = [-radio * 0.8, radio * 0.8];
+  // Requirement 3.3: Respetar ambas superficies de colisión en esquinas
+  const direccionLateral = new THREE.Vector3(-direccionNormalizada.z, 0, direccionNormalizada.x);
+  const offsetsLaterales = [-radio * 0.9, -radio * 0.5, radio * 0.5, radio * 0.9];
 
   for (const offset of offsetsLaterales) {
     for (const altura of alturas) {
@@ -643,7 +653,7 @@ function shapeCastDashFallback(posicionInicial, direccionDash, distanciaDash) {
         posicionInicial.z + direccionLateral.z * offset
       );
 
-      raycaster.set(origenLateral, _direccionRayo);
+      raycaster.set(origenLateral, direccionNormalizada);
       raycaster.far = distanciaDash + margen;
 
       const intersecciones = raycaster.intersectObject(collisionModel, true);
@@ -657,7 +667,8 @@ function shapeCastDashFallback(posicionInicial, direccionDash, distanciaDash) {
           normalMundo.normalize();
 
           if (Math.abs(normalMundo.y) < 0.5) {
-            const distanciaSegura = Math.max(0, hit.distance - margen);
+            // Requirement 3.2: Posicionar en el punto más cercano válido antes de la colisión
+            const distanciaSegura = Math.max(0, hit.distance - margen - margenSeguridad);
             
             if (distanciaSegura < distanciaMinima) {
               distanciaMinima = distanciaSegura;
@@ -670,22 +681,41 @@ function shapeCastDashFallback(posicionInicial, direccionDash, distanciaDash) {
     }
   }
 
+  // Requirement 3.4: Calcular distancia disponible antes de la colisión
+  // Si estamos muy cerca de una pared, reducir aún más la distancia
+  if (hayColision && distanciaMinima < 0.5) {
+    distanciaMinima = Math.max(0, distanciaMinima - 0.1);
+  }
+
   // Calcular posición final
-  const posicionFinal = new THREE.Vector3(
-    posicionInicial.x + direccionDash.x * distanciaMinima,
+  let posicionFinal = new THREE.Vector3(
+    posicionInicial.x + direccionNormalizada.x * distanciaMinima,
     posicionInicial.y,
-    posicionInicial.z + direccionDash.z * distanciaMinima
+    posicionInicial.z + direccionNormalizada.z * distanciaMinima
   );
 
-  // Verificar que la posición final no está en colisión
-  if (hayColisionEnPosicionFallback(posicionFinal, radio, margen)) {
-    // Retroceder un poco más
-    const distanciaRetroceso = Math.max(0, distanciaMinima - 0.2);
+  // Verificación final: asegurar que la posición final no está en colisión
+  // Requirement 3.1: No permitir atravesar estructuras bajo ninguna circunstancia
+  let intentos = 0;
+  const maxIntentos = 5;
+  while (hayColisionEnPosicionFallback(posicionFinal, radio, margen) && intentos < maxIntentos) {
+    // Retroceder incrementalmente hasta encontrar posición válida
+    distanciaMinima = Math.max(0, distanciaMinima - 0.15);
     posicionFinal.set(
-      posicionInicial.x + direccionDash.x * distanciaRetroceso,
+      posicionInicial.x + direccionNormalizada.x * distanciaMinima,
       posicionInicial.y,
-      posicionInicial.z + direccionDash.z * distanciaRetroceso
+      posicionInicial.z + direccionNormalizada.z * distanciaMinima
     );
+    intentos++;
+    hayColision = true;
+  }
+
+  // Si después de todos los intentos sigue en colisión, quedarse en posición inicial
+  if (hayColisionEnPosicionFallback(posicionFinal, radio, margen)) {
+    posicionFinal.copy(posicionInicial);
+    distanciaMinima = 0;
+    hayColision = true;
+    console.log('⚠️ Dash bloqueado: no hay espacio para moverse');
   }
 
   // Log del resultado del dash

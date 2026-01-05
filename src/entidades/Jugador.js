@@ -48,17 +48,24 @@ const DASH_GRACE_PERIOD = 500;
 /**
  * Inicializa el estado del jugador
  * Debe llamarse después de que THREE esté disponible
+ * @param {Object} opciones - Opciones de inicialización
+ * @param {boolean} opciones.modoLocal - Si es modo local, spawn en posición de entrenamiento
  */
-export function inicializarJugador() {
-  jugador.posicion = new THREE.Vector3(0, CONFIG.jugador.alturaOjos, 0);
+export function inicializarJugador(opciones = {}) {
+  // Posición inicial: modo local spawn en Z=5 mirando hacia +Z
+  const posX = 0;
+  const posZ = opciones.modoLocal ? 5 : 0;
+  const rotY = opciones.modoLocal ? 0 : 0; // 0 = mirando hacia +Z
+  
+  jugador.posicion = new THREE.Vector3(posX, CONFIG.jugador.alturaOjos, posZ);
   jugador.velocidad = new THREE.Vector3();
-  jugador.rotacion = new THREE.Euler(0, 0, 0, 'YXZ');
+  jugador.rotacion = new THREE.Euler(0, rotY, 0, 'YXZ');
   jugador.enSuelo = true;
   jugador.enRampa = false;
   jugador.normalSuelo = new THREE.Vector3(0, 1, 0);
   jugador.tiempoEnAire = 0;
-  jugador.serverPosition = new THREE.Vector3(0, CONFIG.jugador.alturaOjos, 0);
-  jugador.serverRotation = new THREE.Euler(0, 0, 0, 'YXZ');
+  jugador.serverPosition = new THREE.Vector3(posX, CONFIG.jugador.alturaOjos, posZ);
+  jugador.serverRotation = new THREE.Euler(0, rotY, 0, 'YXZ');
   jugador.health = 200;
   jugador.maxHealth = 200;
   jugador.isAlive = true;

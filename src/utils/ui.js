@@ -10,6 +10,7 @@
 /**
  * Actualiza el display de munición con valores del servidor
  * NOTA: Los valores de munición son autoritativos del servidor
+ * Requirements: 4.1, 4.2 - Ocultar contador cuando cuchillo está equipado
  * 
  * @param {Object} estadoMunicion - Estado de munición recibido del servidor
  * @param {number} estadoMunicion.currentAmmo - Munición actual en cargador (del servidor)
@@ -18,10 +19,22 @@
  * @param {number} [estadoMunicion.municionActual] - Alias en español para currentAmmo
  * @param {number} [estadoMunicion.municionTotal] - Alias en español para totalAmmo
  * @param {boolean} [estadoMunicion.estaRecargando] - Alias en español para isReloading
+ * @param {boolean} [estadoMunicion.esCuchillo] - Si el arma actual es el cuchillo
+ * @param {string} [estadoMunicion.tipoArma] - Tipo de arma actual
  */
 export function actualizarMunicion(estadoMunicion) {
   const ammoDiv = document.getElementById('ammo');
   if (!ammoDiv) return;
+
+  // Verificar si es cuchillo - ocultar munición
+  // Requirements: 4.1, 4.2 - Ocultar contador de munición cuando cuchillo está equipado
+  const esCuchillo = estadoMunicion.esCuchillo || estadoMunicion.tipoArma === 'KNIFE';
+  if (esCuchillo) {
+    ammoDiv.classList.add('hidden');
+    return;
+  } else {
+    ammoDiv.classList.remove('hidden');
+  }
 
   // Soportar tanto nombres en inglés (del servidor) como español (del cliente)
   const estaRecargando = estadoMunicion.isReloading || estadoMunicion.estaRecargando;
@@ -41,10 +54,14 @@ export function actualizarMunicion(estadoMunicion) {
 /**
  * Actualiza el display del arma actual
  * NOTA: Los valores de munición vienen del servidor
+ * Requirements: 4.3, 4.4, 4.5 - UI de munición con slots intercambiables
  * 
  * @param {Object} estadoArma - Estado completo del arma (combinación de visual local + munición del servidor)
  */
 export function actualizarInfoArma(estadoArma) {
+  // Verificar si es cuchillo
+  const esCuchillo = estadoArma.tipoActual === 'KNIFE' || estadoArma.esCuchillo;
+  
   // Actualizar nombre del arma (valor visual local)
   const weaponNameDiv = document.getElementById('weapon-name');
   if (weaponNameDiv && estadoArma.nombre) {
@@ -58,12 +75,18 @@ export function actualizarInfoArma(estadoArma) {
     weaponNameDiv.style.color = estadoArma.estaApuntando ? '#00ff00' : '#ffaa00';
   }
 
-  // Actualizar munición (valores del servidor)
-  actualizarMunicion(estadoArma);
+  // Actualizar munición (valores del servidor) - incluir info de cuchillo
+  actualizarMunicion({
+    ...estadoArma,
+    esCuchillo: esCuchillo,
+    tipoArma: estadoArma.tipoActual
+  });
 
-  // Actualizar lista de armas disponibles
-  actualizarListaArmas(estadoArma.armasDisponibles, estadoArma.tipoActual);
-  
+  // Actualizar slots de arma
+  // Requirements: 4.3, 4.4, 4.5 - Slots intercambiables
+  const armaSecundaria = esCuchillo ? estadoArma.armaPrincipalPrevia : 'Cuchillo';
+  actualizarSlotsArma(estadoArma.nombre, armaSecundaria, esCuchillo);
+
   // Actualizar crosshair
   actualizarCrosshair(estadoArma);
 }
@@ -101,27 +124,7 @@ export function actualizarCrosshair(estadoArma) {
   }
 }
 
-/**
- * Actualiza la lista de armas disponibles en la UI
- * @param {Array} armasDisponibles - Array de tipos de armas disponibles
- * @param {string} armaActual - Tipo de arma actualmente seleccionada
- */
-export function actualizarListaArmas(armasDisponibles, armaActual) {
-  const weaponListDiv = document.getElementById('weapon-list');
-  if (!weaponListDiv || !armasDisponibles) return;
 
-  weaponListDiv.innerHTML = '';
-
-  armasDisponibles.forEach((tipoArma, index) => {
-    const weaponItem = document.createElement('div');
-    weaponItem.className = `weapon-item ${tipoArma === armaActual ? 'active' : ''}`;
-    weaponItem.innerHTML = `
-      <span class="weapon-number">${index + 1}</span>
-      <span class="weapon-name">${tipoArma}</span>
-    `;
-    weaponListDiv.appendChild(weaponItem);
-  });
-}
 
 /**
  * Muestra notificación de cambio de arma
@@ -584,4 +587,169 @@ export function mostrarDañoCausado(damage) {
       indicator.remove();
     }
   }, 1000);
+}
+
+/**
+ * Actualiza los slots de arma en la UI
+ * Requirements: 4.3, 4.4, 4.5 - UI de munición con slots intercambiables
+ * 
+ * @param {string} armaEquipada - Nombre del arma actualmente equipada
+ * @param {string} armaSecundaria - Nombre del arma secundaria (para mostrar con [Q])
+ * @param {boolean} esCuchillo - Si el arma equipada es el cuchillo
+ */
+export function actualizarSlotsArma(armaEquipada, armaSecundaria, esCuchillo = false) {
+  const slotSuperior = document.getElementById('weapon-slot-superior');
+  const slotInferior = document.getElementById('weapon-slot-inferior');
+  const weaponName = document.getElementById('weapon-name');
+  const ammoDiv = document.getElementById('ammo');
+  
+  if (!slotSuperior || !slotInferior) return;
+  
+  // Actualizar slot superior (arma secundaria con [Q])
+  const slotNombre = slotSuperior.querySelector('.slot-nombre');
+  if (slotNombre) {
+    slotNombre.textContent = armaSecundaria || 'Cuchillo';
+  }
+  
+  // Mostrar/ocultar slot superior según si hay arma secundaria
+  if (armaSecundaria) {
+    slotSuperior.classList.remove('hidden');
+  } else {
+    slotSuperior.classList.add('hidden');
+  }
+  
+  // Actualizar slot inferior (arma equipada)
+  if (weaponName) {
+    weaponName.textContent = armaEquipada || 'Sin arma';
+  }
+  
+  // Ocultar munición si es cuchillo
+  // Requirements: 4.1, 4.2 - Ocultar contador de munición cuando cuchillo está equipado
+  if (ammoDiv) {
+    if (esCuchillo) {
+      ammoDiv.classList.add('hidden');
+    } else {
+      ammoDiv.classList.remove('hidden');
+    }
+  }
+}
+
+/**
+ * Oculta el contador de munición
+ * Requirements: 4.1 - Ocultar contador cuando cuchillo está equipado
+ */
+export function ocultarContadorMunicion() {
+  const ammoDiv = document.getElementById('ammo');
+  if (ammoDiv) {
+    ammoDiv.classList.add('hidden');
+  }
+}
+
+/**
+ * Muestra el contador de munición
+ * Requirements: 4.2 - Mostrar contador cuando arma principal está equipada
+ */
+export function mostrarContadorMunicion() {
+  const ammoDiv = document.getElementById('ammo');
+  if (ammoDiv) {
+    ammoDiv.classList.remove('hidden');
+  }
+}
+
+
+// Estado de la barra de curación
+let barraCuracionVisible = false;
+
+/**
+ * Actualiza la barra de progreso de curación
+ * Requirements: 3.1 - Mostrar barra de progreso o indicador visual durante curación
+ * @param {number} progreso - Progreso de curación de 0 a 1
+ */
+export function actualizarBarraCuracion(progreso) {
+  let container = document.getElementById('healing-bar-container');
+  
+  // Crear contenedor si no existe
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'healing-bar-container';
+    container.style.cssText = `
+      position: fixed;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      height: 12px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 2px solid rgba(0, 255, 100, 0.5);
+      border-radius: 6px;
+      overflow: hidden;
+      z-index: 900;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    `;
+    
+    const barraProgreso = document.createElement('div');
+    barraProgreso.id = 'healing-bar-progress';
+    barraProgreso.style.cssText = `
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #00ff66 0%, #00cc55 50%, #00aa44 100%);
+      border-radius: 4px;
+      transition: width 0.1s ease;
+      box-shadow: 0 0 10px rgba(0, 255, 100, 0.5);
+    `;
+    
+    const textoProgreso = document.createElement('div');
+    textoProgreso.id = 'healing-bar-text';
+    textoProgreso.style.cssText = `
+      position: absolute;
+      top: -25px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #00ff66;
+      font-size: 14px;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+      white-space: nowrap;
+    `;
+    textoProgreso.textContent = '🧃 Curando...';
+    
+    container.appendChild(barraProgreso);
+    container.appendChild(textoProgreso);
+    document.body.appendChild(container);
+  }
+  
+  // Mostrar contenedor
+  if (!barraCuracionVisible) {
+    container.style.opacity = '1';
+    barraCuracionVisible = true;
+  }
+  
+  // Actualizar progreso
+  const barraProgreso = document.getElementById('healing-bar-progress');
+  if (barraProgreso) {
+    const porcentaje = Math.min(100, Math.max(0, progreso * 100));
+    barraProgreso.style.width = `${porcentaje}%`;
+  }
+  
+  // Actualizar texto con porcentaje
+  const textoProgreso = document.getElementById('healing-bar-text');
+  if (textoProgreso) {
+    const porcentaje = Math.round(progreso * 100);
+    textoProgreso.textContent = `🧃 Curando... ${porcentaje}%`;
+  }
+}
+
+/**
+ * Oculta la barra de progreso de curación
+ * Requirements: 3.1 - Ocultar indicador cuando no está curando
+ */
+export function ocultarBarraCuracion() {
+  if (!barraCuracionVisible) return;
+  
+  const container = document.getElementById('healing-bar-container');
+  if (container) {
+    container.style.opacity = '0';
+  }
+  barraCuracionVisible = false;
 }

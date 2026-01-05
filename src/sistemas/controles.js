@@ -39,7 +39,9 @@ let callbacks = {
   onArmaAnterior: null,
   onSeleccionarArma: null,
   onApuntar: null,
-  onPausar: null
+  onPausar: null,
+  onAlternarCuchillo: null,  // Callback para tecla Q
+  onAlternarJuiceBox: null   // Callback para tecla C - Sistema de curación
 };
 
 /**
@@ -50,11 +52,13 @@ let callbacks = {
  * @param {Function} eventCallbacks.onDisparar - Callback para disparar (clic izquierdo)
  * @param {Function} eventCallbacks.onSaltar - Callback para saltar (espacio)
  * @param {Function} eventCallbacks.onMovimientoMouse - Callback para movimiento del mouse
- * @param {Function} eventCallbacks.onSiguienteArma - Callback para siguiente arma (rueda del mouse hacia arriba o Q)
+ * @param {Function} eventCallbacks.onSiguienteArma - Callback para siguiente arma (rueda del mouse hacia arriba)
  * @param {Function} eventCallbacks.onArmaAnterior - Callback para arma anterior (rueda del mouse hacia abajo)
  * @param {Function} eventCallbacks.onSeleccionarArma - Callback para seleccionar arma por número (teclas 1-5)
  * @param {Function} eventCallbacks.onApuntar - Callback para apuntar (clic derecho)
  * @param {Function} eventCallbacks.onPausar - Callback para pausar el juego (ESC)
+ * @param {Function} eventCallbacks.onAlternarCuchillo - Callback para alternar cuchillo (tecla Q)
+ * @param {Function} eventCallbacks.onAlternarJuiceBox - Callback para alternar JuiceBox (tecla C) - Sistema de curación
  */
 export function inicializarControles(eventCallbacks = {}) {
   callbacks = { ...callbacks, ...eventCallbacks };
@@ -99,12 +103,18 @@ function manejarTeclaPresionada(evento) {
     callbacks.onSaltar();
   }
 
-  // Cambio de armas con Q
-  // Requirements: 2.3 - Verificar si el cambio de arma está permitido
-  if (evento.code === 'KeyQ' && callbacks.onSiguienteArma) {
-    if (cambioArmaPermitido()) {
-      callbacks.onSiguienteArma();
-    }
+  // Cambio de armas con Q - Alternar cuchillo
+  // Requirements: 2.1, 2.2 - Intercambio rápido con tecla Q
+  // NOTA: El cuchillo siempre está disponible durante la partida, no usa cambioArmaPermitido()
+  // porque esa función bloquea cambios de arma del menú de selección, no el intercambio rápido
+  if (evento.code === 'KeyQ' && callbacks.onAlternarCuchillo) {
+    callbacks.onAlternarCuchillo();
+  }
+
+  // Alternar JuiceBox con C - Sistema de curación
+  // Requirements: 1.1 - Equipar JuiceBox presionando tecla C
+  if (evento.code === 'KeyC' && callbacks.onAlternarJuiceBox) {
+    callbacks.onAlternarJuiceBox();
   }
 
   // Selección directa de armas con números 1-8

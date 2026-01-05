@@ -163,6 +163,97 @@ export class InputSender {
       weaponType: weaponType
     });
   }
+
+  /**
+   * Send ammo pickup notification to server
+   * @param {number} amount - Amount of ammo picked up
+   * @param {string} spawnId - ID of the ammo spawn (optional)
+   */
+  sendAmmoPickup(amount, spawnId = null) {
+    if (!this.connection.isConnected()) {
+      return;
+    }
+    
+    const data = { amount: amount };
+    if (spawnId) {
+      data.spawnId = spawnId;
+    }
+    
+    this.connection.send('ammoPickup', data);
+  }
+
+  /**
+   * Send melee attack (knife) to server
+   * @param {Object} attackData - Attack data { posicion, direccion }
+   */
+  sendMeleeAttack(attackData) {
+    if (!this.connection.isConnected()) {
+      return;
+    }
+    
+    this.connection.send('meleeAttack', {
+      position: attackData.posicion || attackData.position,
+      direction: attackData.direccion || attackData.direction
+    });
+  }
+
+  /**
+   * Send heal start event to server
+   * Requirements: 5.1 - Notify server when player starts healing
+   */
+  sendHealStart() {
+    if (!this.connection.isConnected()) {
+      return;
+    }
+    
+    this.connection.send('healStart', {});
+    console.log('🧃 [Network] Sent healStart to server');
+  }
+
+  /**
+   * Send heal cancel event to server
+   * Requirements: 5.1 - Notify server when player cancels healing
+   */
+  sendHealCancel() {
+    if (!this.connection.isConnected()) {
+      return;
+    }
+    
+    this.connection.send('healCancel', {});
+    console.log('🧃 [Network] Sent healCancel to server');
+  }
+
+  /**
+   * Send heal complete event to server
+   * Requirements: 5.1 - Notify server when player completes healing
+   * @param {number} healedAmount - Amount of health restored
+   */
+  sendHealComplete(healedAmount = 50) {
+    if (!this.connection.isConnected()) {
+      return;
+    }
+    
+    this.connection.send('healComplete', {
+      healedAmount: healedAmount
+    });
+    console.log(`🧃 [Network] Sent healComplete to server - ${healedAmount} HP`);
+  }
+
+  /**
+   * Send weapon hidden state to server (toggle with C key)
+   * When weapon is hidden, the player shows empty hands (Straw mesh)
+   * @param {boolean} hidden - true if weapon is hidden, false if visible
+   */
+  sendWeaponHidden(hidden) {
+    if (!this.connection.isConnected()) {
+      return;
+    }
+    
+    this.connection.send('weaponHidden', {
+      hidden: hidden
+    });
+    console.log(`🖐️ [Network] Sent weaponHidden to server - hidden: ${hidden}`);
+  }
 }
 
 // Singleton instance for easy access

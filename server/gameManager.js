@@ -7,7 +7,7 @@
 
 import { PlayerState, createPlayer } from './playerState.js';
 import { BulletSystem } from './bulletSystem.js';
-import { PLAYER_CONFIG, SERVER_CONFIG, getWeaponConfig } from './config.js';
+import { PLAYER_CONFIG, SERVER_CONFIG, WEAPON_CONFIG, getWeaponConfig } from './config.js';
 
 let playerIdCounter = 0;
 
@@ -37,11 +37,12 @@ export class GameManager {
   /**
    * Add a new player to the game (Requirement 1.2)
    * @param {string} [customId] - Optional custom ID for the player
+   * @param {string} [weaponType] - Optional weapon type for the player
    * @returns {PlayerState} - The created player state
    */
-  addPlayer(customId = null) {
+  addPlayer(customId = null, weaponType = null) {
     const id = customId || generatePlayerId();
-    const player = createPlayer(id);
+    const player = createPlayer(id, weaponType);
     this.players.set(id, player);
     return player;
   }
@@ -99,6 +100,10 @@ export class GameManager {
         return this.processDashInput(player, input.data);
       case 'jump':
         return this.processJumpInput(player);
+      case 'ammoPickup':
+        return this.processAmmoPickupInput(player, input.data);
+      case 'meleeAttack':
+        return this.processMeleeAttackInput(player, input.data);
       default:
         return null;
     }
@@ -265,6 +270,155 @@ export class GameManager {
     return { 
       success: jumped, 
       reason: jumped ? null : 'cannot_jump' 
+    };
+  }
+
+  /**
+   * Process ammo pickup input
+   * @param {PlayerState} player - Player state
+   * @param {Object} data - Ammo pickup data with amount
+   * @returns {Object} - Result with actual amount added
+   */
+  processAmmoPickupInput(player, data) {
+    if (!player.isAlive) {
+      return { success: false, reason: 'dead', amountAdded: 0 };
+    }
+    
+    if (!data || typeof data.amount !== 'number' || data.amount <= 0) {
+      return { success: false, reason: 'invalid_amount', amountAdded: 0 };
+    }
+    
+    const amountAdded = player.addAmmo(data.amount);
+    
+    console.log(`[AMMO] ${player.id} picked up ${amountAdded} ammo (requested: ${data.amount}), total: ${player.totalAmmo}`);
+    
+    return { 
+      success: amountAdded > 0, 
+      amountAdded: amountAdded,
+      totalAmmo: player.totalAmmo
+    };
+  }
+
+  /**
+   * Process melee attack (knife) input from client
+   * @param {PlayerState} player - Player state
+   * @param {Object} data - Attack data with position and direction
+   * @returns {Object} - Result with hits
+   */
+  processMeleeAttackInput(player, data) {
+    console.log(`[MELEE] Processing attack from ${player.id}, weapon: ${player.currentWeapon}`);
+    
+    if (!player.isAlive) {
+      console.log(`[MELEE] Player ${player.id} is dead, rejecting attack`);
+      return { success: false, reason: 'dead', hits: [] };
+    }
+
+    // Verificar que el jugador tiene el cuchillo equipado
+    if (player.currentWeapon !== 'KNIFE') {
+      console.log(`[MELEE] Player ${player.id} has wrong weapon: ${player.currentWeapon}`);
+      return { success: false, reason: 'wrong_weapon', hits: [] };
+    }
+
+    // Obtener configuración del cuchillo
+    const knifeConfig = WEAPON_CONFIG['KNIFE'];
+    if (!knifeConfig) {
+      console.log(`[MELEE] No knife config found`);
+      return { success: false, reason: 'no_config', hits: [] };
+    }
+
+    const attackRange = knifeConfig.attackRange || 3;
+    const damage = knifeConfig.damage || 50;
+    const attackerPos = player.position;
+    
+    console.log(`[MELEE] Attack range: ${attackRange}, damage: ${damage}, attacker pos: (${attackerPos.x.toFixed(2)}, ${attackerPos.y.toFixed(2)}, ${attackerPos.z.toFixed(2)})`);
+    
+    // Calcular dirección del ataque - usar rotación del jugador como fallback
+    let attackDir;
+    if (data && data.direction && typeof data.direction.x === 'number' && typeof data.direction.z === 'number') {
+      attackDir = data.direction;
+    } else {
+      // Calcular desde la rotación del jugador
+      attackDir = {
+        x: -Math.sin(player.rotation.y || 0),
+        y: 0,
+        z: -Math.cos(player.rotation.y || 0)
+      };
+    }
+    
+    console.log(`[MELEE] Attack direction: (${attackDir.x.toFixed(2)}, ${attackDir.z.toFixed(2)})`);
+
+    const hits = [];
+    
+    console.log(`[MELEE] Checking ${this.players.size} players for hits`);
+
+    // Verificar colisión con otros jugadores
+    for (const [targetId, targetPlayer] of this.players) {
+      if (targetId === player.id) continue;
+      if (!targetPlayer.isAlive) {
+        console.log(`[MELEE] Target ${targetId} is dead, skipping`);
+        continue;
+      }
+
+      // Calcular distancia al objetivo
+      const dx = targetPlayer.position.x - attackerPos.x;
+      const dy = targetPlayer.position.y - attackerPos.y;
+      const dz = targetPlayer.position.z - attackerPos.z;
+      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      
+      console.log(`[MELEE] Target ${targetId} at distance ${distance.toFixed(2)} (range: ${attackRange})`);
+
+      // Verificar si está en rango
+      if (distance > attackRange) {
+        console.log(`[MELEE] Target ${targetId} out of range`);
+        continue;
+      }
+
+      // Verificar que el objetivo está aproximadamente frente al atacante
+      const dirToTarget = {
+        x: dx / distance,
+        y: dy / distance,
+        z: dz / distance
+      };
+      
+      const dot = attackDir.x * dirToTarget.x + attackDir.z * dirToTarget.z;
+      
+      console.log(`[MELEE] Dot product with ${targetId}: ${dot.toFixed(3)} (attackDir: ${attackDir.x.toFixed(2)}, ${attackDir.z.toFixed(2)})`);
+      
+      // Aceptar objetivos en un cono muy amplio (dot > -0.5 = casi 180 grados)
+      // Para el cuchillo queremos ser muy permisivos
+      if (dot <= -0.5) {
+        console.log(`[MELEE] Target ${targetId} behind attacker (dot: ${dot.toFixed(3)})`);
+        continue;
+      }
+
+      // Aplicar daño
+      console.log(`[MELEE] Applying ${damage} damage to ${targetId}`);
+      const killed = targetPlayer.applyDamage(damage);
+      
+      // Registrar el atacante si murió
+      if (killed) {
+        targetPlayer.lastAttackerId = player.id;
+      }
+      
+      hits.push({
+        targetId: targetId,
+        damage: damage,
+        killed: killed,
+        distance: distance
+      });
+
+      console.log(`[MELEE] ${player.id} hit ${targetId} for ${damage} damage (distance: ${distance.toFixed(2)})`);
+
+      if (killed) {
+        player.addKill();
+        console.log(`[MELEE KILL] ${player.id} killed ${targetId} with knife`);
+      }
+    }
+
+    return {
+      success: true,
+      hits: hits,
+      attackerId: player.id
     };
   }
 

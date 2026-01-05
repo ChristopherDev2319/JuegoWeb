@@ -1,13 +1,34 @@
 /**
  * Clase BotBase
  * Clase base abstracta para todos los tipos de bots de entrenamiento
- * Proporciona funcionalidad común: mesh, barra de vida, daño, muerte y respawn
+ * Proporciona funcionalidad común: modelo 3D, barra de vida, daño, muerte y respawn
  * 
- * Requirements: 1.2, 1.3, 1.4, 5.4
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 3.2, 5.4, 7.1
  * @requires THREE - Three.js debe estar disponible globalmente
  */
 
+import { AnimadorPersonaje, cargarAnimacion } from '../sistemas/animaciones.js';
 import { CONFIG } from '../config.js';
+
+// Configuración del modelo del bot
+// Requirements: 1.1, 1.2
+const BOT_MODEL_CONFIG = {
+  modelPath: 'modelos/cubed_bear.glb',
+  scale: 7.0,
+  rotationOffset: Math.PI,
+  heightOffset: 0
+};
+
+// Hitbox del bot - IGUAL que jugadores remotos (SERVER_HITBOX)
+const BOT_HITBOX = {
+  width: 1.4,
+  height: 2.0,
+  depth: 1.2,
+  centerYOffset: -0.7
+};
+
+// Debug: mostrar hitbox visualmente
+const DEBUG_HITBOX = true;
 
 export class BotBase {
   /**
@@ -21,7 +42,7 @@ export class BotBase {
    * @param {number} y - Posición Y inicial
    * @param {number} z - Posición Z inicial
    */
-  constructor(scene, config, x = 0, y = 1, z = 0) {
+  constructor(scene, config, x = 0, y = 0, z = 0) {
     this.scene = scene;
     this.tipo = config.tipo || 'base';
     this.color = config.color || 0xffffff;
@@ -36,43 +57,214 @@ export class BotBase {
       tiempoMuerte: 0
     };
 
-    // Guardar posición inicial para respawn
+    // Guardar posición inicial para respawn (mantener altura original)
     // Requirement 1.3: Reaparecer en posición inicial
     this.posicionInicial = { x: x, y: y, z: z };
 
-    // Crear mesh del bot
-    this.crearMesh(x, y, z);
+    // Sistema de animaciones
+    // Requirements: 3.2, 5.4
+    this.animador = null;
+    this.modelo = null;
+    this.modeloCargado = false;
+    this.mesh = null; // Mesh de fallback
+
+    // Crear modelo del bot (carga asíncrona)
+    this.crearModelo(x, y, z);
+
+    // Crear hitbox igual que jugadores remotos
+    this.crearHitbox();
 
     // Crear barra de vida con indicador de tipo
     // Requirement 5.4: Barra de vida con indicador de tipo
     this.crearBarraVida();
   }
 
+  /**
+   * Crea la hitbox del bot (igual que jugadores remotos)
+   */
+  crearHitbox() {
+    const { width, height, depth, centerYOffset } = BOT_HITBOX;
+    const geometry = new THREE.BoxGeometry(width, height, depth);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0x00ff00,
+      wireframe: true,
+      visible: DEBUG_HITBOX
+    });
+    
+    this.hitbox = new THREE.Mesh(geometry, material);
+    this.hitbox.position.y = CONFIG.jugador.alturaOjos + centerYOffset;
+    this.mesh.add(this.hitbox);
+    
+    // Guardar referencia en userData para detección de impactos
+    this.hitbox.userData.bot = this;
+    this.hitbox.userData.tipo = this.tipo;
+  }
+
 
   /**
-   * Crea el mesh 3D del bot
+   * Crea el modelo 3D del bot usando el modelo bear
+   * Requirements: 1.1, 1.2
    * @param {number} x - Posición X
    * @param {number} y - Posición Y
    * @param {number} z - Posición Z
    */
-  crearMesh(x, y, z) {
-    const geometria = new THREE.BoxGeometry(1.5, 2, 1.5);
-    const material = new THREE.MeshStandardMaterial({ color: this.color });
-    this.mesh = new THREE.Mesh(geometria, material);
+  crearModelo(x, y, z) {
+    // Crear grupo contenedor para el modelo
+    this.mesh = new THREE.Group();
     this.mesh.position.set(x, y, z);
-    this.mesh.castShadow = true;
-    this.mesh.receiveShadow = true;
     
     // Guardar referencia al bot en el mesh para detección de impactos
     this.mesh.userData.bot = this;
     this.mesh.userData.tipo = this.tipo;
     
     this.scene.add(this.mesh);
+    
+    // Cargar modelo bear de forma asíncrona
+    this.cargarModeloBear();
+  }
+
+  /**
+   * Carga el modelo GLB del personaje cubed_bear
+   * Requirements: 1.1, 1.2
+   * @param {number} intentos - Número de intentos de carga
+   */
+  cargarModeloBear(intentos = 0) {
+    const maxIntentos = 3;
+    const gltfLoader = new THREE.GLTFLoader();
+    
+    gltfLoader.load(
+      BOT_MODEL_CONFIG.modelPath,
+      async (gltf) => {
+        this.modelo = gltf.scene;
+        this.modelo.scale.setScalar(BOT_MODEL_CONFIG.scale);
+        this.modelo.position.y = BOT_MODEL_CONFIG.heightOffset;
+        this.modelo.rotation.y = BOT_MODEL_CONFIG.rotationOffset;
+        
+        // Guardar animaciones del modelo
+        this.animacionesDelModelo = gltf.animations || [];
+        
+        // Configurar materiales y visibilidad - cubed_bear es un modelo simple
+        this.modelo.traverse((child) => {
+          child.visible = true;
+          
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            console.log(`🤖 Bot ${this.tipo}: Mesh: ${child.name}`);
+          }
+        });
+        
+        this.mesh.add(this.modelo);
+        this.modeloCargado = true;
+        
+        // Asegurar visibilidad
+        this.mesh.visible = true;
+        this.modelo.visible = true;
+        
+        console.log(`🤖 Bot ${this.tipo}: Modelo cubed_bear cargado en (${this.mesh.position.x.toFixed(1)}, ${this.mesh.position.y.toFixed(1)}, ${this.mesh.position.z.toFixed(1)})`);
+        
+        // Inicializar sistema de animaciones
+        await this.inicializarAnimaciones();
+        
+        console.log(`✅ Modelo bear cargado para bot ${this.tipo}`);
+      },
+      undefined,
+      (error) => {
+        console.error(`Error cargando modelo bear para bot ${this.tipo} (intento ${intentos + 1}/${maxIntentos}):`, error);
+        
+        // Reintentar si no hemos alcanzado el máximo de intentos
+        if (intentos < maxIntentos - 1) {
+          console.log(`Reintentando carga del modelo para bot ${this.tipo}...`);
+          setTimeout(() => {
+            this.cargarModeloBear(intentos + 1);
+          }, 500 * (intentos + 1));
+        } else {
+          // Crear mesh de fallback después de agotar todos los intentos
+          console.error(`No se pudo cargar el modelo después de ${maxIntentos} intentos para bot ${this.tipo}`);
+          this.crearMeshFallback();
+        }
+      }
+    );
+  }
+
+  /**
+   * Crea un mesh de fallback (cubo) si falla la carga del modelo
+   * Requirements: 1.1 - Error handling
+   */
+  crearMeshFallback() {
+    const geometria = new THREE.BoxGeometry(1.5, 2, 1.5);
+    const material = new THREE.MeshStandardMaterial({ color: this.color });
+    const meshFallback = new THREE.Mesh(geometria, material);
+    meshFallback.position.y = 1;
+    meshFallback.castShadow = true;
+    meshFallback.receiveShadow = true;
+    
+    this.mesh.add(meshFallback);
+    this.modeloCargado = true;
+    
+    console.warn(`⚠️ Usando mesh de fallback para bot ${this.tipo}`);
+  }
+
+  /**
+   * Inicializa el sistema de animaciones del bot
+   * Requirements: 3.2, 5.4
+   * Carga animaciones según el tipo de bot:
+   * - estatico: idle (loop)
+   * - movil: walk (loop)
+   * - tirador: aim (sin loop, se queda en pose final)
+   */
+  async inicializarAnimaciones() {
+    if (!this.modelo) return;
+    
+    this.animador = new AnimadorPersonaje(this.modelo);
+    this.animador.inicializar();
+    
+    try {
+      // Determinar qué animación cargar según el tipo de bot
+      let animacionPrincipal = 'idle';
+      let hacerLoop = true;
+      
+      if (this.tipo === 'movil') {
+        animacionPrincipal = 'walk';
+        hacerLoop = true;
+      } else if (this.tipo === 'tirador') {
+        animacionPrincipal = 'aim';
+        hacerLoop = false; // aim no hace loop, se queda en pose final
+      }
+      
+      // Cargar la animación principal para este tipo de bot
+      const clip = await cargarAnimacion(animacionPrincipal);
+      
+      if (clip) {
+        this.animador.agregarAnimacion(animacionPrincipal, clip);
+        this.animador.reproducir(animacionPrincipal, { transicion: 0, loop: hacerLoop });
+        console.log(`✅ Animación '${animacionPrincipal}' iniciada para bot ${this.tipo} (loop: ${hacerLoop})`);
+      } else {
+        console.warn(`⚠️ No se pudo cargar animación '${animacionPrincipal}' para bot ${this.tipo}`);
+      }
+      
+      console.log(`✅ Animaciones inicializadas para bot ${this.tipo}`);
+    } catch (error) {
+      console.warn(`Error cargando animaciones para bot ${this.tipo}:`, error);
+    }
+  }
+
+  /**
+   * Reproduce una animación específica
+   * Requirements: 3.2, 5.4
+   * @param {string} nombre - Nombre de la animación ('idle', 'walk')
+   * @param {Object} opciones - Opciones de reproducción
+   */
+  reproducirAnimacion(nombre, opciones = {}) {
+    if (this.animador) {
+      this.animador.reproducir(nombre, opciones);
+    }
   }
 
   /**
    * Crea el canvas y sprite para la barra de vida
    * Requirement 5.4: Incluir indicador del tipo de bot
+   * Requirement 7.1: Posicionar sobre el modelo bear
    */
   crearBarraVida() {
     // Crear canvas para la barra de vida
@@ -90,7 +282,9 @@ export class BotBase {
     });
     this.spriteBarraVida = new THREE.Sprite(materialBarraVida);
     this.spriteBarraVida.scale.set(3, 0.8, 1);
-    this.spriteBarraVida.position.set(0, 2, 0);
+    // Ajustar altura para modelo bear (escala 7.0, altura aproximada 2.5 unidades)
+    // Requirements: 7.1
+    this.spriteBarraVida.position.set(0, 3.5, 0);
     this.mesh.add(this.spriteBarraVida);
 
     this.actualizarBarraVida();
@@ -184,8 +378,10 @@ export class BotBase {
     // Property 2: Daño reduce vida correctamente
     this.datos.vidaActual = Math.max(0, this.datos.vidaActual - cantidad);
 
-    // Efecto visual de daño
+    // Efecto visual de daño (flash blanco)
     this.crearEfectoDaño();
+    
+    // El indicador de daño en pantalla se muestra desde main.js usando mostrarDañoCausado()
 
     // Verificar si murió
     if (this.datos.vidaActual <= 0) {
@@ -200,27 +396,109 @@ export class BotBase {
   }
 
   /**
+   * Muestra un número de daño flotante sobre el bot
+   * @param {number} cantidad - Cantidad de daño
+   */
+  mostrarNumeroDaño(cantidad) {
+    // Crear sprite con el número de daño
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    
+    // Dibujar número de daño
+    ctx.fillStyle = '#ff0000';
+    ctx.font = 'bold 48px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 4;
+    ctx.strokeText(`-${Math.round(cantidad)}`, 64, 32);
+    ctx.fillText(`-${Math.round(cantidad)}`, 64, 32);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({ 
+      map: texture, 
+      transparent: true,
+      depthTest: false
+    });
+    const sprite = new THREE.Sprite(material);
+    
+    // Posicionar sobre el bot
+    sprite.position.copy(this.mesh.position);
+    sprite.position.y += 3;
+    sprite.position.x += (Math.random() - 0.5) * 0.5;
+    sprite.scale.set(2, 1, 1);
+    
+    this.scene.add(sprite);
+    
+    // Animar el número subiendo y desvaneciéndose
+    let tiempo = 0;
+    const animar = () => {
+      tiempo += 0.016;
+      sprite.position.y += 0.03;
+      material.opacity = 1 - tiempo * 2;
+      
+      if (tiempo > 0.5) {
+        this.scene.remove(sprite);
+        texture.dispose();
+        material.dispose();
+      } else {
+        requestAnimationFrame(animar);
+      }
+    };
+    animar();
+  }
+
+  /**
    * Crea efecto visual cuando el bot recibe daño
+   * Requirements: 1.3
    */
   crearEfectoDaño() {
-    // Flash rojo temporal
-    const colorOriginal = this.mesh.material.color.getHex();
-    this.mesh.material.color.setHex(0xffffff);
-    
-    setTimeout(() => {
-      if (this.mesh && this.mesh.material) {
-        this.mesh.material.color.setHex(this.datos.estaVivo ? colorOriginal : 0x333333);
-      }
-    }, 100);
+    // Flash blanco temporal en el modelo
+    if (this.modelo) {
+      const materialesOriginales = [];
+      
+      // Guardar colores originales y cambiar a blanco
+      this.modelo.traverse((child) => {
+        if (child.isMesh && child.material) {
+          const material = child.material;
+          if (material.color) {
+            materialesOriginales.push({
+              material: material,
+              color: material.color.getHex()
+            });
+            material.color.setHex(0xffffff);
+          }
+        }
+      });
+      
+      // Restaurar colores originales después de 100ms
+      setTimeout(() => {
+        materialesOriginales.forEach(({ material, color }) => {
+          if (material && material.color) {
+            material.color.setHex(color);
+          }
+        });
+      }, 100);
+    }
   }
 
   /**
    * Ejecuta la muerte del bot
    * Requirement 1.3: Preparar para respawn después de tiempo configurable
+   * Requirement 1.4: Efecto visual de muerte
    */
   morir() {
-    // Cambiar color a gris
-    this.mesh.material.color.setHex(0x333333);
+    // Cambiar color del modelo a gris
+    if (this.modelo) {
+      this.modelo.traverse((child) => {
+        if (child.isMesh && child.material && child.material.color) {
+          child.material.color.setHex(0x333333);
+        }
+      });
+    }
+    
     this.spriteBarraVida.visible = false;
 
     // Animar caída
@@ -253,8 +531,15 @@ export class BotBase {
     );
     this.mesh.rotation.set(0, 0, 0);
 
-    // Restaurar color original
-    this.mesh.material.color.setHex(this.color);
+    // Restaurar colores originales del modelo
+    if (this.modelo) {
+      this.modelo.traverse((child) => {
+        if (child.isMesh && child.material && child.material.color) {
+          // Restaurar color original (el modelo tiene sus propios colores)
+          // No necesitamos cambiar el color ya que el modelo tiene texturas
+        }
+      });
+    }
 
     // Restaurar vida completa
     this.datos.vidaActual = this.datos.vidaMaxima;
@@ -265,8 +550,10 @@ export class BotBase {
     this.spriteBarraVida.visible = true;
     this.actualizarBarraVida();
 
-    // Efecto visual de respawn
-    this.crearEfectoRespawn();
+    // Restaurar animación idle
+    this.reproducirAnimacion('idle', { transicion: 0.2, loop: true });
+    
+    // Sin efecto de partículas al reaparecer
   }
 
   /**
@@ -314,12 +601,17 @@ export class BotBase {
 
 
   /**
-   * Actualiza el estado del bot (verifica respawn)
+   * Actualiza el estado del bot (verifica respawn y animaciones)
    * Método base que puede ser sobrescrito por clases hijas
    * 
-   * @param {number} deltaTime - Tiempo desde la última actualización en ms
+   * @param {number} deltaTime - Tiempo desde la última actualización en milisegundos
    */
   actualizar(deltaTime) {
+    // Actualizar animaciones (convertir ms a segundos)
+    if (this.animador) {
+      this.animador.actualizar(deltaTime / 1000);
+    }
+    
     // Si el bot está muerto, verificar si debe reaparecer
     if (!this.datos.estaVivo) {
       const ahora = performance.now();
@@ -370,14 +662,55 @@ export class BotBase {
   }
 
   /**
+   * Obtiene la hitbox del bot
+   * @returns {THREE.Mesh}
+   */
+  obtenerHitbox() {
+    return this.hitbox;
+  }
+
+  /**
+   * Obtiene las dimensiones de la hitbox
+   * @returns {Object}
+   */
+  static obtenerDimensionesHitbox() {
+    return { ...BOT_HITBOX };
+  }
+
+  /**
    * Destruye el bot y limpia recursos
    */
   destruir() {
+    // Limpiar animador
+    if (this.animador) {
+      this.animador.destruir();
+      this.animador = null;
+    }
+    
+    // Limpiar hitbox
+    if (this.hitbox) {
+      this.hitbox.geometry.dispose();
+      this.hitbox.material.dispose();
+      this.hitbox = null;
+    }
+    
     // Remover mesh de la escena
     if (this.mesh) {
       this.scene.remove(this.mesh);
-      this.mesh.geometry.dispose();
-      this.mesh.material.dispose();
+      
+      // Limpiar todos los hijos del grupo
+      this.mesh.traverse((child) => {
+        if (child.geometry) {
+          child.geometry.dispose();
+        }
+        if (child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach(mat => mat.dispose());
+          } else {
+            child.material.dispose();
+          }
+        }
+      });
     }
 
     // Limpiar barra de vida
@@ -388,6 +721,7 @@ export class BotBase {
 
     // Limpiar referencias
     this.mesh = null;
+    this.modelo = null;
     this.spriteBarraVida = null;
     this.scene = null;
   }

@@ -22,6 +22,7 @@ export function inicializarEntrenamientoUI() {
 
 /**
  * Crea el panel de estadísticas de entrenamiento
+ * Usa el mismo estilo del scoreboard del modo online
  * Requirements: 6.1, 6.2
  */
 function crearPanelEstadisticas() {
@@ -33,34 +34,27 @@ function crearPanelEstadisticas() {
 
   panelEstadisticas = document.createElement('div');
   panelEstadisticas.id = 'training-stats-panel';
-  panelEstadisticas.className = 'training-stats-panel';
+  panelEstadisticas.className = 'scoreboard-panel'; // Usar estilo del scoreboard
+  // Posicionar en esquina superior derecha
+  panelEstadisticas.style.left = 'auto';
+  panelEstadisticas.style.right = '20px';
   panelEstadisticas.innerHTML = `
-    <div class="training-stats-header">
-      <span class="training-stats-icon">🎯</span>
-      <span class="training-stats-title">Entrenamiento</span>
+    <div class="scoreboard-header">ENTRENAMIENTO</div>
+    <div class="scoreboard-entry">
+      <span class="scoreboard-nombre">🔴 Estáticos</span>
+      <span class="scoreboard-kills" id="stat-estaticos">0</span>
     </div>
-    <div class="training-stats-content">
-      <div class="training-stat-row">
-        <span class="stat-label">🔴 Estáticos</span>
-        <span class="stat-value" id="stat-estaticos">0</span>
-      </div>
-      <div class="training-stat-row">
-        <span class="stat-label">🔵 Móviles</span>
-        <span class="stat-value" id="stat-moviles">0</span>
-      </div>
-      <div class="training-stat-row">
-        <span class="stat-label">🟠 Tiradores</span>
-        <span class="stat-value" id="stat-tiradores">0</span>
-      </div>
-      <div class="training-stat-divider"></div>
-      <div class="training-stat-row total">
-        <span class="stat-label">Total</span>
-        <span class="stat-value" id="stat-total">0</span>
-      </div>
-      <div class="training-stat-row precision">
-        <span class="stat-label">Precisión</span>
-        <span class="stat-value" id="stat-precision">0%</span>
-      </div>
+    <div class="scoreboard-entry">
+      <span class="scoreboard-nombre">🔵 Móviles</span>
+      <span class="scoreboard-kills" id="stat-moviles">0</span>
+    </div>
+    <div class="scoreboard-entry">
+      <span class="scoreboard-nombre">🟠 Tiradores</span>
+      <span class="scoreboard-kills" id="stat-tiradores">0</span>
+    </div>
+    <div class="scoreboard-entry" style="border-top: 1px solid rgba(255,255,255,0.15); margin-top: 8px; padding-top: 12px;">
+      <span class="scoreboard-nombre" style="font-weight: 700;">Total</span>
+      <span class="scoreboard-kills" id="stat-total" style="color: #48bb78;">0</span>
     </div>
   `;
 
@@ -98,14 +92,13 @@ function crearIndicadorZona() {
 export function actualizarEstadisticasUI(estadisticas) {
   if (!panelEstadisticas) return;
 
-  const { eliminaciones, totalEliminaciones, precision } = estadisticas;
+  const { eliminaciones, totalEliminaciones } = estadisticas;
 
   // Actualizar contadores por tipo
   const statEstaticos = document.getElementById('stat-estaticos');
   const statMoviles = document.getElementById('stat-moviles');
   const statTiradores = document.getElementById('stat-tiradores');
   const statTotal = document.getElementById('stat-total');
-  const statPrecision = document.getElementById('stat-precision');
 
   if (statEstaticos) {
     actualizarConAnimacion(statEstaticos, eliminaciones.estaticos);
@@ -119,9 +112,6 @@ export function actualizarEstadisticasUI(estadisticas) {
   if (statTotal) {
     actualizarConAnimacion(statTotal, totalEliminaciones);
   }
-  if (statPrecision) {
-    statPrecision.textContent = `${precision.toFixed(1)}%`;
-  }
 }
 
 /**
@@ -134,11 +124,13 @@ function actualizarConAnimacion(elemento, nuevoValor) {
   
   if (valorActual !== nuevoValor) {
     elemento.textContent = nuevoValor;
-    elemento.classList.add('stat-updated');
+    // Animación de pulso
+    elemento.style.transform = 'scale(1.3)';
+    elemento.style.transition = 'transform 0.15s ease-out';
     
     setTimeout(() => {
-      elemento.classList.remove('stat-updated');
-    }, 300);
+      elemento.style.transform = 'scale(1)';
+    }, 150);
   }
 }
 
@@ -207,7 +199,7 @@ export function ocultarIndicadorZona() {
  */
 export function mostrarPanelEstadisticas() {
   if (panelEstadisticas) {
-    panelEstadisticas.classList.add('visible');
+    panelEstadisticas.style.display = 'block';
   }
 }
 
@@ -216,7 +208,7 @@ export function mostrarPanelEstadisticas() {
  */
 export function ocultarPanelEstadisticas() {
   if (panelEstadisticas) {
-    panelEstadisticas.classList.remove('visible');
+    panelEstadisticas.style.display = 'none';
   }
 }
 

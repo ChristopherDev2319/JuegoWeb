@@ -1,9 +1,9 @@
 /**
  * Clase BotTirador
- * Bot de entrenamiento que dispara al jugador cuando está en línea de visión
+ * Bot de entrenamiento que dispara hacia adelante de forma continua
  * Extiende BotBase con tipo 'tirador' y color naranja
  * 
- * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 5.3
+ * Requirements: 4.1, 4.2, 4.3, 4.4
  * @requires THREE - Three.js debe estar disponible globalmente
  */
 
@@ -13,8 +13,7 @@ import { CONFIG } from '../config.js';
 export class BotTirador extends BotBase {
   /**
    * Crea un bot tirador en la posición especificada
-   * Requirement 3.1: Crear bots que disparan cuando el jugador está en línea de visión
-   * Requirement 5.3: Asignar color distintivo naranja
+   * Requirement 4.1: Configurar al bot para disparar en la dirección que está mirando
    * 
    * @param {THREE.Scene} scene - Escena de Three.js
    * @param {number} x - Posición X inicial
@@ -22,14 +21,12 @@ export class BotTirador extends BotBase {
    * @param {number} z - Posición Z inicial
    * @param {Object} [opciones] - Opciones adicionales
    * @param {Function} [opciones.onDisparo] - Callback cuando el bot dispara
-   * @param {Array} [opciones.obstaculos] - Lista de meshes para verificar obstrucciones
    */
   constructor(scene, x = 0, y = 1, z = 0, opciones = {}) {
     // Obtener configuración de bots tiradores
     const configTirador = CONFIG.botsEntrenamiento.tirador;
     
     // Llamar al constructor padre con tipo 'tirador' y color naranja
-    // Property 8: Colores distintivos por tipo (naranja para tirador)
     super(scene, {
       tipo: 'tirador',
       color: configTirador.color,           // 0xff8800 - Naranja
@@ -38,116 +35,83 @@ export class BotTirador extends BotBase {
     }, x, y, z);
 
     // Configuración de disparo
-    // Requirement 3.2: Disparar a intervalos regulares
-    this.cadenciaDisparo = configTirador.cadenciaDisparo || 1500; // ms entre disparos
+    // Requirement 4.3: Disparar a intervalos regulares configurables
+    this.cadenciaDisparo = configTirador.cadenciaDisparo || 2000; // ms entre disparos
     
-    // Requirement 3.4: Daño reducido para entrenamiento
-    // Property 6: Daño de bot tirador es reducido
+    // Daño reducido para entrenamiento
     this.dañoReducido = configTirador.dañoReducido || 10;
     
-    // Requirement 3.1, 3.3: Rango de visión para detectar jugador
-    this.rangoVision = configTirador.rangoVision || 30;
+    // Velocidad del proyectil
+    this.velocidadBala = configTirador.velocidadBala || 30;
     
     // Estado de disparo
     this.ultimoDisparo = 0;
-    this.jugadorEnVision = false;
     
-    // Callbacks y referencias externas
+    // Callbacks
     this.onDisparo = opciones.onDisparo || null;
-    this.obstaculos = opciones.obstaculos || [];
     
-    // Raycaster para verificar línea de visión
-    this.raycaster = new THREE.Raycaster();
+    // Lista de proyectiles activos para actualizar
+    this.proyectilesActivos = [];
   }
 
   /**
-   * Verifica si el jugador está en la línea de visión del bot
-   * Requirement 3.1: Detectar cuando el jugador entra en línea de visión
-   * Requirement 3.3: Detectar cuando el jugador sale de línea de visión
-   * Property 5: Línea de visión determina disparo
+   * Obtiene la dirección frontal del bot basada en su rotación Y
+   * Requirement 4.1: Disparar en la dirección que está mirando
    * 
-   * @param {THREE.Vector3} jugadorPos - Posición del jugador
-   * @returns {boolean} - true si el jugador está en línea de visión
+   * @returns {THREE.Vector3} - Vector de dirección normalizado
    */
-  verificarLineaVision(jugadorPos) {
-    if (!jugadorPos || !this.datos.estaVivo) {
-      return false;
-    }
-
-    // Calcular distancia al jugador
-    const posicionBot = this.mesh.position.clone();
-    posicionBot.y += 1; // Altura de los "ojos" del bot
+  obtenerDireccionFrontal() {
+    // La dirección frontal se calcula a partir de la rotación Y del mesh
+    // Considerando el offset de rotación del modelo
+    const rotacionY = this.mesh.rotation.y;
     
-    const distancia = posicionBot.distanceTo(jugadorPos);
+    // Calcular dirección frontal (hacia donde mira el bot)
+    const direccion = new THREE.Vector3(
+      Math.sin(rotacionY),
+      0,
+      Math.cos(rotacionY)
+    );
     
-    // Si está fuera del rango de visión, no hay línea de visión
-    if (distancia > this.rangoVision) {
-      return false;
-    }
-
-    // Calcular dirección hacia el jugador
-    const direccion = new THREE.Vector3()
-      .subVectors(jugadorPos, posicionBot)
-      .normalize();
-
-    // Configurar raycaster para verificar obstrucciones
-    this.raycaster.set(posicionBot, direccion);
-    this.raycaster.far = distancia;
-
-    // Verificar si hay obstáculos entre el bot y el jugador
-    if (this.obstaculos.length > 0) {
-      const intersecciones = this.raycaster.intersectObjects(this.obstaculos, true);
-      
-      // Si hay intersecciones antes de llegar al jugador, hay obstrucción
-      if (intersecciones.length > 0) {
-        const primeraInterseccion = intersecciones[0];
-        // Si el obstáculo está más cerca que el jugador, hay obstrucción
-        if (primeraInterseccion.distance < distancia - 0.5) {
-          return false;
-        }
-      }
-    }
-
-    // El jugador está en línea de visión
-    return true;
+    return direccion.normalize();
   }
 
   /**
-   * Ejecuta un disparo hacia el jugador
-   * Requirement 3.4: Aplicar daño reducido al jugador
-   * Property 6: Daño de bot tirador es reducido (igual a dañoReducido configurado)
+   * Ejecuta un disparo hacia adelante (dirección frontal del bot)
+   * Requirement 4.1: Disparar en la dirección que está mirando
+   * Requirement 4.2: Crear proyectil visual que viaja hacia adelante
+   * Requirement 4.4: No disparar si el bot está muerto
    * 
-   * @param {THREE.Vector3} jugadorPos - Posición del jugador
    * @returns {Object|null} - Información del disparo o null si no se disparó
    */
-  disparar(jugadorPos) {
-    if (!this.datos.estaVivo || !jugadorPos) {
+  disparar() {
+    // Property 7: Bots muertos no disparan
+    if (!this.datos.estaVivo) {
       return null;
     }
 
     // Registrar tiempo del disparo
     this.ultimoDisparo = performance.now();
 
-    // Calcular dirección del disparo
+    // Calcular posición de origen del disparo
     const posicionBot = this.mesh.position.clone();
-    posicionBot.y += 1; // Altura de disparo
+    posicionBot.y += 1.5; // Altura de disparo (nivel del pecho del modelo)
     
-    const direccion = new THREE.Vector3()
-      .subVectors(jugadorPos, posicionBot)
-      .normalize();
+    // Obtener dirección frontal basada en rotación Y
+    // Property 6: Dirección de disparo consistente con rotación
+    const direccion = this.obtenerDireccionFrontal();
 
-    // Crear efecto visual del disparo
+    // Crear efecto visual del disparo (tracer + proyectil)
     this.crearEfectoDisparo(posicionBot, direccion);
-
-    // Rotar el bot hacia el jugador
-    this.rotarHaciaJugador(jugadorPos);
+    
+    // Crear proyectil visual que viaja
+    this.crearProyectilVisual(posicionBot, direccion);
 
     // Información del disparo
     const infoDisparo = {
       origen: posicionBot.clone(),
       direccion: direccion.clone(),
       daño: this.dañoReducido,
-      distancia: posicionBot.distanceTo(jugadorPos)
+      velocidad: this.velocidadBala
     };
 
     // Llamar callback si existe
@@ -159,48 +123,14 @@ export class BotTirador extends BotBase {
   }
 
   /**
-   * Rota el bot para mirar hacia el jugador
-   * @param {THREE.Vector3} jugadorPos - Posición del jugador
-   */
-  rotarHaciaJugador(jugadorPos) {
-    const direccion = new THREE.Vector3()
-      .subVectors(jugadorPos, this.mesh.position);
-    direccion.y = 0; // Solo rotar en el eje Y
-    
-    if (direccion.length() > 0) {
-      const angulo = Math.atan2(direccion.x, direccion.z);
-      this.mesh.rotation.y = angulo;
-    }
-  }
-
-  /**
-   * Crea efecto visual cuando el bot dispara
+   * Crea efecto visual de flash cuando el bot dispara
+   * Requirement 4.2: Crear proyectil visual
    * @param {THREE.Vector3} origen - Posición de origen del disparo
    * @param {THREE.Vector3} direccion - Dirección del disparo
    */
   crearEfectoDisparo(origen, direccion) {
-    // Crear línea de disparo (tracer)
-    const longitudTracer = 20;
-    const puntoFinal = origen.clone().add(
-      direccion.clone().multiplyScalar(longitudTracer)
-    );
-
-    const geometriaLinea = new THREE.BufferGeometry().setFromPoints([
-      origen,
-      puntoFinal
-    ]);
-    
-    const materialLinea = new THREE.LineBasicMaterial({
-      color: this.color,
-      transparent: true,
-      opacity: 0.8
-    });
-    
-    const linea = new THREE.Line(geometriaLinea, materialLinea);
-    this.scene.add(linea);
-
     // Flash en el punto de disparo
-    const geometriaFlash = new THREE.SphereGeometry(0.15, 8, 8);
+    const geometriaFlash = new THREE.SphereGeometry(0.2, 8, 8);
     const materialFlash = new THREE.MeshBasicMaterial({
       color: 0xffff00,
       transparent: true,
@@ -210,18 +140,14 @@ export class BotTirador extends BotBase {
     flash.position.copy(origen);
     this.scene.add(flash);
 
-    // Animar y eliminar efectos
+    // Animar y eliminar flash
     let vida = 0;
     const animar = () => {
       vida += 0.016;
-      materialLinea.opacity = 0.8 - vida * 4;
       materialFlash.opacity = 1 - vida * 5;
 
       if (vida > 0.2) {
-        this.scene.remove(linea);
         this.scene.remove(flash);
-        geometriaLinea.dispose();
-        materialLinea.dispose();
         geometriaFlash.dispose();
         materialFlash.dispose();
       } else {
@@ -232,53 +158,100 @@ export class BotTirador extends BotBase {
   }
 
   /**
+   * Crea un proyectil visual que viaja hacia adelante
+   * Requirement 4.2: Crear proyectil visual que viaja hacia adelante
+   * @param {THREE.Vector3} origen - Posición de origen del proyectil
+   * @param {THREE.Vector3} direccion - Dirección del proyectil
+   */
+  crearProyectilVisual(origen, direccion) {
+    // Crear geometría del proyectil (cilindro alargado como tracer)
+    const geometriaProyectil = new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8);
+    geometriaProyectil.rotateX(Math.PI / 2); // Orientar hacia adelante
+    
+    const materialProyectil = new THREE.MeshBasicMaterial({
+      color: this.color, // Color naranja del bot tirador
+      transparent: true,
+      opacity: 0.9
+    });
+    
+    const proyectil = new THREE.Mesh(geometriaProyectil, materialProyectil);
+    proyectil.position.copy(origen);
+    
+    // Orientar el proyectil en la dirección de disparo
+    const rotacionY = Math.atan2(direccion.x, direccion.z);
+    proyectil.rotation.y = rotacionY;
+    
+    this.scene.add(proyectil);
+    
+    // Datos del proyectil para animación
+    const datosProyectil = {
+      mesh: proyectil,
+      direccion: direccion.clone(),
+      velocidad: this.velocidadBala,
+      distanciaRecorrida: 0,
+      distanciaMaxima: 50, // Distancia máxima antes de desaparecer
+      geometria: geometriaProyectil,
+      material: materialProyectil
+    };
+    
+    this.proyectilesActivos.push(datosProyectil);
+  }
+
+  /**
+   * Actualiza los proyectiles activos
+   * @param {number} deltaTime - Tiempo desde la última actualización en segundos
+   */
+  actualizarProyectiles(deltaTime) {
+    // Iterar en reversa para poder eliminar elementos
+    for (let i = this.proyectilesActivos.length - 1; i >= 0; i--) {
+      const proyectil = this.proyectilesActivos[i];
+      
+      // Calcular movimiento
+      const movimiento = proyectil.direccion.clone().multiplyScalar(proyectil.velocidad * deltaTime);
+      proyectil.mesh.position.add(movimiento);
+      proyectil.distanciaRecorrida += movimiento.length();
+      
+      // Verificar si debe eliminarse
+      if (proyectil.distanciaRecorrida >= proyectil.distanciaMaxima) {
+        // Eliminar proyectil
+        this.scene.remove(proyectil.mesh);
+        proyectil.geometria.dispose();
+        proyectil.material.dispose();
+        this.proyectilesActivos.splice(i, 1);
+      }
+    }
+  }
+
+  /**
    * Actualiza el estado del bot tirador
-   * Implementa lógica de disparo basada en línea de visión
+   * Dispara hacia adelante a intervalos regulares
    * 
-   * Requirement 3.1: Iniciar disparos cuando jugador entra en línea de visión
-   * Requirement 3.2: Continuar disparando a intervalos regulares
-   * Requirement 3.3: Detener disparos cuando jugador sale de línea de visión
-   * Requirement 3.5: Detener disparos al morir
+   * Requirement 4.1: Disparar en la dirección que está mirando
+   * Requirement 4.3: Disparar a intervalos regulares configurables
+   * Requirement 4.4: Detener disparos al morir
    * 
-   * @param {number} deltaTime - Tiempo desde la última actualización en ms
-   * @param {THREE.Vector3} [jugadorPos] - Posición del jugador (opcional)
+   * @param {number} deltaTime - Tiempo desde la última actualización en segundos
+   * @param {THREE.Vector3} [jugadorPos] - Posición del jugador (no usado, mantenido por compatibilidad)
    */
   actualizar(deltaTime, jugadorPos = null) {
+    // Actualizar proyectiles activos
+    this.actualizarProyectiles(deltaTime);
+    
     // Si el bot está muerto, solo verificar respawn (sin disparos)
-    // Requirement 3.5: Detener disparos al morir
+    // Requirement 4.4: Detener disparos al morir
+    // Property 7: Bots muertos no disparan
     if (!this.datos.estaVivo) {
       super.actualizar(deltaTime);
       return;
     }
 
-    // Si no hay posición del jugador, no hacer nada más
-    if (!jugadorPos) {
-      this.jugadorEnVision = false;
-      super.actualizar(deltaTime);
-      return;
-    }
-
-    // Verificar línea de visión
-    // Property 5: Línea de visión determina disparo
-    const enVision = this.verificarLineaVision(jugadorPos);
+    // Verificar si puede disparar (cadencia)
+    const ahora = performance.now();
+    const tiempoDesdeUltimoDisparo = ahora - this.ultimoDisparo;
     
-    // Actualizar estado de visión
-    const estabaEnVision = this.jugadorEnVision;
-    this.jugadorEnVision = enVision;
-
-    // Si el jugador está en línea de visión
-    if (enVision) {
-      // Rotar hacia el jugador
-      this.rotarHaciaJugador(jugadorPos);
-      
-      // Verificar si puede disparar (cadencia)
-      const ahora = performance.now();
-      const tiempoDesdeUltimoDisparo = ahora - this.ultimoDisparo;
-      
-      // Requirement 3.2: Disparar a intervalos regulares
-      if (tiempoDesdeUltimoDisparo >= this.cadenciaDisparo) {
-        this.disparar(jugadorPos);
-      }
+    // Requirement 4.3: Disparar a intervalos regulares
+    if (tiempoDesdeUltimoDisparo >= this.cadenciaDisparo) {
+      this.disparar();
     }
 
     // Llamar al método padre para verificar respawn si es necesario
@@ -289,7 +262,7 @@ export class BotTirador extends BotBase {
    * Reaparece el bot en su posición inicial
    * Sobrescribe el método padre para también resetear estado de disparo
    * 
-   * Requirement 3.5: Reaparecer después del tiempo de respawn
+   * Requirement 4.4: Reaparecer después del tiempo de respawn
    */
   reaparecer() {
     // Llamar al método padre para restaurar posición, vida, etc.
@@ -297,15 +270,6 @@ export class BotTirador extends BotBase {
     
     // Resetear estado de disparo
     this.ultimoDisparo = 0;
-    this.jugadorEnVision = false;
-  }
-
-  /**
-   * Establece la lista de obstáculos para verificar línea de visión
-   * @param {Array<THREE.Object3D>} obstaculos - Lista de meshes
-   */
-  establecerObstaculos(obstaculos) {
-    this.obstaculos = obstaculos || [];
   }
 
   /**
@@ -314,14 +278,6 @@ export class BotTirador extends BotBase {
    */
   establecerCallbackDisparo(callback) {
     this.onDisparo = callback;
-  }
-
-  /**
-   * Verifica si el jugador está actualmente en la línea de visión
-   * @returns {boolean}
-   */
-  jugadorEstaEnVision() {
-    return this.jugadorEnVision;
   }
 
   /**
@@ -341,11 +297,11 @@ export class BotTirador extends BotBase {
   }
 
   /**
-   * Obtiene el rango de visión
+   * Obtiene la velocidad de la bala
    * @returns {number}
    */
-  obtenerRangoVision() {
-    return this.rangoVision;
+  obtenerVelocidadBala() {
+    return this.velocidadBala;
   }
 
   /**
@@ -353,9 +309,14 @@ export class BotTirador extends BotBase {
    * Sobrescribe el método padre para limpiar recursos adicionales
    */
   destruir() {
-    // Limpiar raycaster
-    this.raycaster = null;
-    this.obstaculos = [];
+    // Limpiar proyectiles activos
+    for (const proyectil of this.proyectilesActivos) {
+      this.scene.remove(proyectil.mesh);
+      proyectil.geometria.dispose();
+      proyectil.material.dispose();
+    }
+    this.proyectilesActivos = [];
+    
     this.onDisparo = null;
     
     // Llamar al método padre

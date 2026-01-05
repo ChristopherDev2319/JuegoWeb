@@ -1507,6 +1507,53 @@ canvas {
   border-radius: 5px;
   font-weight: bold;
   text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Slots de armas intercambiables */
+/* Requirements: 4.3, 4.4, 4.5 */
+.weapon-slot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 5px 0;
+  transition: all 0.2s ease;
+}
+
+.weapon-slot.secundario {
+  opacity: 0.6;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 8px;
+}
+
+.weapon-slot.secundario:hover {
+  opacity: 0.8;
+}
+
+.weapon-slot.principal {
+  opacity: 1;
+}
+
+.slot-nombre {
+  color: #aaa;
+}
+
+.slot-tecla {
+  background: rgba(255, 170, 0, 0.3);
+  color: #ffaa00;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Ocultar slot superior cuando no hay arma secundaria */
+#weapon-slot-superior.hidden {
+  display: none;
 }
 
 #weapon-name {
@@ -1519,55 +1566,9 @@ canvas {
   font-size: 24px;
 }
 
-/* Lista de armas */
-#weapon-list {
-  position: absolute;
-  bottom: 120px;
-  right: 30px;
-  background: rgba(0, 0, 0, 0.7);
-  border-radius: 5px;
-  padding: 10px;
-  min-width: 150px;
-}
-
-.weapon-item {
-  display: flex;
-  align-items: center;
-  padding: 5px 10px;
-  margin: 2px 0;
-  border-radius: 3px;
-  color: #aaa;
-  font-size: 14px;
-  transition: all 0.2s ease;
-}
-
-.weapon-item.active {
-  background: rgba(255, 170, 0, 0.3);
-  color: #ffaa00;
-  border-left: 3px solid #ffaa00;
-}
-
-.weapon-number {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: bold;
-  margin-right: 10px;
-}
-
-.weapon-item.active .weapon-number {
-  background: #ffaa00;
-  color: black;
-}
-
-.weapon-name {
-  flex: 1;
+/* Ocultar munición cuando el cuchillo está equipado */
+#ammo.hidden {
+  display: none;
 }
 
 /* Indicador de apuntado */
@@ -2749,35 +2750,21 @@ canvas {
 
 .modo-local-indicator {
   position: fixed;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, rgba(79, 172, 254, 0.9) 0%, rgba(0, 242, 254, 0.9) 100%);
-  color: white;
-  padding: 8px 20px;
-  border-radius: 20px;
-  font-size: 14px;
+  top: 15px;
+  left: 15px;
+  background: rgba(255, 170, 0, 0.2);
+  border: 1px solid rgba(255, 170, 0, 0.5);
+  border-radius: 8px;
+  padding: 8px 15px;
+  color: #ffaa00;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 1px;
-  z-index: 1000;
-  box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
-  animation: slideDown 0.3s ease;
+  z-index: 200;
   display: none;
 }
 
 .modo-local-indicator.visible {
   display: block;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
 }
 
 /* ==================== NUEVO LAYOUT DEL LOBBY ==================== */
@@ -5296,3 +5283,58 @@ canvas {
 }
 
 /* ==================== FIN TRAINING STATS UI STYLES ==================== */
+
+
+/* ==================== HEALING BAR STYLES ==================== */
+/* Requirements: 3.1 - Barra de progreso de curación */
+
+#healing-bar-container {
+  position: fixed;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid rgba(0, 255, 100, 0.5);
+  border-radius: 6px;
+  overflow: hidden;
+  z-index: 900;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+#healing-bar-progress {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #00ff66 0%, #00cc55 50%, #00aa44 100%);
+  border-radius: 4px;
+  transition: width 0.1s ease;
+  box-shadow: 0 0 10px rgba(0, 255, 100, 0.5);
+}
+
+#healing-bar-text {
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #00ff66;
+  font-size: 14px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+}
+
+/* Animación de pulso para la barra de curación */
+@keyframes healingPulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(0, 255, 100, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 255, 100, 0.8);
+  }
+}
+
+#healing-bar-container.active #healing-bar-progress {
+  animation: healingPulse 1s ease-in-out infinite;
+}

@@ -497,6 +497,19 @@ export function estaMenuActivo() {
   return menuActivo;
 }
 
+/**
+ * Cierra el menú de pausa forzadamente (sin activar pointer lock)
+ * Útil cuando el jugador muere mientras el menú está abierto
+ */
+export function cerrarMenuForzado() {
+  if (!menuActivo) return;
+  
+  menuActivo = false;
+  elementos.pauseMenu?.classList.add('hidden');
+  
+  console.log('⏹️ Menú cerrado forzadamente');
+}
+
 // Sistema de FPS Counter
 let fpsHistory = [];
 let lastFpsUpdate = 0;
