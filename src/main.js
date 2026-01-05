@@ -59,7 +59,8 @@ import {
   cancelarCuracion,
   estaCurando,
   actualizarCuracion,
-  obtenerProgresoCuracion
+  obtenerProgresoCuracion,
+  inventarioArmas
 } from './sistemas/armas.js';
 
 import { Bala } from './entidades/Bala.js';
@@ -119,6 +120,15 @@ import {
   habilitarCrosshairDinamico
 } from './sistemas/crosshair.js';
 
+// Sistema de selector de armas local
+import {
+  inicializarSelectorArmasLocal,
+  mostrarSelectorArmasLocal,
+  ocultarSelectorArmasLocal,
+  actualizarSelectorArmaActiva,
+  actualizarEstadoConexionSelector
+} from './ui/weaponSelectorLocal.js';
+
 // Sistema de menú de pausa
 import { inicializarMenuPausa, alternarMenuPausa, estaMenuActivo, cerrarMenuForzado } from './sistemas/menuPausa.js';
 
@@ -158,7 +168,8 @@ import {
   puedeReaparecer,
   obtenerArmaPrevia,
   reaparecer as reaparecerConArma,
-  estaEnPantallaMuerte
+  estaEnPantallaMuerte,
+  cambioArmaPermitido
 } from './sistemas/seleccionArmas.js';
 
 import {
@@ -235,6 +246,9 @@ let salaActualId = null;
 let nombreJugadorActual = '';
 let juegoIniciado = false;
 
+// Exponer modoJuegoActual globalmente
+window.modoJuegoActual = modoJuegoActual;
+
 /**
  * Lee la configuración guardada del juego
  * @deprecated Usar cargarConfiguracionLobby() del módulo lobbyState
@@ -269,6 +283,7 @@ async function onIniciarJuego(modo, salaId = null, nombreJugador = '') {
   console.log(`🎮 Preparando juego en modo: ${modo}`);
   
   modoJuegoActual = modo;
+  window.modoJuegoActual = modo; // Actualizar variable global
   salaActualId = salaId;
   nombreJugadorActual = nombreJugador || obtenerNombre();
   
@@ -290,9 +305,16 @@ async function onIniciarJuego(modo, salaId = null, nombreJugador = '') {
   // Ocultar lobby
   ocultarLobby();
   
-  // Mostrar menú de selección de armas en lugar de iniciar directamente
-  // Requirements: 1.1 - Mostrar menú de selección de armas al entrar a partida
-  mostrarMenuSeleccionArmas();
+  // En modo local: iniciar directamente con todas las armas
+  // En modo online: mostrar menú de selección de armas
+  if (modo === 'local') {
+    console.log('🎮 Modo local: Iniciando con todas las armas disponibles');
+    await inicializarJuegoCompleto();
+  } else {
+    // Mostrar menú de selección de armas en lugar de iniciar directamente
+    // Requirements: 1.1 - Mostrar menú de selección de armas al entrar a partida
+    mostrarMenuSeleccionArmas();
+  }
 }
 
 /**
@@ -511,10 +533,29 @@ function inicializarBotManager() {
   // Crear instancia del BotManager con callbacks de UI
   // Requirements: 6.1, 6.2, 6.3 - Sin sistema de zonas
   botManager = new BotManager(scene, {
-    onDisparoBot: (posicion, direccion, daño) => {
+    onDisparoBot: (infoDisparo) => {
       // Callback cuando un bot tirador dispara al jugador
       console.log('🔫 Bot tirador disparó al jugador');
-      // El daño se aplica directamente en el BotTirador
+      
+      // Aplicar daño al jugador en modo local
+      if (jugador && jugador.health !== undefined) {
+        const dañoAplicado = infoDisparo.daño || 10;
+        jugador.health = Math.max(0, jugador.health - dañoAplicado);
+        
+        // Actualizar UI de vida
+        actualizarBarraVida(jugador.health, jugador.maxHealth || 200);
+        
+        // Mostrar efecto de daño
+        mostrarEfectoDaño();
+        
+        console.log(`💔 Jugador recibió ${dañoAplicado} de daño. Vida: ${jugador.health}/${jugador.maxHealth || 200}`);
+        
+        // Verificar si el jugador murió
+        if (jugador.health <= 0) {
+          console.log('💀 Jugador murió en modo local por bot');
+          manejarMuerteLocalPorBot();
+        }
+      }
     },
     // Requirement 6.2: Actualizar UI cuando se elimina un bot
     onEliminacion: (tipoBot, estadisticas) => {
@@ -1129,6 +1170,14 @@ async function inicializarJuegoCompleto() {
     // Continuar sin crosshair dinámico si hay error
   }
 
+  // Inicializar selector de armas local
+  try {
+    inicializarSelectorArmasLocal(weaponContainer, isMultiplayerConnected, inputSender);
+    console.log('✅ Selector de armas local inicializado');
+  } catch (error) {
+    console.warn('⚠️ Error inicializando selector de armas local:', error);
+  }
+
   // Inicializar sistema de autenticación
   try {
     inicializarAuthUI();
@@ -1173,6 +1222,9 @@ async function inicializarJuegoCompleto() {
     // Inicializar sistema de bots de entrenamiento
     // Requirements: 1.1, 2.1, 3.1, 4.4
     inicializarBotManager();
+    
+    // Mostrar selector de armas local
+    mostrarSelectorArmasLocal();
   }
 
   // Inicializar sistema de spawns de munición (para ambos modos)
@@ -1216,6 +1268,9 @@ function volverAlLobby() {
   
   // Ocultar indicador de modo local
   ocultarIndicadorModoLocal();
+  
+  // Ocultar selector de armas local
+  ocultarSelectorArmasLocal();
   
   // Destruir sistema de bots si existe
   if (botManager) {
@@ -1504,19 +1559,37 @@ function configurarCallbacksRed() {
         cerrarMenuForzado();
       }
       
-      // Obtener arma actual antes de morir
-      const estadoArma = obtenerEstado();
-      const armaActual = estadoArma.tipoActual || armaSeleccionadaParaPartida;
-      
-      // Marcar muerte en el sistema de selección
-      marcarMuerte(armaActual);
-      
-      // Mostrar pantalla de muerte con nombre de lobby del asesino
-      // Requirements: 4.2 - Mostrar nombre de lobby del asesino en pantalla de muerte
-      mostrarPantallaMuerteConSeleccion(killerName, armaActual);
+      // En modo local: respawn automático sin menú de selección
+      // En modo online: mostrar pantalla de muerte con selección de armas
+      if (modoJuegoActual === 'local') {
+        console.log('💀 Modo local: Muerte detectada, respawn automático en 3 segundos');
+        mostrarPantallaMuerte(killerName, 3000);
+        
+        // Auto-respawn después de 3 segundos con todas las armas
+        setTimeout(() => {
+          console.log('🔄 Modo local: Respawneando con todas las armas');
+          ocultarPantallaMuerte();
+          actualizarBarraVida(200, 200);
+          
+          // Reconfigurar munición infinita
+          configurarMunicionInfinita();
+          
+          // Activar pointer lock
+          document.body.requestPointerLock();
+          
+          // Marcar inicio de partida nuevamente
+          iniciarPartidaSeleccion();
+        }, 3000);
+      } else {
+        // Modo online: comportamiento original
+        const estadoArma = obtenerEstado();
+        const armaActual = estadoArma.tipoActual || armaSeleccionadaParaPartida;
+        
+        marcarMuerte(armaActual);
+        mostrarPantallaMuerteConSeleccion(killerName, armaActual);
+      }
       
       actualizarBarraVida(0, 200);
-      // Registrar muerte para estadísticas
       registrarDeath();
     } else if (data.killerId === localPlayerId) {
       // El jugador local eliminó a alguien
@@ -1699,43 +1772,134 @@ function procesarEstadoJuego(gameState) {
 }
 
 /**
- * Inicializa el arma seleccionada por el jugador
- * Requirements: 2.1, 2.2 - Equipar arma seleccionada y establecerla como única en inventario
+ * Inicializa el sistema de armas según el modo de juego
+ * Modo local: todas las armas con munición infinita
+ * Modo online: solo el arma seleccionada
  */
 async function inicializarArmaInicial() {
-  const armaSeleccionada = armaSeleccionadaParaPartida || 'M4A1';
-  console.log(`🔫 Cargando arma seleccionada: ${armaSeleccionada}...`);
-  console.log(`🔫 CONFIG.armas[${armaSeleccionada}]:`, CONFIG.armas[armaSeleccionada]?.tamañoCargador, '/', CONFIG.armas[armaSeleccionada]?.municionTotal);
-  
-  // Establecer el arma seleccionada como única en el inventario
-  // Requirements: 2.2 - El inventario solo contiene el arma seleccionada
-  try {
-    establecerArmaUnica(armaSeleccionada, weaponContainer);
-    console.log(`✅ Arma ${armaSeleccionada} equipada como única en inventario`);
-    console.log(`🔫 Estado después de establecerArmaUnica: ${arma.municionActual}/${arma.municionTotal}`);
+  if (modoJuegoActual === 'local') {
+    console.log('🎮 Modo local: Inicializando todas las armas con munición infinita');
+    await inicializarTodasLasArmasLocal();
+  } else {
+    // Modo online: comportamiento original
+    const armaSeleccionada = armaSeleccionadaParaPartida || 'M4A1';
+    console.log(`🔫 Modo online: Cargando arma seleccionada: ${armaSeleccionada}...`);
     
-    // Sincronizar con el servidor si estamos conectados
-    if (isMultiplayerConnected && inputSender) {
-      inputSender.sendWeaponChange(armaSeleccionada);
-      console.log(`🔫 Arma sincronizada con servidor: ${armaSeleccionada}`);
+    try {
+      establecerArmaUnica(armaSeleccionada, weaponContainer);
+      console.log(`✅ Arma ${armaSeleccionada} equipada como única en inventario`);
+      
+      // Sincronizar con el servidor si estamos conectados
+      if (isMultiplayerConnected && inputSender) {
+        inputSender.sendWeaponChange(armaSeleccionada);
+        console.log(`🔫 Arma sincronizada con servidor: ${armaSeleccionada}`);
+      }
+    } catch (error) {
+      console.error('❌ Error equipando arma seleccionada:', error);
+      establecerArmaUnica('M4A1', weaponContainer);
     }
-  } catch (error) {
-    console.error('❌ Error equipando arma seleccionada:', error);
-    // Fallback a M4A1 si hay error
-    establecerArmaUnica('M4A1', weaponContainer);
   }
   
-  // Marcar que la partida ha iniciado (deshabilita cambio de arma)
-  // Requirements: 2.3 - Deshabilitar cambio de arma durante partida
+  // Marcar que la partida ha iniciado
   iniciarPartidaSeleccion();
   
-  // Actualizar UI inicial con los valores correctos del arma seleccionada
+  // Actualizar UI inicial
   const estadoInicial = obtenerEstado();
-  console.log(`🔫 Estado para UI: ${estadoInicial.municionActual}/${estadoInicial.municionTotal}`);
   actualizarInfoArma(estadoInicial);
   
   // Actualizar crosshair según el tipo de arma
-  establecerTipoArma(CONFIG.armas[armaSeleccionada].tipo);
+  const tipoArma = estadoInicial.tipoActual || 'M4A1';
+  establecerTipoArma(CONFIG.armas[tipoArma].tipo);
+}
+
+/**
+ * Maneja la muerte del jugador en modo local por bots
+ */
+function manejarMuerteLocalPorBot() {
+  console.log('💀 Manejando muerte en modo local por bot');
+  
+  // Mostrar pantalla de muerte simple
+  mostrarPantallaMuerte('Bot Tirador', 3000);
+  
+  // Auto-respawn después de 3 segundos con todas las armas
+  setTimeout(() => {
+    console.log('🔄 Modo local: Respawneando con todas las armas');
+    
+    // Restaurar vida completa
+    jugador.health = jugador.maxHealth || 200;
+    
+    // Ocultar pantalla de muerte
+    ocultarPantallaMuerte();
+    
+    // Actualizar UI de vida
+    actualizarBarraVida(jugador.health, jugador.maxHealth || 200);
+    
+    // Reconfigurar munición infinita
+    configurarMunicionInfinita();
+    
+    // Activar pointer lock
+    document.body.requestPointerLock();
+    
+    // Registrar muerte para estadísticas
+    registrarDeath();
+    
+    console.log('✅ Jugador respawneado en modo local con todas las armas');
+  }, 3000);
+}
+
+/**
+ * Inicializa todas las armas para modo local con munición infinita
+ */
+async function inicializarTodasLasArmasLocal() {
+  console.log('🔫 Inicializando todas las armas para modo local...');
+  
+  // Agregar todas las armas al inventario en el orden correcto (sin MA41)
+  // M4A1 debe estar primero para que corresponda con la tecla 1
+  if (!inventarioArmas.armasDisponibles.includes('M4A1')) {
+    agregarArma('M4A1');
+  }
+  agregarArma('AK47');
+  agregarArma('PISTOLA');
+  agregarArma('SNIPER');
+  agregarArma('ESCOPETA');
+  agregarArma('MP5');
+  // MA41 removida - solo 6 armas ahora
+  
+  // Cambiar al arma inicial (M4A1) usando cambiarArma para configurar munición correctamente
+  try {
+    const exito = cambiarArma('M4A1', weaponContainer);
+    if (exito) {
+      console.log('✅ M4A1 equipada como arma inicial con munición infinita');
+    } else {
+      // Fallback: cargar solo el modelo
+      await cambiarModeloArma('M4A1', weaponContainer);
+      console.log('✅ Modelo M4A1 cargado como fallback');
+    }
+  } catch (error) {
+    console.error('❌ Error cargando arma inicial:', error);
+  }
+  
+  // Configurar munición infinita para modo local
+  configurarMunicionInfinita();
+  
+  // Mostrar el orden final de las armas
+  const estadoFinal = obtenerEstado();
+  console.log('✅ Todas las armas inicializadas para modo local');
+  console.log('🔫 Orden de armas:', estadoFinal.armasDisponibles);
+}
+
+/**
+ * Configura munición infinita para todas las armas en modo local
+ */
+function configurarMunicionInfinita() {
+  // Modificar el sistema de armas para munición infinita
+  const estadoArmas = obtenerEstado();
+  
+  // Establecer munición infinita (∞) para todas las armas
+  if (typeof arma !== 'undefined' && arma) {
+    arma.municionTotal = Infinity;
+    console.log(`🔫 Munición infinita configurada: ${arma.municionActual}/∞`);
+  }
 }
 
 /**
@@ -1858,7 +2022,7 @@ async function manejarAlternarJuiceBox() {
     
     // Si el JuiceBox está equipado, mostrar mensaje especial
     if (esJuiceBoxEquipado()) {
-      mostrarCambioArma('JuiceBox');
+      mostrarCambioArma('Botiquín');
       // Actualizar crosshair para JuiceBox (sin crosshair o crosshair especial)
       establecerTipoArma('melee'); // Usar tipo melee para ocultar crosshair de disparo
     } else {
@@ -1882,7 +2046,7 @@ async function manejarAlternarJuiceBox() {
       }
       inputSender.sendWeaponChange(esJuiceBoxEquipado() ? 'JUICEBOX' : estado.tipoActual);
     }
-    console.log(`🔄 Cambiado a: ${esJuiceBoxEquipado() ? 'JuiceBox' : estado.nombre}`);
+    console.log(`🔄 Cambiado a: ${esJuiceBoxEquipado() ? 'Botiquín' : estado.nombre}`);
   }
 }
 
@@ -1890,6 +2054,12 @@ async function manejarAlternarJuiceBox() {
  * Maneja el cambio a la siguiente arma con rueda del mouse
  */
 function manejarSiguienteArmaRueda() {
+  // Verificar si el cambio de arma está permitido
+  if (!cambioArmaPermitido()) {
+    console.log('🔫 Cambio de arma no permitido en modo online durante partida');
+    return;
+  }
+  
   // Check if healing was in progress before weapon change
   const wasHealing = estaCurando();
   
@@ -1898,6 +2068,9 @@ function manejarSiguienteArmaRueda() {
   mostrarCambioArma(estado.nombre);
   actualizarInfoArma(estado);
   actualizarDisplayMunicion();
+  
+  // Actualizar selector de armas local
+  actualizarSelectorArmaActiva();
   
   // Actualizar crosshair dinámico
   const configArma = CONFIG.armas[estado.tipoActual];
@@ -1921,6 +2094,12 @@ function manejarSiguienteArmaRueda() {
  * Maneja el cambio a la arma anterior
  */
 function manejarArmaAnterior() {
+  // Verificar si el cambio de arma está permitido
+  if (!cambioArmaPermitido()) {
+    console.log('🔫 Cambio de arma no permitido en modo online durante partida');
+    return;
+  }
+  
   // Check if healing was in progress before weapon change
   const wasHealing = estaCurando();
   
@@ -1929,6 +2108,9 @@ function manejarArmaAnterior() {
   mostrarCambioArma(estado.nombre);
   actualizarInfoArma(estado);
   actualizarDisplayMunicion();
+  
+  // Actualizar selector de armas local
+  actualizarSelectorArmaActiva();
   
   // Actualizar crosshair dinámico
   establecerTipoArma(CONFIG.armas[estado.tipoActual].tipo);
@@ -1950,6 +2132,12 @@ function manejarArmaAnterior() {
  * @param {number} indice - Índice del arma a seleccionar
  */
 function manejarSeleccionarArma(indice) {
+  // Verificar si el cambio de arma está permitido
+  if (!cambioArmaPermitido()) {
+    console.log('🔫 Cambio de arma no permitido en modo online durante partida');
+    return;
+  }
+  
   // Check if healing was in progress before weapon change
   const wasHealing = estaCurando();
   
@@ -1961,6 +2149,9 @@ function manejarSeleccionarArma(indice) {
       mostrarCambioArma(nuevoEstado.nombre);
       actualizarInfoArma(nuevoEstado);
       actualizarDisplayMunicion();
+      
+      // Actualizar selector de armas local
+      actualizarSelectorArmaActiva();
       
       // Notificar al servidor del cambio de arma
       if (isMultiplayerConnected) {

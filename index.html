@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Three.js Primera Persona - Disparo</title>
+    <title>BearStrike - FPS Online</title>
+    <link rel="icon" type="image/png" href="logo de la pagina/LOGO_FINAL.png">
+    <link rel="shortcut icon" type="image/png" href="logo de la pagina/LOGO_FINAL.png">
     <link rel="stylesheet" href="css/estilos.css" />
     
     <!-- Import map para resolver módulos de npm en el navegador -->
@@ -300,6 +302,14 @@
     
     <!-- Weapon info con slots intercambiables -->
     <!-- Requirements: 4.3, 4.4, 4.5 - UI de munición con slots intercambiables -->
+    
+    <!-- Menú de armas para modo local (arriba del weapon info) -->
+    <div id="weapon-selector-local" class="weapon-selector-local hidden">
+      <div class="weapon-selector-grid">
+        <!-- Las armas se generarán dinámicamente aquí -->
+      </div>
+    </div>
+    
     <div id="weapon-info">
       <!-- Slot superior: arma secundaria con indicador [Q] -->
       <div id="weapon-slot-superior" class="weapon-slot secundario">

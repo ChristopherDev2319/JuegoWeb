@@ -614,6 +614,13 @@ export function cambiarArma(tipoArma, weaponContainer = null) {
   // Reiniciar munición al cambiar arma
   arma.municionActual = configArma.tamañoCargador;
   arma.municionTotal = configArma.municionTotal;
+  
+  // En modo local: configurar munición infinita
+  if (typeof window !== 'undefined' && window.modoJuegoActual === 'local') {
+    arma.municionTotal = Infinity;
+    console.log(`🔫 Modo local: ${tipoArma} configurada con munición infinita ${arma.municionActual}/∞`);
+  }
+  
   arma.estaRecargando = false;
   arma.ultimoDisparo = 0;
   arma.estaApuntando = false;
@@ -1032,6 +1039,9 @@ export function disparar(camera, enemigos, balas, scene, onImpacto = null) {
 
   arma.ultimoDisparo = ahora;
   arma.municionActual--;
+  
+  // En modo local: NO restaurar munición automáticamente
+  // Las balas deben bajar normalmente, solo la munición total es infinita
 
   // Calcular posición inicial de la bala
   const posicionBala = camera.position.clone();
@@ -1095,11 +1105,29 @@ export function disparar(camera, enemigos, balas, scene, onImpacto = null) {
 export function recargar(onRecargaCompleta = null) {
   const configArma = obtenerConfigArmaActual();
   
-  if (
-    arma.estaRecargando ||
-    arma.municionActual === configArma.tamañoCargador ||
-    arma.municionTotal <= 0
-  ) {
+  if (arma.estaRecargando || arma.municionActual === configArma.tamañoCargador) {
+    return false;
+  }
+  
+  // En modo local con munición infinita: recarga normal pero sin consumir munición total
+  if (typeof window !== 'undefined' && window.modoJuegoActual === 'local' && arma.municionTotal === Infinity) {
+    arma.estaRecargando = true;
+    
+    setTimeout(() => {
+      arma.municionActual = configArma.tamañoCargador;
+      arma.estaRecargando = false;
+      console.log(`🔫 Recarga completada en modo local: ${arma.municionActual}/∞`);
+      
+      if (onRecargaCompleta) {
+        onRecargaCompleta();
+      }
+    }, configArma.tiempoRecarga * 1000);
+    
+    return true;
+  }
+  
+  // Modo online: comportamiento original
+  if (arma.municionTotal <= 0) {
     return false;
   }
 
