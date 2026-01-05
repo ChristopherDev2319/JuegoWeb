@@ -126,9 +126,9 @@ export const CONFIG = {
       descripcion: "Rifle de francotirador de alta precisión con potencial letal",
       tipo: "francotirador",
       cadenciaDisparo: 45, // 45 RPM (sincronizado con servidor: 60000/1333ms)
-      daño: 150, // Actualizado: mata de un disparo al cuerpo
-      tamañoCargador: 5, // Aumentado: 5 balas por cargador
-      municionTotal: 30, // Aumentado: 30 balas máximo
+      daño: 200, // Actualizado: 200 de daño - mata de un disparo
+      tamañoCargador: 1, // Solo 1 bala por cargador
+      municionTotal: 10, // 10 balas máximo
       tiempoRecarga: 3.7, // Recarga muy lenta
       velocidadBala: 120.0, // Actualizado: velocidad máxima de 120
       modelo: "modelos/FBX/Weapons/AWP.fbx",
@@ -161,9 +161,9 @@ export const CONFIG = {
       descripcion: "Escopeta devastadora en combate cercano con múltiples perdigones",
       tipo: "escopeta",
       cadenciaDisparo: 70, // 70 RPM (sincronizado con servidor: 60000/857ms)
-      daño: 24, // Por perdigón (8 perdigones = 192 máximo, no mata de un disparo)
-      tamañoCargador: 8, // Aumentado: 8 cartuchos por cargador
-      municionTotal: 64, // Aumentado: 64 cartuchos máximo
+      daño: 24, // Por perdigón (8 perdigones = 192 máximo)
+      tamañoCargador: 3, // Solo 3 cartuchos por cargador
+      municionTotal: 24, // 24 cartuchos máximo
       tiempoRecarga: 3.0, // 3 segundos
       velocidadBala: 38.0,
       modelo: "modelos/FBX/Weapons/Pump Shotgun.fbx",
