@@ -230,37 +230,6 @@ export const CONFIG = {
       }
     },
 
-    // MA41: Rifle de asalto alternativo - Similar al M4A1 pero con diferencias
-    "MA41": {
-      nombre: "MA41",
-      descripcion: "Rifle de asalto moderno con excelente precisión y control",
-      tipo: "rifle",
-      cadenciaDisparo: 700, // 700 RPM (un poco más lento que M4A1)
-      daño: 32, // Ligeramente más daño que M4A1
-      tamañoCargador: 30,
-      municionTotal: 210,
-      tiempoRecarga: 2.1,
-      velocidadBala: 62.0,
-      modelo: "modelos/FBX/Weapons/SCAR.fbx", // Usar modelo SCAR
-      sonidoDisparo: "sonidos/M4A1.mp3", // Usar sonido M4A1 por ahora
-      posicion: { x: 0.3, y: -0.3, z: -0.5 },
-      rotacion: { x: 0, y: Math.PI, z: 0 },
-      retroceso: {
-        cantidad: 0.07, // Retroceso ligeramente mayor que M4A1
-        arriba: 0.035,
-        duracion: 65
-      },
-      multiplicadorHeadshot: 4.0,
-      dispersion: 0.018, // Ligeramente menos preciso que M4A1
-      apuntado: {
-        zoom: 1.6,
-        reduccionRetroceso: 0.5,
-        tiempoTransicion: 0.28,
-        posicionArma: { x: 0, y: -0.08, z: -0.18 },
-        reduccionDispersion: 0.35
-      }
-    },
-
     // KNIFE: Cuchillo táctico para combate cuerpo a cuerpo
     // Requirements: 4.1, 4.2, 4.5, 5.1, 5.2, 5.3
     "KNIFE": {

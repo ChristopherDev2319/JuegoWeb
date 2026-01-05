@@ -78,7 +78,7 @@ function generarGridArmas() {
   
   // Usar las armas disponibles del inventario en lugar de lista fija
   const armasDisponibles = estadoArmas.armasDisponibles || [
-    'M4A1', 'AK47', 'PISTOLA', 'SNIPER', 'ESCOPETA', 'MP5', 'MA41'
+    'M4A1', 'AK47', 'PISTOLA', 'SNIPER', 'ESCOPETA', 'MP5'
   ];
   
   console.log('🔫 Armas en inventario:', armasDisponibles);
