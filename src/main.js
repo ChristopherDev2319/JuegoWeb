@@ -2362,6 +2362,103 @@ function verificarImpactoBots(bala, bots) {
 }
 
 /**
+ * Obtiene el fireRate del servidor para un tipo de arma específico
+ * Esto asegura que el modo local use exactamente los mismos valores que el modo online
+ * 
+ * Los valores están sincronizados con server/config.js WEAPON_CONFIG
+ * @param {string} tipoArma - Tipo de arma (M4A1, AK47, PISTOLA, etc.)
+ * @returns {number} - Tiempo entre disparos en milisegundos
+ */
+function obtenerFireRateServidor(tipoArma) {
+  // Valores de fireRate del servidor (server/config.js WEAPON_CONFIG)
+  // Estos valores son la ÚNICA fuente de verdad para la cadencia de disparo
+  const fireRatesServidor = {
+    'M4A1': 75,      // 800 RPM (60000/75)
+    'AK47': 109,     // 550 RPM (60000/109)
+    'PISTOLA': 150,  // 400 RPM (60000/150)
+    'SNIPER': 1333,  // 45 RPM (60000/1333)
+    'ESCOPETA': 857, // 70 RPM (60000/857)
+    'MP5': 71,       // 850 RPM (60000/71)
+    'KNIFE': 350,    // Cadencia de ataque melee
+    'default': 75    // Fallback igual a M4A1
+  };
+  
+  return fireRatesServidor[tipoArma] || fireRatesServidor['default'];
+}
+
+/**
+ * Procesa un disparo en modo local
+ * Usa la misma lógica que el modo online para garantizar comportamiento idéntico
+ * 
+ * @param {THREE.Camera} camera - Cámara del jugador
+ * @param {Array} balas - Array de balas activas
+ * @param {THREE.Scene} scene - Escena de Three.js
+ * @param {Object} configArma - Configuración del arma actual
+ * @returns {boolean} - true si se disparó exitosamente
+ */
+function dispararLocal(camera, balas, scene, configArma) {
+  // Verificar munición
+  if (arma.municionActual <= 0) {
+    return false;
+  }
+  
+  // Decrementar munición
+  arma.municionActual--;
+  
+  // Calcular posición inicial de la bala
+  const posicionBala = camera.position.clone();
+  const offsetAdelante = new THREE.Vector3(0, 0, -1);
+  offsetAdelante.applyQuaternion(camera.quaternion);
+  posicionBala.add(offsetAdelante);
+  
+  // Obtener estado de apuntado
+  const estadoArma = obtenerEstado();
+  
+  // Para escopetas, disparar múltiples proyectiles
+  const numProyectiles = configArma.proyectiles || 1;
+  let dispersionArma = configArma.dispersion || 0;
+  
+  // Aplicar dispersión sin mira para francotiradores (sniper)
+  if (!estadoArma.estaApuntando && configArma.dispersionSinMira) {
+    dispersionArma = configArma.dispersionSinMira;
+  }
+  // Si está apuntando y tiene reduccionDispersion, aplicarla
+  else if (estadoArma.estaApuntando && configArma.apuntado && configArma.apuntado.reduccionDispersion) {
+    dispersionArma *= configArma.apuntado.reduccionDispersion;
+  }
+  
+  // Obtener dispersión por retroceso acumulado
+  const dispersionRetroceso = obtenerDispersionRetroceso();
+  
+  for (let i = 0; i < numProyectiles; i++) {
+    // Calcular dirección de la bala con dispersión
+    const direccion = new THREE.Vector3(0, 0, -1);
+    direccion.applyQuaternion(camera.quaternion);
+    
+    // Aplicar dispersión del arma + dispersión por retroceso
+    const dispersionTotal = dispersionArma + dispersionRetroceso;
+    if (dispersionTotal > 0) {
+      direccion.x += (Math.random() - 0.5) * dispersionTotal;
+      direccion.y += (Math.random() - 0.5) * dispersionTotal;
+    }
+    
+    direccion.normalize();
+    
+    // Crear la bala con la configuración del arma actual
+    const bala = new Bala(scene, posicionBala.clone(), direccion, null, {
+      velocidad: configArma.velocidadBala,
+      daño: configArma.daño
+    });
+    balas.push(bala);
+  }
+  
+  // Animar retroceso del arma
+  animarRetroceso();
+  
+  return true;
+}
+
+/**
  * Maneja el evento de disparo
  * Requirement 5.1: Send shoot input to server
  * Requirement 3.1: Si JuiceBox equipado, iniciar curación en lugar de disparar
@@ -2487,12 +2584,27 @@ function manejarDisparo() {
     // Actualizar UI de munición
     actualizarDisplayMunicion();
   } else {
-    // Modo local
+    // Modo local - usar misma lógica de cadencia que modo online
+    // para que el comportamiento sea idéntico
+    if (arma.estaRecargando || arma.municionActual <= 0) {
+      return;
+    }
+    
     const estadoArma = obtenerEstado();
     const configArma = CONFIG.armas[estadoArma.tipoActual];
     
-    // Fallback a procesamiento local
-    const disparo = disparar(camera, [], balas, scene, null);
+    // Verificar cadencia de disparo usando fireRate del servidor (en ms)
+    // Esto asegura que la cadencia sea idéntica al modo online
+    const ahora = performance.now();
+    // Usar los valores de fireRate del servidor directamente
+    const fireRateMs = obtenerFireRateServidor(estadoArma.tipoActual);
+    if (ahora - arma.ultimoDisparo < fireRateMs) {
+      return;
+    }
+    arma.ultimoDisparo = ahora;
+    
+    // Procesar disparo local
+    const disparo = dispararLocal(camera, balas, scene, configArma);
     
     if (disparo) {
       // Registrar disparo para progreso
