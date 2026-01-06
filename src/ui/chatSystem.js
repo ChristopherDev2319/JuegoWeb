@@ -30,17 +30,18 @@ export class ChatSystem {
     this.chatContainer.id = 'chat-container';
     this.chatContainer.style.cssText = `
       position: fixed;
-      bottom: 20px;
+      top: 20px;
       left: 20px;
-      width: 350px;
-      height: 200px;
-      background: rgba(0, 0, 0, 0.8);
-      border: 2px solid #333;
-      border-radius: 8px;
+      width: 320px;
+      max-height: 250px;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
       display: flex;
       flex-direction: column;
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
+      font-family: 'Segoe UI', sans-serif;
+      font-size: 13px;
       z-index: 1000;
       transition: opacity 0.3s ease;
     `;
@@ -48,15 +49,16 @@ export class ChatSystem {
     // Header del chat
     this.chatHeader = document.createElement('div');
     this.chatHeader.style.cssText = `
-      background: #333;
+      background: rgba(255, 255, 255, 0.05);
       color: white;
-      padding: 5px 10px;
-      border-radius: 6px 6px 0 0;
-      font-weight: bold;
-      font-size: 11px;
+      padding: 8px 12px;
+      border-radius: 12px 12px 0 0;
+      font-weight: 600;
+      font-size: 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     `;
     
     const title = document.createElement('span');
@@ -84,18 +86,19 @@ export class ChatSystem {
     this.messagesArea.style.cssText = `
       flex: 1;
       overflow-y: auto;
-      padding: 8px;
+      padding: 10px 12px;
       color: white;
-      line-height: 1.4;
+      line-height: 1.5;
+      max-height: 150px;
     `;
     
     // Input del chat
     this.inputContainer = document.createElement('div');
     this.inputContainer.style.cssText = `
-      padding: 8px;
-      border-top: 1px solid #555;
+      padding: 10px 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
       display: flex;
-      gap: 5px;
+      gap: 8px;
     `;
     
     this.chatInput = document.createElement('input');
@@ -104,26 +107,31 @@ export class ChatSystem {
     this.chatInput.maxLength = 200;
     this.chatInput.style.cssText = `
       flex: 1;
-      background: #222;
-      border: 1px solid #555;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       color: white;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-family: inherit;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: 'Segoe UI', sans-serif;
+      outline: none;
+      transition: border-color 0.2s ease, background 0.2s ease;
     `;
     
     this.sendButton = document.createElement('button');
     this.sendButton.textContent = 'Enviar';
     this.sendButton.style.cssText = `
-      background: #4CAF50;
+      background: rgba(76, 175, 80, 0.8);
       border: none;
       color: white;
-      padding: 4px 12px;
-      border-radius: 4px;
+      padding: 6px 14px;
+      border-radius: 8px;
       cursor: pointer;
-      font-size: 11px;
+      font-size: 12px;
+      font-family: 'Segoe UI', sans-serif;
+      font-weight: 500;
       min-width: 60px;
+      transition: background 0.2s ease;
     `;
     
     // Ensamblar UI
@@ -352,12 +360,12 @@ export class ChatSystem {
     if (isHidden) {
       this.messagesArea.style.display = 'block';
       this.inputContainer.style.display = 'flex';
-      this.chatContainer.style.height = '200px';
+      this.chatContainer.style.maxHeight = '250px';
       this.chatHeader.querySelector('button').textContent = '−';
     } else {
       this.messagesArea.style.display = 'none';
       this.inputContainer.style.display = 'none';
-      this.chatContainer.style.height = 'auto';
+      this.chatContainer.style.maxHeight = 'none';
       this.chatHeader.querySelector('button').textContent = '+';
     }
   }

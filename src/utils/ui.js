@@ -138,6 +138,7 @@ export function actualizarCrosshair(estadoArma) {
 
 /**
  * Muestra notificación de cambio de arma
+ * Requirements: 3.4 - Notificación temporal con animación de fade
  * @param {string} nombreArma - Nombre del arma seleccionada
  */
 export function mostrarCambioArma(nombreArma) {
@@ -146,48 +147,65 @@ export function mostrarCambioArma(nombreArma) {
   if (!notification) {
     notification = document.createElement('div');
     notification.id = 'weapon-change-notification';
-    notification.style.cssText = `
-      position: fixed;
-      top: 20%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.8);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 5px;
-      font-size: 18px;
-      font-weight: bold;
-      z-index: 900;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    `;
     document.body.appendChild(notification);
   }
 
   notification.textContent = `Arma: ${nombreArma}`;
-  notification.style.opacity = '1';
+  
+  // Aplicar animación de entrada
+  notification.style.animation = 'weaponNotificationIn 0.25s ease forwards';
+  notification.classList.add('visible');
 
-  // Ocultar después de 2 segundos
+  // Ocultar después de 2 segundos con animación de salida
   setTimeout(() => {
-    notification.style.opacity = '0';
+    notification.style.animation = 'weaponNotificationOut 0.25s ease forwards';
+    setTimeout(() => {
+      notification.classList.remove('visible');
+    }, 250);
   }, 2000);
 }
 
 /**
  * Actualiza el display de cargas de dash
+ * Requirements: 2.6, 2.7, 2.8 - Estado visual de cargas de dash
  * @param {Object} sistemaDash - Estado del sistema dash
  */
 export function actualizarCargasDash(sistemaDash) {
-  const icons = document.querySelectorAll('.dash-icon');
+  // Selector principal del contenedor de dash
+  const dashContainer = document.getElementById('dash-charges');
+  if (!dashContainer) return;
+  
+  // Buscar iconos dentro del contenedor de dash-icons (nuevo diseño)
+  // o directamente en el contenedor (compatibilidad)
+  const iconsContainer = dashContainer.querySelector('.dash-icons-container');
+  const icons = iconsContainer 
+    ? iconsContainer.querySelectorAll('.dash-icon') 
+    : dashContainer.querySelectorAll('.dash-icon');
+  
   if (!icons.length) return;
 
+  // Soportar tanto nombres en inglés como español para compatibilidad
+  const cargasActuales = sistemaDash.currentCharges ?? sistemaDash.cargasActuales ?? 0;
+  const cargasRecargando = sistemaDash.rechargingCharges ?? sistemaDash.cargasRecargando ?? [];
+
   for (let i = 0; i < icons.length; i++) {
-    if (i < sistemaDash.currentCharges) {
-      icons[i].className = 'dash-icon';
-    } else if (sistemaDash.rechargingCharges[i]) {
-      icons[i].className = 'dash-icon recharging';
-    } else {
-      icons[i].className = 'dash-icon empty';
+    const icon = icons[i];
+    
+    // Remover todas las clases de estado primero
+    icon.classList.remove('recharging', 'empty');
+    
+    // Requirements: 2.8 - Indicador verde brillante cuando carga disponible
+    if (i < cargasActuales) {
+      // Carga disponible - estado base (verde brillante)
+      // No se necesita clase adicional, el estilo base es verde
+    }
+    // Requirements: 2.7 - Indicador de progreso cuando se está recargando
+    else if (cargasRecargando[i]) {
+      icon.classList.add('recharging');
+    }
+    // Requirements: 2.6 - Indicador vacío cuando no está disponible
+    else {
+      icon.classList.add('empty');
     }
   }
 }
@@ -542,6 +560,7 @@ function animarBarraVida() {
 
 /**
  * Show damage flash effect on screen
+ * Requirements: 3.2 - Efecto de flash rojo en los bordes de la pantalla
  */
 export function mostrarEfectoDaño() {
   let flash = document.getElementById('damage-flash');
@@ -553,10 +572,16 @@ export function mostrarEfectoDaño() {
     document.body.appendChild(flash);
   }
   
+  // Remove active class first to reset animation
+  flash.classList.remove('active');
+  
+  // Force reflow to restart animation
+  void flash.offsetWidth;
+  
   // Trigger flash
   flash.classList.add('active');
   
-  // Remove flash after short delay
+  // Remove flash after animation completes
   setTimeout(() => {
     flash.classList.remove('active');
   }, 150);

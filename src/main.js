@@ -1201,7 +1201,6 @@ async function inicializarJuegoCompleto() {
     console.warn('⚠️ Error inicializando chat:', error);
     // Continuar sin chat si hay error
   }
-  }
 
   // Inicializar sistema de autenticación
   try {
@@ -2790,25 +2789,40 @@ function actualizarDisplayMunicion() {
 
 /**
  * Actualiza el display de cargas de dash en la UI
- * Exactamente igual que en modo multijugador - solo muestra cargas llenas o vacías
+ * Usa la misma lógica que actualizarCargasDash de ui.js
+ * Requirements: 2.6, 2.7, 2.8 - Estado visual de cargas de dash
  */
 function actualizarDisplayDash() {
-  const icons = document.querySelectorAll('.dash-icon');
+  // Buscar el contenedor de dash
+  const dashContainer = document.getElementById('dash-charges');
+  if (!dashContainer) return;
+  
+  // Buscar iconos dentro del contenedor de dash-icons (nuevo diseño)
+  const iconsContainer = dashContainer.querySelector('.dash-icons-container');
+  const icons = iconsContainer 
+    ? iconsContainer.querySelectorAll('.dash-icon') 
+    : dashContainer.querySelectorAll('.dash-icon');
+  
   if (!icons.length) return;
 
   for (let i = 0; i < icons.length; i++) {
     const icon = icons[i];
     
+    // Remover todas las clases de estado primero
+    icon.classList.remove('recharging', 'empty');
+    
+    // Requirements: 2.8 - Indicador verde brillante cuando carga disponible
     if (i < sistemaDash.cargasActuales) {
-      // Carga disponible - verde
-      icon.className = 'dash-icon';
-      icon.style.background = '';
-      icon.style.opacity = '';
-    } else {
-      // Carga vacía - gris
-      icon.className = 'dash-icon empty';
-      icon.style.background = '';
-      icon.style.opacity = '';
+      // Carga disponible - estado base (verde brillante)
+      // No se necesita clase adicional, el estilo base es verde
+    }
+    // Requirements: 2.7 - Indicador de progreso cuando se está recargando
+    else if (sistemaDash.cargasRecargando && sistemaDash.cargasRecargando[i]) {
+      icon.classList.add('recharging');
+    }
+    // Requirements: 2.6 - Indicador vacío cuando no está disponible
+    else {
+      icon.classList.add('empty');
     }
   }
 }

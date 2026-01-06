@@ -323,12 +323,6 @@
       </div>
     </div>
     
-    <div id="dash-charges">
-      <span>DASH: </span>
-      <span class="dash-icon"></span>
-      <span class="dash-icon"></span>
-      <span class="dash-icon"></span>
-    </div>
     <div id="damage-indicator"></div>
     
     <!-- Death screen overlay with weapon selection -->
@@ -356,10 +350,21 @@
     <!-- Kill feed -->
     <div id="kill-feed"></div>
     
-    <!-- Health bar -->
-    <div id="health-bar-container">
-      <div id="health-bar"></div>
-      <div id="health-text">200 / 200</div>
+    <!-- Player Status Panel - Unified health and dash -->
+    <!-- Requirements: 2.1, 3.1 - Panel integrado de vida y dash en esquina inferior izquierda -->
+    <div id="player-status-panel">
+      <div id="health-bar-container">
+        <div id="health-bar"></div>
+        <div id="health-text">200 / 200</div>
+      </div>
+      <div id="dash-charges">
+        <span>DASH</span>
+        <div class="dash-icons-container">
+          <span class="dash-icon"></span>
+          <span class="dash-icon"></span>
+          <span class="dash-icon"></span>
+        </div>
+      </div>
     </div>
 
     <!-- Pause Menu -->

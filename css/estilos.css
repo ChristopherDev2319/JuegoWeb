@@ -1496,59 +1496,103 @@ canvas {
   background: #00ff00;
 }
 
-/* Display de munición */
+/* Display de munición - Diseño moderno */
+/* Requirements: 4.1, 3.1 */
 #weapon-info {
-  position: absolute;
-  bottom: 30px;
-  right: 30px;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
   color: white;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 15px 25px;
-  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 16px;
+  border-radius: 12px;
   font-weight: bold;
   text-align: right;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  font-family: 'Segoe UI', sans-serif;
+  z-index: 100;
+  min-width: 140px;
 }
 
-/* Slots de armas intercambiables */
-/* Requirements: 4.3, 4.4, 4.5 */
+/* Slots de armas intercambiables - Diseño moderno */
+/* Requirements: 4.2, 4.3, 4.4, 4.5 */
 .weapon-slot {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-  padding: 5px 0;
+  padding: 6px 8px;
   transition: all 0.2s ease;
+  border-radius: 8px;
+  background: transparent;
 }
 
 .weapon-slot.secundario {
-  opacity: 0.6;
-  font-size: 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  opacity: 0.5;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .weapon-slot.secundario:hover {
-  opacity: 0.8;
+  opacity: 0.7;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .weapon-slot.principal {
   opacity: 1;
+  background: rgba(255, 170, 0, 0.1);
+  border: 1px solid rgba(255, 170, 0, 0.2);
+}
+
+/* Indicador de arma activa - icono visual */
+.weapon-slot.principal::before {
+  content: '▶';
+  font-size: 8px;
+  color: #ffaa00;
+  margin-right: 4px;
+}
+
+/* Hover en slot principal */
+.weapon-slot.principal:hover {
+  background: rgba(255, 170, 0, 0.15);
+  border-color: rgba(255, 170, 0, 0.3);
+}
+
+/* Transición suave al cambiar de arma */
+.weapon-slot.switching {
+  animation: weaponSwitch 0.3s ease;
+}
+
+@keyframes weaponSwitch {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
 }
 
 .slot-nombre {
-  color: #aaa;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
 }
 
 .slot-tecla {
-  background: rgba(255, 170, 0, 0.3);
+  background: rgba(255, 170, 0, 0.2);
   color: #ffaa00;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 12px;
-  font-weight: bold;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid rgba(255, 170, 0, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 /* Ocultar slot superior cuando no hay arma secundaria */
@@ -1557,13 +1601,36 @@ canvas {
 }
 
 #weapon-name {
-  font-size: 18px;
+  font-size: 16px;
   color: #ffaa00;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 #ammo {
-  font-size: 24px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* Munición baja - color rojo */
+/* Requirements: 4.5 */
+#ammo.low {
+  color: #ff4444;
+  animation: ammoLowPulse 1s ease-in-out infinite;
+}
+
+@keyframes ammoLowPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Recargando - color amarillo */
+/* Requirements: 4.4 */
+#ammo.reloading {
+  color: #ffaa00;
 }
 
 /* Ocultar munición cuando el cuchillo está equipado */
@@ -1590,20 +1657,56 @@ canvas {
 #aim-indicator.active {
   opacity: 1;
 }
+/* Notificación de cambio de arma - Diseño moderno con blur */
+/* Requirements: 3.4 */
 #weapon-change-notification {
   position: fixed;
   top: 20%;
   left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.8);
+  transform: translateX(-50%) scale(0.9);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   color: white;
-  padding: 10px 20px;
-  border-radius: 5px;
+  padding: 14px 28px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 600;
+  font-family: 'Segoe UI', sans-serif;
+  letter-spacing: 0.5px;
   z-index: 900;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+#weapon-change-notification.visible {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+/* Animación de entrada para el cambio de arma */
+@keyframes weaponNotificationIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.8) translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1) translateY(0);
+  }
+}
+
+@keyframes weaponNotificationOut {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.9) translateY(10px);
+  }
 }
 
 /* Indicador de daño */
@@ -1620,37 +1723,109 @@ canvas {
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
 
-/* Cargas de dash */
-#dash-charges {
-  position: absolute;
-  bottom: 30px;
-  left: 30px;
-  color: white;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 15px 25px;
-  border-radius: 5px;
-  font-size: 18px;
-  font-weight: bold;
+/* ==================== PLAYER STATUS PANEL ==================== */
+/* Panel unificado de vida y dash - Requirements: 2.1, 3.1 */
+
+#player-status-panel {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px 16px;
+  z-index: 100;
 }
 
-/* Iconos de dash */
+/* Cargas de dash - integradas en el panel */
+/* Requirements: 2.6, 2.7, 2.8 */
+#dash-charges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Segoe UI', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+#dash-charges > span:first-child {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+}
+
+/* Contenedor de iconos de dash */
+.dash-icons-container {
+  display: flex;
+  gap: 6px;
+}
+
+/* Iconos de dash - estilo moderno */
 .dash-icon {
   display: inline-block;
-  width: 30px;
-  height: 30px;
-  margin: 0 5px;
-  background: #00ff00;
-  border-radius: 5px;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #00ff66 0%, #00cc44 100%);
+  border-radius: 6px;
   vertical-align: middle;
-  transition: background 0.3s;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 255, 102, 0.3);
+  position: relative;
 }
 
+/* Dash disponible - verde brillante */
+/* Requirements: 2.8 */
+.dash-icon::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+}
+
+/* Dash recargando - amarillo con animación */
+/* Requirements: 2.7 */
 .dash-icon.recharging {
-  background: #ffaa00;
+  background: linear-gradient(135deg, #ffaa00 0%, #ff8800 100%);
+  box-shadow: 0 2px 8px rgba(255, 170, 0, 0.3);
+  animation: dashRecharging 1s ease-in-out infinite;
 }
 
+.dash-icon.recharging::after {
+  background: rgba(255, 255, 255, 0.5);
+  animation: dashPulse 1s ease-in-out infinite;
+}
+
+@keyframes dashRecharging {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes dashPulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.2); }
+}
+
+/* Dash vacío - gris oscuro */
+/* Requirements: 2.6 */
 .dash-icon.empty {
-  background: #333333;
+  background: rgba(60, 60, 60, 0.8);
+  box-shadow: none;
+}
+
+.dash-icon.empty::after {
+  background: rgba(100, 100, 100, 0.5);
 }
 
 
@@ -1713,85 +1888,129 @@ canvas {
   font-size: 48px;
 }
 
-/* Kill feed */
+/* Kill feed - Diseño moderno */
+/* Requirements: 3.3 - Animación de deslizamiento desde la derecha */
 #kill-feed {
   position: absolute;
   top: 10px;
   right: 10px;
-  width: 300px;
-  max-height: 200px;
+  width: 320px;
+  max-height: 220px;
   overflow: hidden;
   z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .kill-entry {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: white;
-  padding: 8px 12px;
-  margin-bottom: 5px;
-  border-radius: 4px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   font-size: 14px;
-  animation: slideIn 0.3s ease-out, fadeOut 0.5s ease-in 4.5s forwards;
+  font-family: 'Segoe UI', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: killEntrySlideIn 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards,
+             killEntryFadeOut 0.4s ease-in 4.6s forwards;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  transform-origin: right center;
 }
 
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
+@keyframes killEntrySlideIn {
+  0% {
+    transform: translateX(120%) scale(0.8);
     opacity: 0;
   }
-  to {
-    transform: translateX(0);
+  60% {
+    transform: translateX(-5%) scale(1.02);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0) scale(1);
     opacity: 1;
   }
 }
 
-@keyframes fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
+@keyframes killEntryFadeOut {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(20%) scale(0.95);
+  }
 }
 
 .kill-entry .killer {
-  color: #ff6666;
-  font-weight: bold;
+  color: #ff6b6b;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(255, 107, 107, 0.4);
+}
+
+.kill-entry .killer.you {
+  color: #4ecdc4;
+  text-shadow: 0 0 8px rgba(78, 205, 196, 0.5);
 }
 
 .kill-entry .victim {
-  color: #6666ff;
-  font-weight: bold;
+  color: #74b9ff;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(116, 185, 255, 0.4);
+}
+
+.kill-entry .victim.you {
+  color: #fd79a8;
+  text-shadow: 0 0 8px rgba(253, 121, 168, 0.5);
 }
 
 .kill-entry .weapon-icon {
-  margin: 0 8px;
-  color: #aaaaaa;
+  margin: 0 6px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
 }
 
-/* Health bar - Estilo moderno */
+/* Health bar - Estilo moderno integrado en panel */
+/* Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.1 */
 #health-bar-container {
-  position: absolute;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 300px;
-  height: 24px;
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: 12px;
+  width: 200px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 10px;
   overflow: hidden;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  position: relative;
 }
 
+/* Requirements: 2.2, 2.5 - Transición suave y color verde por defecto */
 #health-bar {
   width: 100%;
   height: 100%;
-  background: linear-gradient(180deg, #00ff00 0%, #00dd00 50%, #00bb00 100%);
+  background: linear-gradient(180deg, #00ff66 0%, #00dd55 50%, #00bb44 100%);
   transition: width 0.15s linear;
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
 }
 
+/* Requirements: 2.3 - Color rojo con efecto de pulso cuando vida < 25% */
 #health-bar.low {
   background: linear-gradient(180deg, #ff4444 0%, #dd0000 50%, #bb0000 100%);
+  animation: healthPulse 0.8s ease-in-out infinite;
 }
 
+@keyframes healthPulse {
+  0%, 100% { opacity: 1; box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2); }
+  50% { opacity: 0.85; box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2), 0 0 10px rgba(255, 0, 0, 0.5); }
+}
+
+/* Requirements: 2.4 - Color amarillo/naranja cuando vida entre 25% y 50% */
 #health-bar.medium {
   background: linear-gradient(180deg, #ffcc00 0%, #ffaa00 50%, #dd8800 100%);
 }
@@ -1802,29 +2021,50 @@ canvas {
   left: 50%;
   transform: translate(-50%, -50%);
   color: white;
-  font-size: 14px;
+  font-size: 11px;
   font-weight: bold;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
   pointer-events: none;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
+  font-family: 'Segoe UI', sans-serif;
 }
 
-/* Damage flash effect */
+/* Damage flash effect - Diseño moderno con gradiente suave */
+/* Requirements: 3.2 - Efecto de flash rojo en los bordes de la pantalla */
 #damage-flash {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: radial-gradient(ellipse at center, transparent 0%, rgba(255, 0, 0, 0.4) 100%);
+  background: 
+    radial-gradient(ellipse at center, transparent 40%, rgba(255, 0, 0, 0.15) 70%, rgba(180, 0, 0, 0.35) 100%),
+    linear-gradient(to bottom, rgba(255, 0, 0, 0.1) 0%, transparent 20%, transparent 80%, rgba(255, 0, 0, 0.1) 100%),
+    linear-gradient(to right, rgba(255, 0, 0, 0.15) 0%, transparent 15%, transparent 85%, rgba(255, 0, 0, 0.15) 100%);
   pointer-events: none;
   opacity: 0;
   z-index: 800;
-  transition: opacity 0.1s ease;
+  transition: opacity 0.08s ease-in;
 }
 
 #damage-flash.active {
   opacity: 1;
+  animation: damageFlashPulse 0.15s ease-out;
+}
+
+@keyframes damageFlashPulse {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
 }
 
 
@@ -5430,3 +5670,332 @@ canvas {
 .weapon-selector-local:not(.hidden) {
   animation: weaponSelectorFadeIn 0.3s ease-out;
 }
+
+/* 
+==================== FPS UI RESPONSIVE STYLES ==================== */
+/* Requirements: 6.2, 6.3 - Responsive design for FPS UI elements */
+
+/* ==================== SMALL SCREENS (< 768px) ==================== */
+/* Requirements: 6.2 - Reduce element sizes for smaller resolutions */
+
+@media (max-width: 768px) {
+  /* Chat System - Reduced size */
+  /* Requirements: 1.1 */
+  #chat-container {
+    width: 260px !important;
+    max-height: 200px !important;
+    font-size: 12px !important;
+  }
+  
+  #chat-container .chat-header {
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+  }
+  
+  #chat-container .chat-messages {
+    max-height: 120px !important;
+    padding: 6px !important;
+  }
+  
+  #chat-container .chat-input-container {
+    padding: 6px !important;
+  }
+  
+  #chat-container .chat-input {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+  }
+  
+  /* Player Status Panel - Reduced size */
+  /* Requirements: 2.1 */
+  #player-status-panel {
+    bottom: 15px;
+    left: 15px;
+    padding: 8px 12px;
+    gap: 6px;
+    border-radius: 10px;
+  }
+  
+  /* Health Bar - Reduced size */
+  /* Requirements: 2.1, 2.2 */
+  #health-bar-container {
+    width: 160px;
+    height: 16px;
+    border-radius: 8px;
+  }
+  
+  #health-text {
+    font-size: 9px;
+  }
+  
+  /* Dash Charges - Reduced size */
+  /* Requirements: 2.6, 2.7, 2.8 */
+  #dash-charges {
+    font-size: 10px;
+    gap: 6px;
+  }
+  
+  #dash-charges > span:first-child {
+    font-size: 9px;
+  }
+  
+  .dash-icons-container {
+    gap: 4px;
+  }
+  
+  .dash-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+  }
+  
+  .dash-icon::after {
+    width: 6px;
+    height: 6px;
+  }
+  
+  /* Weapon Info Panel - Reduced size */
+  /* Requirements: 4.1 */
+  #weapon-info {
+    bottom: 15px;
+    right: 15px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    min-width: 120px;
+    gap: 6px;
+  }
+  
+  #weapon-name {
+    font-size: 13px;
+  }
+  
+  #ammo {
+    font-size: 18px;
+  }
+  
+  .weapon-slot {
+    padding: 4px 6px;
+    gap: 8px;
+    border-radius: 6px;
+  }
+  
+  .slot-nombre {
+    font-size: 11px;
+  }
+  
+  .slot-tecla {
+    padding: 2px 6px;
+    font-size: 9px;
+    border-radius: 4px;
+  }
+  
+  /* Kill Feed - Reduced size */
+  /* Requirements: 3.3 */
+  #kill-feed {
+    top: 8px;
+    right: 8px;
+    width: 260px;
+    max-height: 180px;
+    gap: 4px;
+  }
+  
+  .kill-entry {
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    gap: 6px;
+  }
+  
+  /* Weapon Change Notification - Reduced size */
+  /* Requirements: 3.4 */
+  #weapon-change-notification {
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+  
+  /* Crosshair - Slightly smaller */
+  #crosshair::before {
+    width: 16px;
+    left: -6px;
+  }
+  
+  #crosshair::after {
+    height: 16px;
+    top: -6px;
+  }
+  
+  /* Healing Bar - Reduced size */
+  #healing-bar-container {
+    width: 160px;
+    height: 10px;
+    bottom: 100px;
+  }
+  
+  #healing-bar-text {
+    font-size: 12px;
+    top: -22px;
+  }
+}
+
+/* ==================== VERY SMALL SCREENS (< 480px) ==================== */
+
+@media (max-width: 480px) {
+  /* Chat System - Further reduced */
+  #chat-container {
+    width: 220px !important;
+    max-height: 160px !important;
+    font-size: 11px !important;
+  }
+  
+  #chat-container .chat-messages {
+    max-height: 90px !important;
+  }
+  
+  /* Player Status Panel - Further reduced */
+  #player-status-panel {
+    bottom: 10px;
+    left: 10px;
+    padding: 6px 10px;
+    gap: 4px;
+    border-radius: 8px;
+  }
+  
+  /* Health Bar - Further reduced */
+  #health-bar-container {
+    width: 130px;
+    height: 14px;
+    border-radius: 7px;
+  }
+  
+  #health-text {
+    font-size: 8px;
+  }
+  
+  /* Dash Charges - Further reduced */
+  .dash-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+  }
+  
+  .dash-icon::after {
+    width: 5px;
+    height: 5px;
+  }
+  
+  /* Weapon Info Panel - Further reduced */
+  #weapon-info {
+    bottom: 10px;
+    right: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    min-width: 100px;
+    gap: 4px;
+  }
+  
+  #weapon-name {
+    font-size: 11px;
+  }
+  
+  #ammo {
+    font-size: 16px;
+  }
+  
+  .weapon-slot {
+    padding: 3px 5px;
+    gap: 6px;
+  }
+  
+  .slot-nombre {
+    font-size: 10px;
+  }
+  
+  .slot-tecla {
+    padding: 2px 4px;
+    font-size: 8px;
+  }
+  
+  /* Kill Feed - Further reduced */
+  #kill-feed {
+    width: 200px;
+    max-height: 140px;
+  }
+  
+  .kill-entry {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+  
+  /* Weapon Change Notification - Further reduced */
+  #weapon-change-notification {
+    padding: 8px 16px;
+    font-size: 12px;
+  }
+}
+
+/* ==================== LARGE SCREENS (> 1920px) ==================== */
+/* Requirements: 6.3 - Set max-width limits for large resolutions */
+
+@media (min-width: 1921px) {
+  /* Chat System - Max width limit */
+  #chat-container {
+    max-width: 380px !important;
+  }
+  
+  /* Player Status Panel - Max width limit */
+  #player-status-panel {
+    max-width: 280px;
+  }
+  
+  /* Health Bar - Max width limit */
+  #health-bar-container {
+    max-width: 240px;
+  }
+  
+  /* Weapon Info Panel - Max width limit */
+  #weapon-info {
+    max-width: 200px;
+  }
+  
+  /* Kill Feed - Max width limit */
+  #kill-feed {
+    max-width: 380px;
+  }
+  
+  .kill-entry {
+    max-width: 100%;
+  }
+  
+  /* Weapon Change Notification - Max width limit */
+  #weapon-change-notification {
+    max-width: 400px;
+  }
+}
+
+/* ==================== ULTRA-WIDE SCREENS (> 2560px) ==================== */
+
+@media (min-width: 2561px) {
+  /* Maintain reasonable margins on ultra-wide screens */
+  #chat-container {
+    left: 30px !important;
+    top: 30px !important;
+  }
+  
+  #player-status-panel {
+    bottom: 30px;
+    left: 30px;
+  }
+  
+  #weapon-info {
+    bottom: 30px;
+    right: 30px;
+  }
+  
+  #kill-feed {
+    top: 15px;
+    right: 30px;
+  }
+}
+
+/* ==================== FIN FPS UI RESPONSIVE STYLES ==================== */

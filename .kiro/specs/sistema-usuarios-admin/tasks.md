@@ -1,0 +1,152 @@
+# Implementation Plan
+
+- [ ] 1. Set up migration system
+  - [ ] 1.1 Create migrations directory structure and runner
+    - Create `backend/migrations/` directory
+    - Implement `MigrationRunner` class with `runPending()` and `executeMigration()` methods
+    - Add migration tracking table creation as bootstrap
+    - _Requirements: 5.1, 5.2, 5.3_
+  - [ ]* 1.2 Write property test for migration idempotence
+    - **Property 15: Migration idempotence**
+    - **Validates: Requirements 5.5**
+  - [ ]* 1.3 Write property test for migration rollback
+    - **Property 16: Migration rollback on failure**
+    - **Validates: Requirements 5.3**
+
+- [ ] 2. Create database migrations for schema
+  - [ ] 2.1 Create migration to add role column to users table
+    - Add `role ENUM('player', 'admin') DEFAULT 'player'` to users
+    - Add index on role column
+    - _Requirements: 1.1, 4.1_
+  - [ ] 2.2 Create migration for player_stats table
+    - Create table with user_id (PK + FK), kills, deaths, matches
+    - Add timestamps
+    - _Requirements: 2.1, 2.2, 2.3_
+  - [ ] 2.3 Create migration for bans table
+    - Create table with id, user_id, reason, expires_at, created_by, created_at
+    - Add foreign keys and indexes
+    - _Requirements: 3.1, 3.2_
+
+- [ ] 3. Update authentication system
+  - [ ] 3.1 Modify registration to create player_stats and include role
+    - Update register endpoint to insert player_stats record
+    - Include role in JWT token payload
+    - _Requirements: 1.1_
+  - [ ]* 3.2 Write property test for registration
+    - **Property 1: Registration creates user with correct role and stats**
+    - **Validates: Requirements 1.1**
+  - [ ]* 3.3 Write property test for uniqueness
+    - **Property 2: Username and email uniqueness**
+    - **Validates: Requirements 1.2**
+  - [ ] 3.4 Add ban check to login flow
+    - Query active bans before allowing login
+    - Return ban info if user is banned
+    - _Requirements: 3.3, 3.4_
+  - [ ]* 3.5 Write property test for banned user login
+    - **Property 9: Banned user login rejection**
+    - **Validates: Requirements 3.3**
+  - [ ]* 3.6 Write property test for expired ban login
+    - **Property 10: Expired ban allows login**
+    - **Validates: Requirements 3.4**
+
+- [ ] 4. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 5. Implement stats API
+  - [ ] 5.1 Create stats routes and controller
+    - `GET /api/stats/me` - Get current user stats
+    - `PUT /api/stats/update` - Update stats (kills, deaths, matches)
+    - `GET /api/stats/leaderboard` - Top players by kills
+    - _Requirements: 2.1, 2.2, 2.3, 2.4_
+  - [ ]* 5.2 Write property test for stats increment
+    - **Property 5: Stats increment correctly**
+    - **Validates: Requirements 2.1, 2.2, 2.3**
+  - [ ]* 5.3 Write property test for stats retrieval
+    - **Property 6: Stats retrieval returns all fields**
+    - **Validates: Requirements 2.4**
+  - [ ]* 5.4 Write property test for stats persistence
+    - **Property 7: Stats persistence**
+    - **Validates: Requirements 2.5**
+
+- [ ] 6. Implement admin middleware and ban management
+  - [ ] 6.1 Create admin middleware
+    - Implement `requireAdmin` middleware to check user role
+    - Return 403 if user is not admin
+    - _Requirements: 4.1, 4.5_
+  - [ ]* 6.2 Write property test for admin authorization
+    - **Property 12: Admin role authorization**
+    - **Validates: Requirements 4.1, 4.5**
+  - [ ] 6.3 Create ban routes and controller
+    - `POST /api/admin/bans` - Create ban (temp or permanent)
+    - `DELETE /api/admin/bans/:id` - Remove ban
+    - `GET /api/admin/bans` - List active bans
+    - _Requirements: 3.1, 3.2, 3.5_
+  - [ ]* 6.4 Write property test for ban creation
+    - **Property 8: Ban creation and storage**
+    - **Validates: Requirements 3.1, 3.2**
+  - [ ]* 6.5 Write property test for ban removal round-trip
+    - **Property 11: Ban removal restores access (round-trip)**
+    - **Validates: Requirements 3.5**
+
+- [ ] 7. Implement admin user management
+  - [ ] 7.1 Create admin user routes
+    - `GET /api/admin/users` - List users with pagination and search
+    - `GET /api/admin/users/:id` - User detail with stats and ban history
+    - _Requirements: 4.2, 4.3, 4.4_
+  - [ ]* 7.2 Write property test for user list fields
+    - **Property 13: User list contains required fields**
+    - **Validates: Requirements 4.2**
+  - [ ]* 7.3 Write property test for user search
+    - **Property 14: User search filters correctly**
+    - **Validates: Requirements 4.4**
+
+- [ ] 8. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 9. Implement API validation and error handling
+  - [ ] 9.1 Create validation middleware for all endpoints
+    - Validate required fields, types, and formats
+    - Return 400 with specific field errors
+    - _Requirements: 6.3_
+  - [ ]* 9.2 Write property test for invalid input handling
+    - **Property 19: Invalid input returns 400**
+    - **Validates: Requirements 6.3**
+  - [ ] 9.3 Standardize API response format
+    - Ensure all responses have success, data/message structure
+    - Sanitize error messages in production
+    - _Requirements: 6.1, 6.5_
+  - [ ]* 9.4 Write property test for response format
+    - **Property 17: API response format consistency**
+    - **Validates: Requirements 6.1**
+  - [ ]* 9.5 Write property test for authentication requirement
+    - **Property 18: Protected endpoints require authentication**
+    - **Validates: Requirements 6.4**
+
+- [ ] 10. Create admin panel frontend
+  - [ ] 10.1 Create admin panel HTML page
+    - Create `admin.html` with navigation and layout
+    - Add login check and redirect for non-admins
+    - _Requirements: 4.1_
+  - [ ] 10.2 Implement users list view
+    - Display users table with pagination
+    - Add search functionality
+    - _Requirements: 4.2, 4.4_
+  - [ ] 10.3 Implement user detail view
+    - Show user info, stats, and ban history
+    - _Requirements: 4.3_
+  - [ ] 10.4 Implement ban management UI
+    - Form to create new ban (reason, expiration)
+    - Button to remove existing bans
+    - _Requirements: 3.1, 3.2, 3.5_
+
+- [ ] 11. Integrate with game server
+  - [ ] 11.1 Update game server to send stats updates
+    - Send kill/death events to stats API
+    - Send match completion events
+    - _Requirements: 2.1, 2.2, 2.3_
+  - [ ] 11.2 Add ban check on game connection
+    - Verify user is not banned when joining game
+    - _Requirements: 3.3_
+
+- [ ] 12. Final Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.

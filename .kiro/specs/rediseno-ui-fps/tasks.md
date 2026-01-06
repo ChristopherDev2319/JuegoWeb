@@ -1,0 +1,100 @@
+# Implementation Plan
+
+- [x] 1. Actualizar estilos CSS del Chat System
+  - [x] 1.1 Modificar posición del chat de bottom-left a top-left
+    - Cambiar `bottom: 20px` a `top: 20px` en el contenedor del chat
+    - Mantener `left: 20px`
+    - Actualizar estilos en `src/ui/chatSystem.js`
+    - _Requirements: 1.1_
+  - [x] 1.2 Aplicar estilos modernos al chat
+    - Agregar `backdrop-filter: blur(10px)`
+    - Cambiar `border-radius` a `12px`
+    - Actualizar borde a `1px solid rgba(255, 255, 255, 0.1)`
+    - Cambiar fuente a `'Segoe UI', sans-serif`
+    - _Requirements: 1.1, 3.1_
+  - [ ]* 1.3 Write property test for chat positioning
+    - **Property 1: Posicionamiento del Chat**
+    - **Validates: Requirements 1.1**
+
+- [x] 2. Crear panel integrado de vida y dash
+  - [x] 2.1 Actualizar estilos CSS del contenedor de vida
+    - Mover `#health-bar-container` de `bottom: 30px; left: 50%` a `bottom: 20px; left: 20px`
+    - Remover `transform: translateX(-50%)`
+    - Aplicar estilos modernos con blur y bordes redondeados
+    - _Requirements: 2.1, 3.1_
+  - [x] 2.2 Actualizar estilos CSS de las cargas de dash
+    - Mover `#dash-charges` para integrarlo con el contenedor de vida
+    - Cambiar layout de horizontal a integrado con la barra de vida
+    - Rediseñar indicadores de dash con estilo moderno
+    - _Requirements: 2.1, 2.6, 2.7, 2.8_
+  - [x] 2.3 Crear contenedor unificado para vida y dash
+    - Crear nuevo elemento `#player-status-panel` que contenga ambos
+    - Aplicar estilos de fondo con blur y bordes redondeados
+    - Organizar layout con flexbox
+    - _Requirements: 2.1, 3.1_
+  - [ ]* 2.4 Write property test for health bar color states
+    - **Property 2: Color de la Barra de Vida según Porcentaje**
+    - **Validates: Requirements 2.3, 2.4, 2.5**
+  - [ ]* 2.5 Write property test for dash charge states
+    - **Property 3: Estado Visual de Cargas de Dash**
+    - **Validates: Requirements 2.6, 2.7, 2.8**
+  - [ ]* 2.6 Write property test for player status panel positioning
+    - **Property 5: Posicionamiento del Panel de Estado**
+    - **Validates: Requirements 2.1**
+
+- [x] 3. Checkpoint - Make sure all tests are passing
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 4. Actualizar panel de información del arma
+  - [x] 4.1 Aplicar estilos modernos al panel de arma
+    - Actualizar `#weapon-info` con blur y bordes redondeados
+    - Mantener posición en esquina inferior derecha
+    - Aplicar estilos consistentes con el resto de la UI
+    - _Requirements: 4.1, 3.1_
+  - [x] 4.2 Actualizar estilos de slots de arma
+    - Modernizar `.weapon-slot` con nuevos estilos
+    - Mejorar indicadores visuales de arma activa/secundaria
+    - _Requirements: 4.2_
+  - [ ]* 4.3 Write property test for weapon info display
+    - **Property 4: Información del Arma según Estado**
+    - **Validates: Requirements 4.2, 4.3, 4.4, 4.5**
+  - [ ]* 4.4 Write property test for weapon panel positioning
+    - **Property 6: Posicionamiento del Panel de Arma**
+    - **Validates: Requirements 4.1**
+
+- [x] 5. Actualizar efectos visuales y animaciones
+  - [x] 5.1 Mejorar animación de cambio de arma
+    - Actualizar estilos de `#weapon-change-notification`
+    - Aplicar diseño moderno con blur
+    - _Requirements: 3.4_
+  - [x] 5.2 Mejorar efecto de daño recibido
+    - Actualizar `#damage-flash` con gradiente más suave
+    - Ajustar timing de la animación
+    - _Requirements: 3.2_
+  - [x] 5.3 Mejorar animaciones del kill feed
+    - Actualizar `.kill-entry` con estilos modernos
+    - Mejorar animación de entrada
+    - _Requirements: 3.3_
+
+- [x] 6. Actualizar funciones de UI en JavaScript
+  - [x] 6.1 Actualizar función actualizarCargasDash
+    - Modificar `src/utils/ui.js` para usar nuevos selectores
+    - Actualizar lógica de clases CSS para nuevos estilos
+    - _Requirements: 2.6, 2.7, 2.8_
+  - [x] 6.2 Verificar compatibilidad con modo local y online
+    - Asegurar que los estilos se aplican correctamente en ambos modos
+    - Probar transiciones entre modos
+    - _Requirements: 5.1, 5.2, 5.3_
+
+- [x] 7. Agregar estilos responsive
+  - [x] 7.1 Agregar media queries para pantallas pequeñas
+    - Reducir tamaños de elementos para resoluciones < 768px
+    - Ajustar márgenes y padding
+    - _Requirements: 6.2_
+  - [x] 7.2 Agregar límites para pantallas grandes
+    - Establecer max-width para elementos de UI
+    - Evitar elementos excesivamente grandes en resoluciones > 1920px
+    - _Requirements: 6.3_
+
+- [x] 8. Final Checkpoint - Make sure all tests are passing
+  - Ensure all tests pass, ask the user if questions arise.
