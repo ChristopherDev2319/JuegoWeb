@@ -230,7 +230,7 @@ export const CONFIG = {
     // KNIFE: Cuchillo táctico para combate cuerpo a cuerpo
     // Requirements: 4.1, 4.2, 4.5, 5.1, 5.2, 5.3
     "KNIFE": {
-      nombre: "Knife",
+      nombre: "Cuchillo",
       descripcion: "Cuchillo táctico para combate cuerpo a cuerpo",
       tipo: "melee",
       semiAutomatica: true,        // Solo un ataque por click (evita ataques múltiples)

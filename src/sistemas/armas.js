@@ -525,19 +525,27 @@ export function estaCurando() {
 /**
  * Inicia el proceso de curación al hacer clic
  * Requirements: 3.1
- * @returns {boolean} - true si se inició la curación
+ * @param {number} vidaActual - Vida actual del jugador (opcional)
+ * @param {number} vidaMaxima - Vida máxima del jugador (opcional)
+ * @returns {Object} - { iniciada: boolean, razon: string }
  */
-export function iniciarCuracion() {
+export function iniciarCuracion(vidaActual = null, vidaMaxima = null) {
   // Verificar que JuiceBox está equipado
   if (!estadoCuracion.juiceBoxEquipado) {
     console.log('🧃 No se puede curar sin JuiceBox equipado');
-    return false;
+    return { iniciada: false, razon: 'no_equipado' };
   }
 
   // Verificar que no hay curación en progreso
   if (estadoCuracion.curacionEnProgreso) {
     console.log('🧃 Ya hay una curación en progreso');
-    return false;
+    return { iniciada: false, razon: 'en_progreso' };
+  }
+
+  // Verificar si la vida está llena
+  if (vidaActual !== null && vidaMaxima !== null && vidaActual >= vidaMaxima) {
+    console.log('🧃 No se puede curar - Vida llena');
+    return { iniciada: false, razon: 'vida_llena' };
   }
 
   // Iniciar curación
@@ -545,7 +553,7 @@ export function iniciarCuracion() {
   estadoCuracion.tiempoInicioCuracion = performance.now();
   
   console.log('🧃 Curación iniciada - 2 segundos para completar');
-  return true;
+  return { iniciada: true, razon: 'ok' };
 }
 
 /**

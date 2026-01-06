@@ -86,7 +86,7 @@ import {
 } from './sistemas/controles.js';
 
 import { crearEfectoDash } from './utils/efectos.js';
-import { mostrarIndicadorDaño, mostrarMensajeConexion, ocultarMensajeConexion, mostrarPantallaMuerte, ocultarPantallaMuerte, agregarEntradaKillFeed, actualizarBarraVida, mostrarEfectoDaño, mostrarDañoCausado, actualizarInfoArma, mostrarCambioArma, actualizarBarraCuracion, ocultarBarraCuracion, actualizarHealBox, inicializarLucideIcons, inicializarCacheDOM } from './utils/ui.js';
+import { mostrarIndicadorDaño, mostrarMensajeConexion, ocultarMensajeConexion, mostrarPantallaMuerte, ocultarPantallaMuerte, agregarEntradaKillFeed, actualizarBarraVida, mostrarEfectoDaño, mostrarDañoCausado, actualizarInfoArma, mostrarCambioArma, actualizarBarraCuracion, ocultarBarraCuracion, actualizarHealBox, inicializarLucideIcons, inicializarCacheDOM, mostrarMensajeVidaLlena } from './utils/ui.js';
 
 // Network imports
 import { getConnection } from './network/connection.js';
@@ -2535,13 +2535,19 @@ function manejarDisparo() {
   // Requirements: 3.1 - Iniciar curación al hacer clic con JuiceBox equipado
   if (esJuiceBoxEquipado()) {
     console.log('🧃 JuiceBox equipado - Iniciando curación');
-    const curacionIniciada = iniciarCuracion();
-    if (curacionIniciada) {
+    // Pasar vida actual y máxima para validar si puede curarse
+    const resultado = iniciarCuracion(jugador.health, jugador.maxHealth);
+    
+    if (resultado.iniciada) {
       console.log('🧃 Curación iniciada correctamente');
       // Notificar al servidor del inicio de curación
       if (isMultiplayerConnected && inputSender) {
         inputSender.sendHealStart();
       }
+    } else if (resultado.razon === 'vida_llena') {
+      // Mostrar mensaje de vida llena
+      mostrarMensajeVidaLlena('Vida llena');
+      console.log('🧃 No se puede curar - Vida llena');
     }
     return;
   }

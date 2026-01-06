@@ -100,7 +100,9 @@ export function actualizarMunicion(estadoMunicion) {
       cachedAmmoDiv.textContent = 'RECARGANDO...';
       cachedAmmoDiv.style.color = '#ffaa00';
     } else {
-      cachedAmmoDiv.textContent = `${municionActual} / ${municionTotal}`;
+      // Mostrar "Ilimitadas" en lugar de "Infinity" para modo local
+      const textoMunicionTotal = municionTotal === Infinity ? 'Ilimitadas' : municionTotal;
+      cachedAmmoDiv.textContent = `${municionActual} / ${textoMunicionTotal}`;
       cachedAmmoDiv.style.color = municionActual <= 5 ? '#ff0000' : 'white';
     }
     
@@ -1122,6 +1124,46 @@ export function actualizarHealBox(estadoHeal) {
     cachedHealBox.classList.remove('enabled', 'cooldown');
     cachedHealBox.classList.add('disabled');
   }
+}
+
+/**
+ * Muestra mensaje temporal de "Vida llena" cuando el jugador intenta curarse con vida máxima
+ * @param {string} mensaje - Mensaje a mostrar (por defecto "Vida llena")
+ */
+export function mostrarMensajeVidaLlena(mensaje = 'Vida llena') {
+  let notification = document.getElementById('health-full-notification');
+  
+  if (!notification) {
+    notification = document.createElement('div');
+    notification.id = 'health-full-notification';
+    notification.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: #4ade80;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: bold;
+      z-index: 1000;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      border: 2px solid #4ade80;
+      text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+    `;
+    document.body.appendChild(notification);
+  }
+
+  notification.textContent = mensaje;
+  notification.style.opacity = '1';
+
+  // Ocultar después de 1.5 segundos
+  setTimeout(() => {
+    notification.style.opacity = '0';
+  }, 1500);
 }
 
 /**
