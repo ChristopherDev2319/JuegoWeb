@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BearStrike - Panel de Administración</title>
+    <link rel="icon" type="image/png" href="logo de la pagina/LOGO_FINAL.png">
+    <link rel="shortcut icon" type="image/png" href="logo de la pagina/LOGO_FINAL.png">
+    <link rel="stylesheet" href="css/admin.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="admin-loading" class="admin-loading">
+        <div class="loading-spinner"></div>
+        <p>Verificando permisos...</p>
+    </div>
+
+    <!-- Access Denied Screen -->
+    <div id="access-denied" class="access-denied hidden">
+        <div class="access-denied-content">
+            <i data-lucide="shield-x" class="denied-icon"></i>
+            <h2>Acceso Denegado</h2>
+            <p id="denied-message">No tienes permisos para acceder al panel de administración.</p>
+            <a href="index.html" class="btn-back-game">
+                <i data-lucide="arrow-left"></i>
+                Volver al Juego
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Admin Panel -->
+    <div id="admin-panel" class="admin-panel hidden">
+        <!-- Header -->
+        <header class="admin-header">
+            <div class="admin-logo">
+                <img src="logo de la pagina/LOGO_FINAL.png" alt="BearStrike">
+                <h1>BEARSTRIKE</h1>
+                <span>Admin Panel</span>
+            </div>
+            <div class="admin-user">
+                <div class="admin-user-info">
+                    <div class="admin-user-name" id="admin-username">Admin</div>
+                    <div class="admin-user-role">Administrador</div>
+                </div>
+                <button class="btn-logout" id="btn-logout">
+                    <i data-lucide="log-out"></i>
+                    Cerrar Sesión
+                </button>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="admin-nav">
+            <button class="nav-btn active" data-view="users">
+                <i data-lucide="users"></i>
+                Usuarios
+            </button>
+            <button class="nav-btn" data-view="bans">
+                <i data-lucide="ban"></i>
+                Baneos
+            </button>
+            <a href="index.html" class="nav-btn nav-link">
+                <i data-lucide="gamepad-2"></i>
+                Volver al Juego
+            </a>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="admin-content">
+            <!-- Users View -->
+            <section id="view-users" class="admin-view active">
+                <!-- Content loaded by JS -->
+            </section>
+
+            <!-- Bans View -->
+            <section id="view-bans" class="admin-view">
+                <!-- Content loaded by JS -->
+            </section>
+        </main>
+    </div>
+
+    <!-- User Detail Modal -->
+    <div id="user-detail-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content" id="user-detail-content">
+            <!-- Content loaded by JS -->
+        </div>
+    </div>
+
+    <!-- Create Ban Modal -->
+    <div id="create-ban-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content" id="create-ban-content">
+            <!-- Content loaded by JS -->
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <script type="module" src="src/admin/adminPanel.js"></script>
+</body>
+</html>

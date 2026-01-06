@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Sistema completo de gestión de usuarios para el juego FPS BearStrike. El sistema incluye registro y autenticación de usuarios con roles (player/admin), seguimiento de estadísticas de jugador (kills, deaths, partidas jugadas), sistema de baneos temporales y permanentes, y un panel de administración para gestionar usuarios y baneos. La base de datos utiliza MySQL con migraciones para control de versiones del schema, y expone una API REST para todas las operaciones.
+Sistema completo de gestión de usuarios para el juego FPS BearStrike. El sistema incluye registro y autenticación de usuarios con roles (player/admin), seguimiento de estadísticas de jugador (kills, deaths, partidas jugadas), sistema de baneos temporales y permanentes, y un panel de administración para gestionar usuarios y baneos. La base de datos utiliza PostgreSQL con migraciones para control de versiones del schema, soportando configuración dual para entornos de desarrollo (local) y producción (VPS). Expone una API REST para todas las operaciones.
 
 ## Glossary
 
@@ -13,7 +13,9 @@ Sistema completo de gestión de usuarios para el juego FPS BearStrike. El sistem
 - **Admin Panel**: Interfaz web para que administradores gestionen usuarios y baneos
 - **API REST**: Interfaz de programación basada en HTTP para operaciones CRUD
 - **JWT**: JSON Web Token usado para autenticación de sesiones
-- **VPS**: Servidor privado virtual donde se despliega el sistema
+- **VPS**: Servidor privado virtual donde se despliega el sistema en producción
+- **PostgreSQL**: Sistema de gestión de base de datos relacional usado para persistencia
+- **Environment Config**: Sistema de configuración basado en archivos .env para separar desarrollo y producción
 
 ## Requirements
 
@@ -88,3 +90,27 @@ Sistema completo de gestión de usuarios para el juego FPS BearStrike. El sistem
 3. WHEN a client sends a request with invalid data THEN the System SHALL return a 400 Bad Request with validation errors
 4. WHEN a client sends a request to a protected endpoint without authentication THEN the System SHALL return a 401 Unauthorized error
 5. WHEN the API encounters an internal error THEN the System SHALL return a 500 error without exposing sensitive details
+
+### Requirement 7
+
+**User Story:** As a developer, I want separate configuration for development and production environments, so that I can work locally and deploy to VPS without code changes.
+
+#### Acceptance Criteria
+
+1. WHEN the application starts in development mode THEN the System SHALL load configuration from `.env.development` file
+2. WHEN the application starts in production mode THEN the System SHALL load configuration from `.env.production` file
+3. WHEN NODE_ENV is set to "development" THEN the System SHALL connect to the local PostgreSQL database
+4. WHEN NODE_ENV is set to "production" THEN the System SHALL connect to the VPS PostgreSQL database
+5. WHEN a required environment variable is missing THEN the System SHALL fail startup with a clear error message
+
+### Requirement 8
+
+**User Story:** As a developer, I want to use PostgreSQL as the database, so that I have a robust and scalable data store.
+
+#### Acceptance Criteria
+
+1. WHEN the application connects to the database THEN the System SHALL use PostgreSQL connection protocol
+2. WHEN executing queries THEN the System SHALL use PostgreSQL-compatible SQL syntax
+3. WHEN creating tables THEN the System SHALL use PostgreSQL data types (SERIAL, TIMESTAMPTZ, etc.)
+4. WHEN the database connection fails THEN the System SHALL retry connection with exponential backoff
+5. WHEN the connection pool is exhausted THEN the System SHALL queue requests until a connection is available

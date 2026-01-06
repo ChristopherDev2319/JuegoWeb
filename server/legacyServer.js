@@ -5,7 +5,7 @@
  * This module contains the original server code that runs without clustering.
  * Used when CLUSTER_ENABLED=false or NODE_ENV=development
  * 
- * Requirements: 1.1, 1.2, 1.3, 1.4, 5.2, 5.3, 5.4, 5.5, 6.1, 6.2, 6.3, 6.5, 8.3, 10.3
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.3, 5.2, 5.3, 5.4, 5.5, 6.1, 6.2, 6.3, 6.5, 8.3, 10.3
  */
 
 import express from 'express';
@@ -20,6 +20,11 @@ import { serializeMessage, deserializeMessage } from './serialization.js';
 import { RoomManager } from './rooms/roomManager.js';
 import { encontrarMejorSala } from './rooms/matchmaking.js';
 
+// Stats and Ban services for user system integration
+// Requirements: 2.1, 2.2, 2.3, 3.3
+import { incrementKills, incrementDeaths, incrementMatches } from './services/statsService.js';
+import { validateConnection } from './services/banService.js';
+
 // ES module dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,7 +38,8 @@ const ERROR_MESSAGES = {
   WRONG_PASSWORD: 'Contraseña incorrecta',
   ROOM_FULL: 'Partida llena',
   MATCHMAKING_FAILED: 'No se pudo encontrar partida',
-  UNKNOWN_ACTION: 'Acción no reconocida'
+  UNKNOWN_ACTION: 'Acción no reconocida',
+  USER_BANNED: 'Usuario baneado'
 };
 
 // Server instances (initialized in startLegacyServer)
@@ -44,23 +50,66 @@ let gameManager = null;
 let roomManager = null;
 let connections = null;
 let playerRooms = null;
+let playerTokens = null;  // Map to store JWT tokens for authenticated players
 let tickInterval = null;
 let cleanupInterval = null;
 
 /**
  * Handle new WebSocket connection (Requirement 1.2)
+ * Requirement 3.3: Verify user is not banned when joining game
  * @param {WebSocket} ws - WebSocket connection
+ * @param {Object} req - HTTP request (contains query params for auth)
  */
-function handleConnection(ws) {
+async function handleConnection(ws, req) {
   const playerId = `player_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  
+  // Extract token from query string if provided
+  // Client sends: ws://server?token=JWT_TOKEN
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const token = url.searchParams.get('token');
+  
+  // Validate connection and check for bans (Requirement 3.3)
+  if (token) {
+    const validation = await validateConnection(token);
+    
+    if (!validation.valid) {
+      if (validation.reason === 'banned') {
+        console.log(`[AUTH] Banned user attempted to connect: ${validation.user?.username}`);
+        ws.send(serializeMessage('connectionRejected', {
+          reason: 'banned',
+          ban: validation.ban
+        }));
+        ws.close(4003, ERROR_MESSAGES.USER_BANNED);
+        return;
+      } else if (validation.reason === 'invalid_token') {
+        console.log(`[AUTH] Invalid token provided`);
+        // Allow connection but without authentication
+      }
+    } else if (validation.user) {
+      // Store token for authenticated user
+      ws.userId = validation.user.userId;
+      ws.username = validation.user.username;
+      ws.authToken = token;
+      console.log(`[AUTH] Authenticated user connected: ${validation.user.username}`);
+    }
+  }
   
   connections.set(playerId, ws);
   ws.playerId = playerId;
   ws.inLobby = true;
   
-  console.log(`Client connected: ${playerId}`);
+  // Store token mapping for stats updates
+  if (token && ws.userId) {
+    playerTokens.set(playerId, token);
+  }
   
-  const connectMessage = serializeMessage('connected', { playerId });
+  console.log(`Client connected: ${playerId}${ws.username ? ` (${ws.username})` : ''}`);
+  
+  const connectMessage = serializeMessage('connected', { 
+    playerId,
+    authenticated: !!ws.userId,
+    username: ws.username || null
+  });
   ws.send(connectMessage);
   
   ws.on('message', (data) => handleMessage(ws, data));
@@ -430,6 +479,9 @@ function handleMessage(ws, data) {
             broadcast(serializeMessage('death', deathData));
           }
           
+          // Send stats updates for melee kills (Requirements 2.1, 2.2)
+          sendStatsUpdate(playerId, hit.targetId);
+          
           console.log(`[MELEE DEATH] Broadcast death event: ${hit.targetId} killed by ${playerId}`);
         }
       }
@@ -439,6 +491,7 @@ function handleMessage(ws, data) {
 
 /**
  * Handle client disconnection
+ * Requirement 2.3: Send match completion event when player leaves
  */
 function handleDisconnection(ws) {
   const playerId = ws.playerId;
@@ -454,6 +507,12 @@ function handleDisconnection(ws) {
       const jugador = sala.jugadores.get(playerId);
       const playerName = jugador ? jugador.nombre : 'Jugador';
       
+      // Send match completion stats before removing player (Requirement 2.3)
+      // Only count as match if player was in a game room
+      if (sala.estado === 'jugando') {
+        sendMatchComplete(playerId);
+      }
+      
       sala.removerJugador(playerId);
       console.log(`Player ${playerId} (${playerName}) removed from room ${sala.codigo}`);
       
@@ -464,6 +523,9 @@ function handleDisconnection(ws) {
     gameManager.removePlayer(playerId);
     broadcast(serializeMessage('playerLeft', { playerId }));
   }
+  
+  // Clean up token mapping
+  playerTokens.delete(playerId);
   
   connections.delete(playerId);
   console.log(`Player disconnected: ${playerId}`);
@@ -499,6 +561,7 @@ function broadcastToRoom(roomId, message, excludePlayerId = null) {
 
 /**
  * Game loop - runs at 60Hz
+ * Requirements: 2.1, 2.2 - Send kill/death events to stats API
  */
 function gameLoop() {
   for (const [roomId, sala] of roomManager.salas) {
@@ -522,6 +585,9 @@ function gameLoop() {
           victimName: victim?.nombre || death.playerId,
           scoreboard: sala.obtenerScoreboard()
         }));
+        
+        // Send stats updates to backend API (Requirements 2.1, 2.2)
+        sendStatsUpdate(death.killerId, death.playerId);
       }
     }
     
@@ -566,6 +632,59 @@ function gameLoop() {
 }
 
 /**
+ * Send stats updates to backend API for kill/death events
+ * Requirements: 2.1, 2.2 - Increment kills for killer, deaths for victim
+ * @param {string} killerId - Player ID of the killer
+ * @param {string} victimId - Player ID of the victim
+ */
+async function sendStatsUpdate(killerId, victimId) {
+  // Get tokens for both players
+  const killerToken = playerTokens.get(killerId);
+  const victimToken = playerTokens.get(victimId);
+  
+  // Send kill increment for killer (Requirement 2.1)
+  if (killerToken) {
+    incrementKills(killerToken, 1).then(result => {
+      if (result.success) {
+        console.log(`[STATS] Kill recorded for ${killerId}`);
+      }
+    }).catch(err => {
+      console.error(`[STATS] Failed to record kill for ${killerId}:`, err.message);
+    });
+  }
+  
+  // Send death increment for victim (Requirement 2.2)
+  if (victimToken) {
+    incrementDeaths(victimToken, 1).then(result => {
+      if (result.success) {
+        console.log(`[STATS] Death recorded for ${victimId}`);
+      }
+    }).catch(err => {
+      console.error(`[STATS] Failed to record death for ${victimId}:`, err.message);
+    });
+  }
+}
+
+/**
+ * Send match completion stats update
+ * Requirement 2.3: Increment matches count when player completes a match
+ * @param {string} playerId - Player ID
+ */
+async function sendMatchComplete(playerId) {
+  const token = playerTokens.get(playerId);
+  
+  if (token) {
+    incrementMatches(token, 1).then(result => {
+      if (result.success) {
+        console.log(`[STATS] Match recorded for ${playerId}`);
+      }
+    }).catch(err => {
+      console.error(`[STATS] Failed to record match for ${playerId}:`, err.message);
+    });
+  }
+}
+
+/**
  * Starts the legacy single-process server
  */
 export function startLegacyServer() {
@@ -579,12 +698,13 @@ export function startLegacyServer() {
   roomManager = new RoomManager();
   connections = new Map();
   playerRooms = new Map();
+  playerTokens = new Map();  // Initialize token storage for stats updates
   
   // Serve static files
   app.use(express.static(path.join(__dirname, '..')));
   
-  // Set up WebSocket handler
-  wss.on('connection', handleConnection);
+  // Set up WebSocket handler (now async for ban checking)
+  wss.on('connection', (ws, req) => handleConnection(ws, req));
   
   // Start game loop
   tickInterval = setInterval(gameLoop, SERVER_CONFIG.tickInterval);
@@ -627,4 +747,4 @@ export function startLegacyServer() {
 }
 
 // Export for testing
-export { app, wss, gameManager, roomManager, connections, playerRooms, broadcast, broadcastToRoom };
+export { app, wss, gameManager, roomManager, connections, playerRooms, playerTokens, broadcast, broadcastToRoom, sendStatsUpdate, sendMatchComplete };

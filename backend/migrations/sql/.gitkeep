@@ -1,0 +1,3 @@
+# This directory contains SQL migration files
+# Files should be named: {version}_{name}.sql
+# Example: 001_create_users_table.sql

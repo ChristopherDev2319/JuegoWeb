@@ -2,7 +2,7 @@
 
 ## Overview
 
-Este diseño extiende el sistema de autenticación existente en BearStrike para incluir roles de usuario, estadísticas de jugador, sistema de baneos y panel de administración. Se mantiene la arquitectura actual de Express.js + MySQL, añadiendo un sistema de migraciones para gestionar cambios en el schema de base de datos.
+Este diseño extiende el sistema de autenticación existente en BearStrike para incluir roles de usuario, estadísticas de jugador, sistema de baneos y panel de administración. Se migra de MySQL a PostgreSQL y se implementa un sistema de configuración dual para desarrollo local y producción en VPS. Se añade un sistema de migraciones para gestionar cambios en el schema de base de datos.
 
 ## Architecture
 
@@ -25,11 +25,17 @@ Este diseño extiende el sistema de autenticación existente en BearStrike para 
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │              Middleware (Auth, Validation, Admin)        │   │
 │  └─────────────────────────────────────────────────────────┘   │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │           Environment Config Loader                      │   │
+│  │    .env.development (local) | .env.production (VPS)     │   │
+│  └─────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
           │
           ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                         MySQL Database                           │
+│                      PostgreSQL Database                         │
 │  ┌────────┐  ┌──────────────┐  ┌──────┐  ┌────────────────┐    │
 │  │ users  │  │ player_stats │  │ bans │  │   migrations   │    │
 │  └────────┘  └──────────────┘  └──────┘  └────────────────┘    │
@@ -38,55 +44,122 @@ Este diseño extiende el sistema de autenticación existente en BearStrike para 
 
 ## Components and Interfaces
 
-### Database Schema
+### Environment Configuration
+
+```
+backend/
+├── .env.development      # Configuración para desarrollo local
+├── .env.production       # Configuración para VPS
+├── config/
+│   ├── database.js       # Conexión PostgreSQL
+│   └── env.js            # Cargador de configuración por entorno
+```
+
+#### .env.development
+```env
+NODE_ENV=development
+PORT=3001
+
+# PostgreSQL Local
+DATABASE_URL=postgresql://postgres:password@localhost:5432/bearstrike_dev
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=bearstrike_dev
+DB_USER=postgres
+DB_PASSWORD=password
+
+# JWT
+JWT_SECRET=dev_secret_key_min_32_chars_here
+JWT_EXPIRES_IN=7d
+
+# CORS
+ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
+```
+
+#### .env.production
+```env
+NODE_ENV=production
+PORT=3001
+
+# PostgreSQL VPS
+DATABASE_URL=postgresql://bearstrike:secure_password@localhost:5432/bearstrike_prod
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=bearstrike_prod
+DB_USER=bearstrike
+DB_PASSWORD=secure_password
+
+# JWT
+JWT_SECRET=production_secret_very_secure_min_64_chars
+JWT_EXPIRES_IN=7d
+
+# CORS
+ALLOWED_ORIGINS=https://bearstrike.com.mx
+```
+
+### Database Schema (PostgreSQL)
 
 ```sql
 -- Tabla users (modificada)
 CREATE TABLE users (
-    id INT PRIMARY KEY AUTO_INCREMENT,
+    id SERIAL PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(100) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('player', 'admin') DEFAULT 'player',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_username (username),
-    INDEX idx_email (email),
-    INDEX idx_role (role)
+    role VARCHAR(20) DEFAULT 'player' CHECK (role IN ('player', 'admin')),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
 
 -- Tabla player_stats
 CREATE TABLE player_stats (
-    user_id INT PRIMARY KEY,
-    kills INT DEFAULT 0,
-    deaths INT DEFAULT 0,
-    matches INT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    kills INTEGER DEFAULT 0,
+    deaths INTEGER DEFAULT 0,
+    matches INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Tabla bans
 CREATE TABLE bans (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     reason VARCHAR(500) NOT NULL,
-    expires_at TIMESTAMP NULL,
-    created_by INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (created_by) REFERENCES users(id),
-    INDEX idx_user_id (user_id),
-    INDEX idx_expires_at (expires_at)
+    expires_at TIMESTAMPTZ NULL,
+    created_by INTEGER NOT NULL REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_bans_user_id ON bans(user_id);
+CREATE INDEX idx_bans_expires_at ON bans(expires_at);
 
 -- Tabla migrations
 CREATE TABLE migrations (
-    id INT PRIMARY KEY AUTO_INCREMENT,
+    id SERIAL PRIMARY KEY,
     version VARCHAR(50) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
-    executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    executed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Trigger para updated_at automático
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_player_stats_updated_at BEFORE UPDATE ON player_stats
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 ```
 
 ### API Endpoints
@@ -136,35 +209,163 @@ async function checkBan(req, res, next) {
 ### Migration System
 
 ```javascript
-// migrations/runner.js
+// backend/config/env.js
+const path = require('path');
+const dotenv = require('dotenv');
+
+function loadEnvConfig() {
+    const env = process.env.NODE_ENV || 'development';
+    const envFile = `.env.${env}`;
+    
+    const result = dotenv.config({ path: path.resolve(__dirname, '..', envFile) });
+    
+    if (result.error) {
+        // Fallback to .env if specific file not found
+        dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+    }
+    
+    // Validate required variables
+    const required = ['DATABASE_URL', 'JWT_SECRET'];
+    for (const key of required) {
+        if (!process.env[key]) {
+            throw new Error(`Missing required environment variable: ${key}`);
+        }
+    }
+    
+    return {
+        nodeEnv: env,
+        port: process.env.PORT || 3001,
+        databaseUrl: process.env.DATABASE_URL,
+        jwtSecret: process.env.JWT_SECRET,
+        jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+        allowedOrigins: (process.env.ALLOWED_ORIGINS || '').split(',')
+    };
+}
+
+module.exports = { loadEnvConfig };
+```
+
+```javascript
+// backend/config/database.js
+const { Pool } = require('pg');
+const { loadEnvConfig } = require('./env');
+
+const config = loadEnvConfig();
+
+const pool = new Pool({
+    connectionString: config.databaseUrl,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+});
+
+// Test connection
+async function testConnection() {
+    try {
+        const client = await pool.connect();
+        console.log(`✅ PostgreSQL conectado (${config.nodeEnv})`);
+        client.release();
+        return true;
+    } catch (error) {
+        console.error('❌ Error conectando a PostgreSQL:', error.message);
+        return false;
+    }
+}
+
+// Query helper
+async function query(text, params) {
+    const start = Date.now();
+    const result = await pool.query(text, params);
+    const duration = Date.now() - start;
+    if (config.nodeEnv === 'development') {
+        console.log('Query ejecutada', { text, duration, rows: result.rowCount });
+    }
+    return result;
+}
+
+module.exports = { pool, query, testConnection };
+```
+
+```javascript
+// backend/migrations/runner.js
+const fs = require('fs');
+const path = require('path');
+const { pool, query } = require('../config/database');
+
 class MigrationRunner {
+    constructor() {
+        this.migrationsDir = path.join(__dirname, 'sql');
+    }
+    
+    async ensureMigrationsTable() {
+        await query(`
+            CREATE TABLE IF NOT EXISTS migrations (
+                id SERIAL PRIMARY KEY,
+                version VARCHAR(50) NOT NULL UNIQUE,
+                name VARCHAR(255) NOT NULL,
+                executed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+    }
+    
+    async getAppliedMigrations() {
+        const result = await query('SELECT version FROM migrations ORDER BY version');
+        return result.rows.map(r => r.version);
+    }
+    
+    getMigrationFiles() {
+        const files = fs.readdirSync(this.migrationsDir)
+            .filter(f => f.endsWith('.sql'))
+            .sort();
+        
+        return files.map(file => {
+            const [version, ...nameParts] = file.replace('.sql', '').split('_');
+            return {
+                version,
+                name: nameParts.join('_'),
+                file,
+                sql: fs.readFileSync(path.join(this.migrationsDir, file), 'utf8')
+            };
+        });
+    }
+    
     async runPending() {
-        const applied = await getAppliedMigrations();
-        const pending = getMigrationFiles().filter(m => !applied.includes(m.version));
+        await this.ensureMigrationsTable();
+        const applied = await this.getAppliedMigrations();
+        const migrations = this.getMigrationFiles();
+        const pending = migrations.filter(m => !applied.includes(m.version));
+        
+        console.log(`📦 ${pending.length} migraciones pendientes`);
         
         for (const migration of pending) {
             await this.executeMigration(migration);
         }
+        
+        return pending.length;
     }
     
     async executeMigration(migration) {
-        const connection = await pool.getConnection();
+        const client = await pool.connect();
         try {
-            await connection.beginTransaction();
-            await connection.execute(migration.sql);
-            await connection.execute(
-                'INSERT INTO migrations (version, name) VALUES (?, ?)',
+            await client.query('BEGIN');
+            await client.query(migration.sql);
+            await client.query(
+                'INSERT INTO migrations (version, name) VALUES ($1, $2)',
                 [migration.version, migration.name]
             );
-            await connection.commit();
+            await client.query('COMMIT');
+            console.log(`✅ Migración ${migration.version}: ${migration.name}`);
         } catch (error) {
-            await connection.rollback();
+            await client.query('ROLLBACK');
+            console.error(`❌ Error en migración ${migration.version}:`, error.message);
             throw error;
         } finally {
-            connection.release();
+            client.release();
         }
     }
 }
+
+module.exports = { MigrationRunner };
 ```
 
 ## Data Models
@@ -286,6 +487,18 @@ class MigrationRunner {
 *For any* request with invalid input data (missing required fields, wrong types), the System SHALL return 400 Bad Request with validation errors.
 **Validates: Requirements 6.3**
 
+### Property 20: Environment-specific config loading
+*For any* NODE_ENV value ("development" or "production"), the System SHALL load configuration from the corresponding `.env.{NODE_ENV}` file and use the correct database connection string.
+**Validates: Requirements 7.1, 7.2, 7.3, 7.4**
+
+### Property 21: Missing required env variable fails startup
+*For any* required environment variable (DATABASE_URL, JWT_SECRET), if it is missing, the System SHALL throw an error with a message identifying the missing variable.
+**Validates: Requirements 7.5**
+
+### Property 22: Database connection retry with backoff
+*For any* database connection failure, the System SHALL retry with exponential backoff, with each retry delay being greater than the previous.
+**Validates: Requirements 8.4**
+
 ## Error Handling
 
 ### Authentication Errors
@@ -328,6 +541,7 @@ class MigrationRunner {
 - Password hashing and verification
 - JWT token generation and validation
 - Ban expiration checking logic
+- Environment config loading
 
 ### Property-Based Tests
 Using **fast-check** library for JavaScript property-based testing.
@@ -343,13 +557,17 @@ Key properties to test:
 3. Ban enforcement is consistent
 4. Admin authorization is properly enforced
 5. Migration idempotence
+6. Environment-specific config loading
+7. Missing env variable detection
 
 ### Integration Tests
 - Full registration → login → stats update flow
 - Admin ban → user login rejection → unban → login success flow
 - Migration execution with rollback scenarios
+- Environment switching (dev → prod config)
 
 ### Test Database
-- Use separate test database for integration tests
+- Use separate PostgreSQL test database for integration tests
 - Reset database state before each test suite
 - Use transactions for test isolation where possible
+- Connection string: `postgresql://postgres:password@localhost:5432/bearstrike_test`

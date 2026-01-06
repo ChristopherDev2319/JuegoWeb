@@ -61,7 +61,7 @@ router.get('/load', authenticateToken, async (req, res) => {
             });
         }
 
-        // Código original para MySQL
+        // Código para PostgreSQL
         const progress = await executeQuery(`
             SELECT 
                 kills, deaths, shots_fired, shots_hit, playtime_seconds,
@@ -181,7 +181,7 @@ router.post('/save', authenticateToken, validateProgress, async (req, res) => {
             });
         }
 
-        // Código original para MySQL
+        // Código para PostgreSQL
         const updates = [];
         const values = [];
 
@@ -384,7 +384,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
 
 // Función helper para formatear datos de progreso
 function formatProgressData(dbRow) {
-    // Manejar tanto formato de MySQL como formato de memoria
+    // Manejar tanto formato de PostgreSQL como formato de memoria
     const unlocked_weapons = typeof dbRow.unlocked_weapons === 'string' 
         ? JSON.parse(dbRow.unlocked_weapons) 
         : dbRow.unlocked_weapons || ['M4A1', 'PISTOLA'];

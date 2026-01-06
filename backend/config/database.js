@@ -1,107 +1,217 @@
 // ============================================
-// CONFIGURACIÓN DE BASE DE DATOS MYSQL
+// CONFIGURACIÓN DE BASE DE DATOS PostgreSQL
 // ============================================
 
-const mysql = require('mysql2/promise');
-require('dotenv').config();
+const { Pool } = require('pg');
+const { loadEnvConfig } = require('./env');
 
-// Configuración de conexión
-const dbConfig = {
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 3306,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-    acquireTimeout: 60000,
-    timeout: 60000,
-    reconnect: true,
-    charset: 'utf8mb4'
-};
-
-// Crear pool de conexiones
+let config;
 let pool = null;
 let isConnected = false;
 
-try {
-    pool = mysql.createPool(dbConfig);
-} catch (error) {
-    console.warn('⚠️ No se pudo crear pool de MySQL:', error.message);
+// Configuración de reintentos con backoff exponencial
+const RETRY_CONFIG = {
+    maxRetries: 5,
+    initialDelayMs: 1000,
+    maxDelayMs: 30000,
+    backoffMultiplier: 2
+};
+
+/**
+ * Inicializa el pool de conexiones PostgreSQL
+ */
+function initializePool() {
+    if (pool) return pool;
+    
+    try {
+        config = loadEnvConfig();
+        
+        pool = new Pool({
+            connectionString: config.databaseUrl,
+            max: 20,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 5000,
+        });
+        
+        // Manejar errores del pool
+        pool.on('error', (err) => {
+            console.error('❌ Error inesperado en el pool de PostgreSQL:', err.message);
+            isConnected = false;
+        });
+        
+        return pool;
+    } catch (error) {
+        console.error('❌ Error inicializando pool de PostgreSQL:', error.message);
+        throw error;
+    }
 }
 
-// Función para probar la conexión
-async function testConnection() {
+/**
+ * Calcula el delay para el siguiente reintento usando backoff exponencial
+ * @param {number} attempt - Número de intento actual (0-indexed)
+ * @returns {number} Delay en milisegundos
+ */
+function calculateBackoffDelay(attempt) {
+    const delay = RETRY_CONFIG.initialDelayMs * Math.pow(RETRY_CONFIG.backoffMultiplier, attempt);
+    return Math.min(delay, RETRY_CONFIG.maxDelayMs);
+}
+
+/**
+ * Espera un tiempo determinado
+ * @param {number} ms - Milisegundos a esperar
+ */
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Prueba la conexión a la base de datos con reintentos
+ * @param {number} maxRetries - Número máximo de reintentos (opcional)
+ * @returns {Promise<boolean>} true si la conexión fue exitosa
+ */
+async function testConnection(maxRetries = RETRY_CONFIG.maxRetries) {
+    initializePool();
+    
     if (!pool) {
-        console.warn('⚠️ Pool de MySQL no disponible');
+        console.warn('⚠️ Pool de PostgreSQL no disponible');
         return false;
     }
     
-    try {
-        const connection = await pool.getConnection();
-        console.log('✅ Conexión a MySQL establecida correctamente');
-        console.log(`📊 Base de datos: ${process.env.DB_NAME}`);
-        connection.release();
-        isConnected = true;
-        return true;
-    } catch (error) {
-        console.error('❌ Error conectando a MySQL:', error.message);
-        isConnected = false;
-        return false;
+    let lastError = null;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const client = await pool.connect();
+            const result = await client.query('SELECT NOW()');
+            client.release();
+            
+            console.log(`✅ PostgreSQL conectado (${config.nodeEnv})`);
+            console.log(`📊 Base de datos: ${config.databaseUrl.split('/').pop()}`);
+            isConnected = true;
+            return true;
+        } catch (error) {
+            lastError = error;
+            isConnected = false;
+            
+            if (attempt < maxRetries - 1) {
+                const delay = calculateBackoffDelay(attempt);
+                console.warn(`⚠️ Intento ${attempt + 1}/${maxRetries} fallido. Reintentando en ${delay}ms...`);
+                await sleep(delay);
+            }
+        }
     }
+    
+    console.error('❌ Error conectando a PostgreSQL después de', maxRetries, 'intentos:', lastError?.message);
+    return false;
 }
 
-// Función helper para ejecutar queries
-async function executeQuery(query, params = []) {
-    if (!isConnected || !pool) {
+/**
+ * Ejecuta una query SQL
+ * @param {string} text - Query SQL con placeholders $1, $2, etc.
+ * @param {Array} params - Parámetros para la query
+ * @returns {Promise<Object>} Resultado de la query
+ */
+async function query(text, params = []) {
+    initializePool();
+    
+    if (!pool) {
         throw new Error('Base de datos no disponible');
     }
     
+    const start = Date.now();
+    
     try {
-        const [results] = await pool.execute(query, params);
-        return results;
+        const result = await pool.query(text, params);
+        const duration = Date.now() - start;
+        
+        if (config?.nodeEnv === 'development') {
+            console.log('Query ejecutada', { 
+                text: text.substring(0, 100), 
+                duration: `${duration}ms`, 
+                rows: result.rowCount 
+            });
+        }
+        
+        return result;
     } catch (error) {
         console.error('❌ Error ejecutando query:', error.message);
         throw error;
     }
 }
 
-// Función helper para transacciones
+/**
+ * Ejecuta múltiples queries en una transacción
+ * @param {Array<{text: string, params: Array}>} queries - Array de queries
+ * @returns {Promise<Array>} Resultados de las queries
+ */
 async function executeTransaction(queries) {
-    if (!isConnected || !pool) {
+    initializePool();
+    
+    if (!pool) {
         throw new Error('Base de datos no disponible');
     }
     
-    const connection = await pool.getConnection();
+    const client = await pool.connect();
+    
     try {
-        await connection.beginTransaction();
+        await client.query('BEGIN');
         
         const results = [];
-        for (const { query, params } of queries) {
-            const [result] = await connection.execute(query, params);
+        for (const { text, params } of queries) {
+            const result = await client.query(text, params);
             results.push(result);
         }
         
-        await connection.commit();
+        await client.query('COMMIT');
         return results;
     } catch (error) {
-        await connection.rollback();
+        await client.query('ROLLBACK');
+        console.error('❌ Error en transacción, rollback ejecutado:', error.message);
         throw error;
     } finally {
-        connection.release();
+        client.release();
     }
 }
 
-// Función para verificar si la base de datos está disponible
+/**
+ * Verifica si la base de datos está disponible
+ * @returns {boolean}
+ */
 function isDatabaseAvailable() {
     return isConnected && pool !== null;
 }
 
+/**
+ * Obtiene el pool de conexiones
+ * @returns {Pool|null}
+ */
+function getPool() {
+    return pool;
+}
+
+/**
+ * Cierra el pool de conexiones
+ */
+async function closePool() {
+    if (pool) {
+        await pool.end();
+        pool = null;
+        isConnected = false;
+        console.log('🔌 Pool de PostgreSQL cerrado');
+    }
+}
+
 module.exports = {
     pool,
+    getPool,
+    query,
+    executeQuery: query, // Alias para compatibilidad con código existente
     testConnection,
-    executeQuery,
     executeTransaction,
-    isDatabaseAvailable
+    isDatabaseAvailable,
+    closePool,
+    initializePool,
+    // Exportar para testing
+    calculateBackoffDelay,
+    RETRY_CONFIG
 };

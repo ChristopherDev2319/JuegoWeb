@@ -4,19 +4,51 @@
 
 const express = require('express');
 const bcrypt = require('bcrypt');
-const { executeQuery, isDatabaseAvailable } = require('../config/database');
+const { query, executeTransaction, isDatabaseAvailable } = require('../config/database');
 const { generateToken } = require('../middleware/auth');
 const { validateRegister, validateLogin } = require('../middleware/validation');
 
 const router = express.Router();
 
-// Almacenamiento en memoria cuando MySQL no está disponible
+// Almacenamiento en memoria cuando PostgreSQL no está disponible
 let memoryUsers = global.memoryUsers || new Map();
-let memoryProgress = global.memoryProgress || new Map();
+let memoryStats = global.memoryStats || new Map();
+let memoryBans = global.memoryBans || new Map();
 global.memoryUsers = memoryUsers;
-global.memoryProgress = memoryProgress;
+global.memoryStats = memoryStats;
+global.memoryBans = memoryBans;
 
 let userIdCounter = global.userIdCounter || 1;
+
+/**
+ * Verifica si un usuario tiene un ban activo
+ * @param {number} userId - ID del usuario
+ * @returns {Promise<Object|null>} Ban activo o null
+ */
+async function getActiveBan(userId) {
+    if (!isDatabaseAvailable()) {
+        // Buscar en memoria
+        const bans = Array.from(memoryBans.values()).filter(
+            ban => ban.user_id === userId && 
+            (ban.expires_at === null || new Date(ban.expires_at) > new Date())
+        );
+        return bans.length > 0 ? bans[0] : null;
+    }
+    
+    // Buscar ban activo en PostgreSQL
+    // Un ban está activo si expires_at es NULL (permanente) o expires_at > NOW()
+    const result = await query(
+        `SELECT id, user_id, reason, expires_at, created_at 
+         FROM bans 
+         WHERE user_id = $1 
+         AND (expires_at IS NULL OR expires_at > NOW())
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [userId]
+    );
+    
+    return result.rows.length > 0 ? result.rows[0] : null;
+}
 
 // POST /api/auth/register - Registro de usuario
 router.post('/register', validateRegister, async (req, res) => {
@@ -43,7 +75,7 @@ router.post('/register', validateRegister, async (req, res) => {
             const saltRounds = 12;
             const passwordHash = await bcrypt.hash(password, saltRounds);
             
-            // Crear usuario en memoria
+            // Crear usuario en memoria con role 'player'
             const userId = userIdCounter++;
             global.userIdCounter = userIdCounter;
             
@@ -52,33 +84,25 @@ router.post('/register', validateRegister, async (req, res) => {
                 username,
                 email,
                 password_hash: passwordHash,
+                role: 'player',
                 created_at: new Date(),
                 is_active: true
             };
             
             memoryUsers.set(userId, newUser);
             
-            // Crear progreso inicial en memoria
-            memoryProgress.set(userId, {
+            // Crear player_stats inicial en memoria
+            memoryStats.set(userId, {
                 user_id: userId,
                 kills: 0,
                 deaths: 0,
-                shots_fired: 0,
-                shots_hit: 0,
-                playtime_seconds: 0,
-                mouse_sensitivity: 0.002,
-                volume: 0.5,
-                fov: 75,
-                show_fps: false,
-                level: 1,
-                experience: 0,
-                unlocked_weapons: ['M4A1', 'PISTOLA'],
-                additional_data: {},
+                matches: 0,
+                created_at: new Date(),
                 updated_at: new Date()
             });
             
-            // Generar token
-            const token = generateToken(userId);
+            // Generar token con role incluido
+            const token = generateToken(userId, username, email, 'player');
             
             return res.status(201).json({
                 success: true,
@@ -87,20 +111,21 @@ router.post('/register', validateRegister, async (req, res) => {
                     user: {
                         id: userId,
                         username,
-                        email
+                        email,
+                        role: 'player'
                     },
                     token
                 }
             });
         }
 
-        // Código original para MySQL
-        const existingUser = await executeQuery(
-            'SELECT id FROM users WHERE username = ? OR email = ?',
+        // PostgreSQL: Verificar si el usuario ya existe
+        const existingUser = await query(
+            'SELECT id FROM users WHERE username = $1 OR email = $2',
             [username, email]
         );
 
-        if (existingUser.length > 0) {
+        if (existingUser.rows.length > 0) {
             return res.status(409).json({
                 success: false,
                 message: 'El nombre de usuario o email ya está en uso'
@@ -111,30 +136,33 @@ router.post('/register', validateRegister, async (req, res) => {
         const saltRounds = 12;
         const passwordHash = await bcrypt.hash(password, saltRounds);
 
-        // Crear usuario
-        const result = await executeQuery(
-            'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
-            [username, email, passwordHash]
-        );
+        // Crear usuario y player_stats en una transacción
+        const results = await executeTransaction([
+            {
+                text: `INSERT INTO users (username, email, password_hash, role) 
+                       VALUES ($1, $2, $3, 'player') 
+                       RETURNING id, username, email, role`,
+                params: [username, email, passwordHash]
+            }
+        ]);
 
-        const userId = result.insertId;
+        const newUser = results[0].rows[0];
+        const userId = newUser.id;
 
-        // Crear progreso inicial
-        await executeQuery(`
-            INSERT INTO user_progress (
-                user_id, kills, deaths, shots_fired, shots_hit, playtime_seconds,
-                mouse_sensitivity, volume, fov, show_fps, level, experience, unlocked_weapons
-            ) VALUES (?, 0, 0, 0, 0, 0, 0.002, 0.5, 75, FALSE, 1, 0, ?)
-        `, [userId, JSON.stringify(['M4A1', 'PISTOLA'])]);
-
-        // Generar token
-        const token = generateToken(userId);
-
-        // Actualizar último login
-        await executeQuery(
-            'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
+        // Crear player_stats para el nuevo usuario
+        await query(
+            'INSERT INTO player_stats (user_id, kills, deaths, matches) VALUES ($1, 0, 0, 0)',
             [userId]
         );
+
+        // Actualizar último login
+        await query(
+            'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
+            [userId]
+        );
+
+        // Generar token con role incluido
+        const token = generateToken(userId, newUser.username, newUser.email, newUser.role);
 
         res.status(201).json({
             success: true,
@@ -142,8 +170,9 @@ router.post('/register', validateRegister, async (req, res) => {
             data: {
                 user: {
                     id: userId,
-                    username,
-                    email
+                    username: newUser.username,
+                    email: newUser.email,
+                    role: newUser.role
                 },
                 token
             }
@@ -187,6 +216,19 @@ router.post('/login', validateLogin, async (req, res) => {
                 });
             }
             
+            // Verificar ban activo en memoria
+            const activeBan = await getActiveBan(user.id);
+            if (activeBan) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Usuario baneado',
+                    ban: {
+                        reason: activeBan.reason,
+                        expires_at: activeBan.expires_at
+                    }
+                });
+            }
+            
             // Verificar contraseña
             const isValidPassword = await bcrypt.compare(password, user.password_hash);
             if (!isValidPassword) {
@@ -196,8 +238,8 @@ router.post('/login', validateLogin, async (req, res) => {
                 });
             }
             
-            // Generar token
-            const token = generateToken(user.id);
+            // Generar token con role incluido
+            const token = generateToken(user.id, user.username, user.email, user.role || 'player');
             
             return res.json({
                 success: true,
@@ -206,33 +248,47 @@ router.post('/login', validateLogin, async (req, res) => {
                     user: {
                         id: user.id,
                         username: user.username,
-                        email: user.email
+                        email: user.email,
+                        role: user.role || 'player'
                     },
                     token
                 }
             });
         }
 
-        // Código original para MySQL
-        const users = await executeQuery(
-            'SELECT id, username, email, password_hash, is_active FROM users WHERE username = ? OR email = ?',
-            [username, username]
+        // PostgreSQL: Buscar usuario
+        const result = await query(
+            'SELECT id, username, email, password_hash, role, is_active FROM users WHERE username = $1 OR email = $1',
+            [username]
         );
 
-        if (users.length === 0) {
+        if (result.rows.length === 0) {
             return res.status(401).json({
                 success: false,
                 message: 'Credenciales inválidas'
             });
         }
 
-        const user = users[0];
+        const user = result.rows[0];
 
         // Verificar si está activo
         if (!user.is_active) {
             return res.status(401).json({
                 success: false,
                 message: 'Cuenta desactivada'
+            });
+        }
+
+        // Verificar ban activo antes de permitir login
+        const activeBan = await getActiveBan(user.id);
+        if (activeBan) {
+            return res.status(403).json({
+                success: false,
+                message: 'Usuario baneado',
+                ban: {
+                    reason: activeBan.reason,
+                    expires_at: activeBan.expires_at
+                }
             });
         }
 
@@ -245,12 +301,12 @@ router.post('/login', validateLogin, async (req, res) => {
             });
         }
 
-        // Generar token
-        const token = generateToken(user.id);
+        // Generar token con role incluido
+        const token = generateToken(user.id, user.username, user.email, user.role);
 
         // Actualizar último login
-        await executeQuery(
-            'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
+        await query(
+            'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
             [user.id]
         );
 
@@ -261,7 +317,8 @@ router.post('/login', validateLogin, async (req, res) => {
                 user: {
                     id: user.id,
                     username: user.username,
-                    email: user.email
+                    email: user.email,
+                    role: user.role
                 },
                 token
             }
