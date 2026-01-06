@@ -85,7 +85,7 @@ import {
 } from './sistemas/controles.js';
 
 import { crearEfectoDash } from './utils/efectos.js';
-import { mostrarIndicadorDaño, mostrarMensajeConexion, ocultarMensajeConexion, mostrarPantallaMuerte, ocultarPantallaMuerte, agregarEntradaKillFeed, actualizarBarraVida, mostrarEfectoDaño, mostrarDañoCausado, actualizarInfoArma, mostrarCambioArma, actualizarBarraCuracion, ocultarBarraCuracion } from './utils/ui.js';
+import { mostrarIndicadorDaño, mostrarMensajeConexion, ocultarMensajeConexion, mostrarPantallaMuerte, ocultarPantallaMuerte, agregarEntradaKillFeed, actualizarBarraVida, mostrarEfectoDaño, mostrarDañoCausado, actualizarInfoArma, mostrarCambioArma, actualizarBarraCuracion, ocultarBarraCuracion, actualizarHealBox, inicializarLucideIcons } from './utils/ui.js';
 
 // Network imports
 import { getConnection } from './network/connection.js';
@@ -1222,7 +1222,10 @@ async function inicializarJuegoCompleto() {
 
   // Inicializar displays de UI
   actualizarDisplayMunicion();
-  actualizarDisplayDash();
+  actualizarRecargaDash();
+  
+  // Inicializar iconos de Lucide
+  inicializarLucideIcons();
 
   // Initialize network connection (Requirement 2.1)
   // Solo conectar si es modo online
@@ -1801,7 +1804,7 @@ function procesarEstadoJuego(gameState) {
     
     // Update UI
     actualizarDisplayMunicion();
-    actualizarDisplayDash();
+    actualizarRecargaDash();
   }
 }
 
@@ -2302,7 +2305,7 @@ function manejarDash() {
       crearEfectoDash(jugador.posicion, scene);
     });
   }
-  actualizarDisplayDash();
+  actualizarRecargaDash();
 }
 
 /**
@@ -2788,10 +2791,11 @@ function actualizarDisplayMunicion() {
 }
 
 /**
- * Actualiza el display de cargas de dash en la UI
- * Usa la misma lógica que actualizarCargasDash de ui.js
- * Requirements: 2.6, 2.7, 2.8 - Estado visual de cargas de dash
+ * OLD actualizarDisplayDash - DEPRECATED
+ * Now using actualizarDashBox from dash.js which is called in actualizarRecargaDash
+ * Keeping commented for reference
  */
+/*
 function actualizarDisplayDash() {
   // Buscar el contenedor de dash
   const dashContainer = document.getElementById('dash-charges');
@@ -2826,6 +2830,7 @@ function actualizarDisplayDash() {
     }
   }
 }
+*/
 
 /**
  * Bucle principal del juego
@@ -2867,9 +2872,10 @@ function bucleJuego() {
     // Update local systems (for prediction/responsiveness)
     if (!isMultiplayerConnected) {
       // Only update dash recharge locally when not connected
+      // actualizarDashBox is now called inside actualizarRecargaDash
       actualizarRecargaDash();
     }
-    actualizarDisplayDash();
+    // OLD: actualizarDisplayDash() - now using actualizarDashBox from dash.js
     
     // Actualizar interpolación del dash si está en progreso
     // Requirements: 1.2 - Actualizar posición del jugador en cada frame durante dash
@@ -2893,9 +2899,26 @@ function bucleJuego() {
       }
       // Actualizar UI de progreso de curación
       actualizarBarraCuracion(obtenerProgresoCuracion());
+      
+      // Requirements: 5.4, 5.5, 5.6 - Actualizar Heal Box UI durante curación
+      actualizarHealBox({
+        puedeUsarse: false,
+        enCooldown: true
+      });
     } else {
       // Ocultar barra de curación si no está curando
       ocultarBarraCuracion();
+      
+      // Requirements: 5.4, 5.5 - Actualizar Heal Box UI cuando no está curando
+      // Verificar si puede curarse (vida no llena)
+      const vidaActual = jugador.health || jugador.vida || jugador.vidaActual || 0;
+      const vidaMaxima = jugador.maxHealth || jugador.vidaMaxima || 200;
+      const puedeUsarse = vidaActual < vidaMaxima;
+      
+      actualizarHealBox({
+        puedeUsarse: puedeUsarse,
+        enCooldown: false
+      });
     }
 
     // Disparo automático si el mouse está presionado (solo para armas automáticas)

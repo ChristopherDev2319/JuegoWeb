@@ -165,47 +165,66 @@ export function mostrarCambioArma(nombreArma) {
   }, 2000);
 }
 
+// Cache para elementos de dash
+let cachedDashContainer = null;
+let cachedDashIcons = null;
+
 /**
- * Actualiza el display de cargas de dash
+ * OLD actualizarCargasDash - DEPRECATED
+ * Now using actualizarDashBox for the new dash-box UI
+ * Keeping for backward compatibility but should not be used
  * Requirements: 2.6, 2.7, 2.8 - Estado visual de cargas de dash
+ * OPTIMIZADO: Cache de elementos DOM
  * @param {Object} sistemaDash - Estado del sistema dash
  */
 export function actualizarCargasDash(sistemaDash) {
-  // Selector principal del contenedor de dash
-  const dashContainer = document.getElementById('dash-charges');
-  if (!dashContainer) return;
+  // OLD: This function targeted the deprecated #dash-charges element
+  // Now using actualizarDashBox for the new #dash-box element
+  // Keeping function signature for backward compatibility
   
-  // Buscar iconos dentro del contenedor de dash-icons (nuevo diseño)
-  // o directamente en el contenedor (compatibilidad)
-  const iconsContainer = dashContainer.querySelector('.dash-icons-container');
-  const icons = iconsContainer 
-    ? iconsContainer.querySelectorAll('.dash-icon') 
-    : dashContainer.querySelectorAll('.dash-icon');
+  // Cachear elementos si no están cacheados
+  if (!cachedDashContainer) {
+    cachedDashContainer = document.getElementById('dash-charges');
+  }
+  if (!cachedDashContainer) return;
   
-  if (!icons.length) return;
+  // Cachear iconos si no están cacheados
+  if (!cachedDashIcons) {
+    const iconsContainer = cachedDashContainer.querySelector('.dash-icons-container');
+    cachedDashIcons = iconsContainer 
+      ? iconsContainer.querySelectorAll('.dash-icon') 
+      : cachedDashContainer.querySelectorAll('.dash-icon');
+  }
+  
+  if (!cachedDashIcons || !cachedDashIcons.length) return;
 
   // Soportar tanto nombres en inglés como español para compatibilidad
   const cargasActuales = sistemaDash.currentCharges ?? sistemaDash.cargasActuales ?? 0;
   const cargasRecargando = sistemaDash.rechargingCharges ?? sistemaDash.cargasRecargando ?? [];
 
-  for (let i = 0; i < icons.length; i++) {
-    const icon = icons[i];
-    
-    // Remover todas las clases de estado primero
-    icon.classList.remove('recharging', 'empty');
+  for (let i = 0; i < cachedDashIcons.length; i++) {
+    const icon = cachedDashIcons[i];
     
     // Requirements: 2.8 - Indicador verde brillante cuando carga disponible
     if (i < cargasActuales) {
-      // Carga disponible - estado base (verde brillante)
-      // No se necesita clase adicional, el estilo base es verde
+      // Carga disponible - solo cambiar si tiene clases incorrectas
+      if (icon.classList.contains('recharging') || icon.classList.contains('empty')) {
+        icon.classList.remove('recharging', 'empty');
+      }
     }
     // Requirements: 2.7 - Indicador de progreso cuando se está recargando
     else if (cargasRecargando[i]) {
-      icon.classList.add('recharging');
+      if (!icon.classList.contains('recharging')) {
+        icon.classList.remove('empty');
+        icon.classList.add('recharging');
+      }
     }
     // Requirements: 2.6 - Indicador vacío cuando no está disponible
     else {
-      icon.classList.add('empty');
+      if (!icon.classList.contains('empty')) {
+        icon.classList.remove('recharging');
+        icon.classList.add('empty');
+      }
     }
   }
 }
@@ -492,15 +511,22 @@ let healthAnimationFrame = null;
 let cachedHealthBar = null;
 let cachedHealthText = null;
 let cachedMaxHealth = 200;
+let lastHealthClass = ''; // Cache para evitar cambios de clase innecesarios
 
 /**
  * Update health bar display with smooth interpolation
+ * Requirements: 3.3 - Transición suave de 150ms
+ * Requirements: 3.4, 3.5, 3.6 - Clases de color según porcentaje
+ * OPTIMIZADO: Reduce actualizaciones del DOM
  * @param {number} currentHealth - Current health value
  * @param {number} maxHealth - Maximum health value (default 200)
  */
 export function actualizarBarraVida(currentHealth, maxHealth = 200) {
-  cachedHealthBar = document.getElementById('health-bar');
-  cachedHealthText = document.getElementById('health-text');
+  // Solo cachear elementos si no están cacheados
+  if (!cachedHealthBar) {
+    cachedHealthBar = document.getElementById('health-bar');
+    cachedHealthText = document.getElementById('health-text');
+  }
   cachedMaxHealth = maxHealth;
   
   if (!cachedHealthBar) return;
@@ -516,6 +542,11 @@ export function actualizarBarraVida(currentHealth, maxHealth = 200) {
 
 /**
  * Animate health bar smoothly towards target
+ * Requirements: 3.3 - Transición suave de 150ms (CSS)
+ * Requirements: 3.4 - Color rojo con pulso cuando vida < 25%
+ * Requirements: 3.5 - Color amarillo/naranja cuando vida entre 25% y 50%
+ * Requirements: 3.6 - Color verde cuando vida > 50%
+ * OPTIMIZADO: Reduce manipulaciones del DOM
  */
 function animarBarraVida() {
   if (!cachedHealthBar) {
@@ -533,21 +564,37 @@ function animarBarraVida() {
     currentDisplayHealth = targetHealth;
   }
   
-  // Actualizar visual
+  // Actualizar visual - solo si cambió significativamente
   const healthPercent = Math.max(0, Math.min(100, (currentDisplayHealth / cachedMaxHealth) * 100));
   cachedHealthBar.style.width = `${healthPercent}%`;
   
-  // Actualizar color basado en nivel de vida
-  cachedHealthBar.classList.remove('low', 'medium');
+  // Determinar clase de color según porcentaje
+  // Requirements: 3.4 - low cuando < 25%
+  // Requirements: 3.5 - medium cuando 25% <= vida <= 50%
+  // Requirements: 3.6 - normal (sin clase) cuando > 50%
+  let newClass = '';
   if (healthPercent <= 25) {
-    cachedHealthBar.classList.add('low');
+    newClass = 'low';
   } else if (healthPercent <= 50) {
-    cachedHealthBar.classList.add('medium');
+    newClass = 'medium';
   }
   
-  // Actualizar texto
+  // Solo actualizar clases si cambiaron
+  if (newClass !== lastHealthClass) {
+    cachedHealthBar.classList.remove('low', 'medium');
+    if (newClass) {
+      cachedHealthBar.classList.add(newClass);
+    }
+    lastHealthClass = newClass;
+  }
+  
+  // Actualizar texto solo si cambió el valor entero
   if (cachedHealthText) {
-    cachedHealthText.textContent = `${Math.round(targetHealth)} / ${cachedMaxHealth}`;
+    const roundedHealth = Math.round(targetHealth);
+    const currentText = `${roundedHealth} / ${cachedMaxHealth}`;
+    if (cachedHealthText.textContent !== currentText) {
+      cachedHealthText.textContent = currentText;
+    }
   }
   
   // Continuar animación si no hemos llegado al objetivo
@@ -792,4 +839,171 @@ export function ocultarBarraCuracion() {
     container.style.opacity = '0';
   }
   barraCuracionVisible = false;
+}
+
+// Cache para elementos del Dash Box
+let cachedDashBox = null;
+let cachedDashCircle = null;
+let cachedDashCircleNumber = null;
+let cachedDashCircleProgress = null;
+// Cache de estado anterior para evitar actualizaciones innecesarias
+let lastDashState = { cargas: null, recargando: null, progreso: null };
+
+// Constante para el perímetro del círculo SVG (2 * PI * 15.5)
+const DASH_CIRCLE_CIRCUMFERENCE = 97.4;
+
+/**
+ * Actualiza el Dash Box con el estado actual del sistema de dash
+ * Requirements: 4.5, 4.6, 4.7, 4.8, 4.9
+ * OPTIMIZADO: Solo actualiza si el estado cambió significativamente
+ * 
+ * @param {Object} estadoDash - Estado del sistema de dash
+ * @param {number} estadoDash.cargasActuales - Número de cargas disponibles (0-3)
+ * @param {number} estadoDash.cargasMaximas - Número máximo de cargas (default 3)
+ * @param {boolean} estadoDash.estaRecargando - Si hay una carga recargándose
+ * @param {number} estadoDash.progresoRecarga - Progreso de recarga (0-1)
+ */
+export function actualizarDashBox(estadoDash) {
+  const cargasActuales = estadoDash.cargasActuales ?? 0;
+  const estaRecargando = estadoDash.estaRecargando ?? false;
+  const progresoRecarga = estadoDash.progresoRecarga ?? 0;
+  
+  // OPTIMIZACIÓN: Solo actualizar si el estado cambió significativamente
+  const progresoRedondeado = Math.round(progresoRecarga * 20) / 20; // Redondear a 5%
+  if (lastDashState.cargas === cargasActuales && 
+      lastDashState.recargando === estaRecargando && 
+      lastDashState.progreso === progresoRedondeado) {
+    return;
+  }
+  lastDashState.cargas = cargasActuales;
+  lastDashState.recargando = estaRecargando;
+  lastDashState.progreso = progresoRedondeado;
+  
+  // Cachear elementos si no están cacheados
+  if (!cachedDashBox) {
+    cachedDashBox = document.getElementById('dash-box');
+  }
+  if (!cachedDashCircle) {
+    cachedDashCircle = document.getElementById('dash-circle');
+  }
+  if (!cachedDashCircleNumber) {
+    cachedDashCircleNumber = cachedDashCircle?.querySelector('.dash-circle-number');
+  }
+  if (!cachedDashCircleProgress) {
+    cachedDashCircleProgress = cachedDashCircle?.querySelector('.dash-circle-progress');
+  }
+  
+  if (!cachedDashBox || !cachedDashCircle) return;
+  const cargasMaximas = estadoDash.cargasMaximas ?? 3;
+  
+  // Requirements: 4.5 - Actualizar número de cargas en la circunferencia
+  if (cachedDashCircleNumber) {
+    cachedDashCircleNumber.textContent = cargasActuales.toString();
+  }
+  
+  // Determinar estado visual
+  // Requirements: 4.6 - Verde cuando hay cargas disponibles
+  // Requirements: 4.7 - Gris cuando está recargando
+  if (cargasActuales > 0) {
+    cachedDashCircle.classList.remove('empty', 'recharging');
+    cachedDashCircle.classList.add('available');
+    cachedDashBox.classList.remove('empty');
+    cachedDashBox.classList.add('available');
+  } else if (estaRecargando) {
+    cachedDashCircle.classList.remove('available', 'empty');
+    cachedDashCircle.classList.add('recharging');
+    cachedDashBox.classList.remove('available');
+    cachedDashBox.classList.add('empty');
+  } else {
+    cachedDashCircle.classList.remove('available', 'recharging');
+    cachedDashCircle.classList.add('empty');
+    cachedDashBox.classList.remove('available');
+    cachedDashBox.classList.add('empty');
+  }
+  
+  // Requirements: 4.8 - Actualizar progreso de recarga con SVG stroke-dashoffset
+  if (cachedDashCircleProgress) {
+    if (estaRecargando && cargasActuales < cargasMaximas) {
+      // Calcular el offset basado en el progreso (0 = vacío, 1 = lleno)
+      // stroke-dashoffset: 97.4 = vacío, 0 = lleno
+      const offset = DASH_CIRCLE_CIRCUMFERENCE * (1 - progresoRecarga);
+      cachedDashCircleProgress.style.strokeDashoffset = offset.toString();
+    } else if (cargasActuales >= cargasMaximas) {
+      // Círculo completo cuando todas las cargas están disponibles
+      cachedDashCircleProgress.style.strokeDashoffset = '0';
+    } else if (cargasActuales === 0 && !estaRecargando) {
+      // Círculo vacío cuando no hay cargas y no está recargando
+      cachedDashCircleProgress.style.strokeDashoffset = DASH_CIRCLE_CIRCUMFERENCE.toString();
+    }
+  }
+}
+
+// Cache para elementos del Heal Box
+let cachedHealBox = null;
+let cachedHealIcon = null;
+// Cache de estado anterior para evitar actualizaciones innecesarias
+let lastHealState = { puedeUsarse: null, enCooldown: null };
+
+/**
+ * Actualiza el Heal Box con el estado actual del sistema de curación
+ * Requirements: 5.4, 5.5, 5.6
+ * OPTIMIZADO: Solo actualiza si el estado cambió
+ * 
+ * @param {Object} estadoHeal - Estado del sistema de curación
+ * @param {boolean} estadoHeal.puedeUsarse - Si el jugador puede curarse
+ * @param {boolean} estadoHeal.enCooldown - Si la curación está en cooldown
+ * @param {number} estadoHeal.progresoCooldown - Progreso del cooldown (0-1)
+ */
+export function actualizarHealBox(estadoHeal) {
+  const puedeUsarse = estadoHeal.puedeUsarse ?? false;
+  const enCooldown = estadoHeal.enCooldown ?? false;
+  
+  // OPTIMIZACIÓN: Solo actualizar si el estado cambió
+  if (lastHealState.puedeUsarse === puedeUsarse && lastHealState.enCooldown === enCooldown) {
+    return;
+  }
+  lastHealState.puedeUsarse = puedeUsarse;
+  lastHealState.enCooldown = enCooldown;
+  
+  // Cachear elementos si no están cacheados
+  if (!cachedHealBox) {
+    cachedHealBox = document.getElementById('heal-box');
+  }
+  if (!cachedHealIcon) {
+    cachedHealIcon = cachedHealBox?.querySelector('.action-icon');
+  }
+  
+  if (!cachedHealBox) return;
+  
+  // Requirements: 5.4 - Icono verde/blanco brillante cuando puede curarse
+  // Requirements: 5.5 - Icono gris atenuado cuando no puede curarse
+  if (puedeUsarse) {
+    cachedHealBox.classList.remove('disabled', 'cooldown');
+    cachedHealBox.classList.add('enabled');
+  } else if (enCooldown) {
+    // Requirements: 5.6 - Indicador de cooldown
+    cachedHealBox.classList.remove('enabled', 'disabled');
+    cachedHealBox.classList.add('cooldown');
+  } else {
+    cachedHealBox.classList.remove('enabled', 'cooldown');
+    cachedHealBox.classList.add('disabled');
+  }
+}
+
+/**
+ * Inicializa los iconos de Lucide después de que el DOM esté listo
+ * Requirements: 6.1, 6.2, 6.3
+ */
+export function inicializarLucideIcons() {
+  // Verificar que Lucide esté disponible
+  if (typeof window.lucide !== 'undefined' && window.lucide.createIcons) {
+    window.lucide.createIcons();
+  } else {
+    // Reintentar después de un breve delay si Lucide aún no está cargado
+    setTimeout(() => {
+      if (typeof window.lucide !== 'undefined' && window.lucide.createIcons) {
+        window.lucide.createIcons();
+      }
+    }, 100);
+  }
 }

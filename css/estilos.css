@@ -1498,14 +1498,13 @@ canvas {
 
 /* Display de munición - Diseño moderno */
 /* Requirements: 4.1, 3.1 */
+/* OPTIMIZADO: Removido backdrop-filter para mejor rendimiento */
 #weapon-info {
   position: fixed;
   bottom: 20px;
   right: 20px;
   color: white;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 12px 16px;
   border-radius: 12px;
@@ -1617,14 +1616,15 @@ canvas {
 
 /* Munición baja - color rojo */
 /* Requirements: 4.5 */
+/* OPTIMIZADO: Animación más lenta para mejor rendimiento */
 #ammo.low {
   color: #ff4444;
-  animation: ammoLowPulse 1s ease-in-out infinite;
+  animation: ammoLowPulse 2s ease-in-out infinite;
 }
 
 @keyframes ammoLowPulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  50% { opacity: 0.6; }
 }
 
 /* Recargando - color amarillo */
@@ -1657,16 +1657,15 @@ canvas {
 #aim-indicator.active {
   opacity: 1;
 }
-/* Notificación de cambio de arma - Diseño moderno con blur */
+/* Notificación de cambio de arma - Diseño moderno */
 /* Requirements: 3.4 */
+/* OPTIMIZADO: Removido backdrop-filter para mejor rendimiento */
 #weapon-change-notification {
   position: fixed;
   top: 20%;
   left: 50%;
   transform: translateX(-50%) scale(0.9);
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.8);
   color: white;
   padding: 14px 28px;
   border-radius: 12px;
@@ -1724,26 +1723,27 @@ canvas {
 }
 
 /* ==================== PLAYER STATUS PANEL ==================== */
-/* Panel unificado de vida y dash - Requirements: 2.1, 3.1 */
+/* Panel de vida y dash - Requirements: 3.1 - Barra de vida en esquina inferior izquierda */
 
 #player-status-panel {
   position: fixed;
   bottom: 20px;
   left: 20px;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 12px 16px;
+  flex-direction: column-reverse;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
   z-index: 100;
 }
 
-/* Cargas de dash - integradas en el panel */
-/* Requirements: 2.6, 2.7, 2.8 */
+/* OLD DASH-CHARGES STYLES - DEPRECATED
+ * Now using dash-box in bottom-right-panel
+ * Keeping commented for reference
+ */
+/*
 #dash-charges {
   display: flex;
   align-items: center;
@@ -1754,12 +1754,17 @@ canvas {
   font-family: 'Segoe UI', sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 8px 12px;
 }
 
 #dash-charges > span:first-child {
   color: rgba(255, 255, 255, 0.6);
   font-size: 11px;
 }
+*/
 
 /* Contenedor de iconos de dash */
 .dash-icons-container {
@@ -1794,27 +1799,22 @@ canvas {
   border-radius: 50%;
 }
 
-/* Dash recargando - amarillo con animación */
+/* Dash recargando - amarillo con animación suave */
 /* Requirements: 2.7 */
+/* OPTIMIZADO: Animación más lenta para mejor rendimiento */
 .dash-icon.recharging {
   background: linear-gradient(135deg, #ffaa00 0%, #ff8800 100%);
   box-shadow: 0 2px 8px rgba(255, 170, 0, 0.3);
-  animation: dashRecharging 1s ease-in-out infinite;
+  animation: dashRecharging 2s ease-in-out infinite;
 }
 
 .dash-icon.recharging::after {
   background: rgba(255, 255, 255, 0.5);
-  animation: dashPulse 1s ease-in-out infinite;
 }
 
 @keyframes dashRecharging {
-  0%, 100% { opacity: 0.6; }
+  0%, 100% { opacity: 0.7; }
   50% { opacity: 1; }
-}
-
-@keyframes dashPulse {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); }
-  50% { transform: translate(-50%, -50%) scale(1.2); }
 }
 
 /* Dash vacío - gris oscuro */
@@ -1891,9 +1891,9 @@ canvas {
 /* Kill feed - Diseño moderno */
 /* Requirements: 3.3 - Animación de deslizamiento desde la derecha */
 #kill-feed {
-  position: absolute;
-  top: 10px;
-  right: 10px;
+  position: fixed;
+  top: 280px;
+  right: 20px;
   width: 320px;
   max-height: 220px;
   overflow: hidden;
@@ -1901,12 +1901,16 @@ canvas {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  transition: top 0.3s ease;
+}
+
+/* Kill feed cuando el chat está minimizado */
+#kill-feed.chat-minimized {
+  top: 60px;
 }
 
 .kill-entry {
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.75);
   color: white;
   padding: 10px 14px;
   border-radius: 10px;
@@ -1976,44 +1980,280 @@ canvas {
   font-size: 12px;
 }
 
-/* Health bar - Estilo moderno integrado en panel */
-/* Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.1 */
-#health-bar-container {
-  width: 200px;
-  height: 20px;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
-  position: relative;
+/* Health bar - Barra de vida grande y prominente */
+/* Requirements: 3.1, 3.2 - Barra de vida centrada abajo, 350px x 35px */
+
+#player-status-panel {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
 }
 
-/* Requirements: 2.2, 2.5 - Transición suave y color verde por defecto */
+#health-bar-container {
+  width: 350px;
+  height: 35px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  position: relative;
+  will-change: contents;
+  contain: layout style;
+}
+
+/* Requirements: 3.3 - Transición suave de 150ms y color verde por defecto */
 #health-bar {
   width: 100%;
   height: 100%;
-  background: linear-gradient(180deg, #00ff66 0%, #00dd55 50%, #00bb44 100%);
+  background: #00dd55;
   transition: width 0.15s linear;
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2);
   border-radius: 10px;
+  will-change: width;
+  transform: translateZ(0);
 }
 
-/* Requirements: 2.3 - Color rojo con efecto de pulso cuando vida < 25% */
+/* Requirements: 3.4 - Color rojo con efecto de pulso cuando vida < 25% */
 #health-bar.low {
-  background: linear-gradient(180deg, #ff4444 0%, #dd0000 50%, #bb0000 100%);
-  animation: healthPulse 0.8s ease-in-out infinite;
+  background: #dd0000;
+  animation: healthPulse 1s ease-in-out infinite;
 }
 
 @keyframes healthPulse {
-  0%, 100% { opacity: 1; box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2); }
-  50% { opacity: 0.85; box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2), 0 0 10px rgba(255, 0, 0, 0.5); }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
-/* Requirements: 2.4 - Color amarillo/naranja cuando vida entre 25% y 50% */
+/* Requirements: 3.5 - Color amarillo/naranja cuando vida entre 25% y 50% */
 #health-bar.medium {
-  background: linear-gradient(180deg, #ffcc00 0%, #ffaa00 50%, #dd8800 100%);
+  background: #ffaa00;
 }
+
+/* Requirements: 3.6 - Color verde cuando vida > 50% (default) */
+
+/* ==================== BOTTOM LEFT PANEL ==================== */
+/* Requirements: 4.1, 5.1 - Panel inferior izquierdo con Dash_Box y Heal_Box */
+
+#top-left-panel {
+  position: fixed;
+  bottom: 30px;
+  left: 150px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 12px;
+  z-index: 100;
+}
+
+/* Forzar orden: Dash primero, Heal segundo */
+#top-left-panel #dash-box {
+  order: 1;
+}
+
+#top-left-panel #heal-box {
+  order: 2;
+}
+
+/* ==================== BOTTOM RIGHT PANEL ==================== */
+/* Requirements: 9.1, 9.2 - Panel inferior derecho con Weapon_Info */
+
+#bottom-right-panel {
+  position: fixed;
+  bottom: 30px;
+  right: 20px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 12px;
+  z-index: 100;
+}
+
+/* Cuando está dentro del panel, weapon-info no necesita position fixed */
+#bottom-right-panel #weapon-info {
+  position: static;
+}
+
+/* ==================== ACTION BOX (Base para Heal y Dash) ==================== */
+/* Requirements: 4.1, 5.1 - Cuadros de acción con iconos y teclas */
+
+.action-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 6px;
+  position: relative;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.action-box:hover {
+  background: rgba(0, 0, 0, 0.85);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Icono de acción (Lucide Icons) */
+.action-icon {
+  width: 20px;
+  height: 20px;
+  color: white;
+  stroke-width: 2;
+  transition: all 0.2s ease;
+}
+
+/* Tecla de acción - AFUERA y DEBAJO del contenedor */
+.action-key {
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Segoe UI', sans-serif;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+/* ==================== HEAL BOX ==================== */
+/* Requirements: 5.1, 5.2, 5.3, 5.4, 5.5 */
+
+#heal-box .action-icon {
+  color: #ff3333;
+}
+
+#heal-box.enabled .action-icon {
+  color: #ff3333;
+  filter: drop-shadow(0 0 4px rgba(255, 51, 51, 0.5));
+}
+
+#heal-box.disabled .action-icon {
+  color: #666666;
+  opacity: 0.5;
+}
+
+#heal-box.cooldown .action-icon {
+  color: #ffaa00;
+  animation: healCooldownPulse 1s ease-in-out infinite;
+}
+
+@keyframes healCooldownPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+}
+
+/* Indicador de cooldown circular para heal */
+#heal-box .cooldown-indicator {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 20px;
+}
+
+/* ==================== DASH BOX ==================== */
+/* Requirements: 4.1, 4.2, 4.3, 4.4 */
+
+#dash-box {
+  margin-top: 20px; /* Espacio para el dash-circle que sobresale arriba */
+}
+
+#dash-box .action-icon {
+  color: #ffcc00;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+#dash-box.available .action-icon {
+  color: #00ff66;
+  filter: drop-shadow(0 0 4px rgba(0, 255, 102, 0.5));
+}
+
+#dash-box.empty .action-icon {
+  color: #666666;
+  opacity: 0.5;
+}
+
+/* ==================== DASH CIRCLE ==================== */
+/* Requirements: 4.4, 4.5, 4.6, 4.7, 4.8 */
+
+#dash-circle {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dash-circle-svg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.dash-circle-bg {
+  fill: none;
+  stroke: rgba(100, 100, 100, 0.5);
+  stroke-width: 3;
+}
+
+/* Requirements: 4.6 - Borde verde cuando hay cargas disponibles */
+.dash-circle-progress {
+  fill: none;
+  stroke: #00ff66;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 97.4; /* 2 * PI * 15.5 */
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 0.1s linear, stroke 0.2s ease;
+}
+
+/* Requirements: 4.7 - Borde gris cuando está recargando */
+#dash-circle.recharging .dash-circle-progress {
+  stroke: #888888;
+}
+
+/* Requirements: 4.5 - Número de cargas dentro de la circunferencia */
+.dash-circle-number {
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  font-family: 'Segoe UI', sans-serif;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  z-index: 1;
+}
+
+/* Color del número según estado */
+#dash-circle.available .dash-circle-number {
+  color: #00ff66;
+}
+
+#dash-circle.empty .dash-circle-number {
+  color: #666666;
+}
+
+#dash-circle.recharging .dash-circle-number {
+  color: #ffaa00;
+}
+
+/* ==================== FIN BOTTOM RIGHT PANEL ==================== */
 
 #health-text {
   position: absolute;
@@ -2021,9 +2261,9 @@ canvas {
   left: 50%;
   transform: translate(-50%, -50%);
   color: white;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: bold;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);
   pointer-events: none;
   letter-spacing: 0.5px;
   font-family: 'Segoe UI', sans-serif;
@@ -5178,21 +5418,24 @@ canvas {
 /* ==================== FIN PANTALLA DE MUERTE ==================== */
 
 /* ==================== SCOREBOARD STYLES ==================== */
+/* Requirements: 2.1, 2.2 - Scoreboard en esquina superior izquierda */
 
 /* Panel principal del scoreboard */
 .scoreboard-panel {
   position: fixed;
   top: 20px;
   left: 20px;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.85);
   border-radius: 12px;
   padding: 15px;
-  min-width: 200px;
-  max-width: 280px;
+  min-width: 220px;
+  max-width: 300px;
   z-index: 500;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(126, 200, 227, 0.2);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6), 
+              0 0 0 1px rgba(255, 255, 255, 0.05) inset;
 }
 
 /* Header del scoreboard */
@@ -5205,14 +5448,21 @@ canvas {
   text-align: center;
   padding-bottom: 10px;
   margin-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid rgba(126, 200, 227, 0.3);
+}
+
+/* Contenedor de estadísticas (kills/deaths) */
+.scoreboard-stats {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 /* Entrada de cada jugador */
 .scoreboard-entry {
   display: flex;
   align-items: center;
-  padding: 8px 10px;
+  padding: 8px 12px;
   margin: 4px 0;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
@@ -5220,7 +5470,8 @@ canvas {
 }
 
 .scoreboard-entry:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(126, 200, 227, 0.15);
+  transform: translateX(2px);
 }
 
 /* Corona del líder */
@@ -5261,6 +5512,23 @@ canvas {
   text-align: right;
 }
 
+/* Contador de deaths */
+.scoreboard-deaths {
+  color: #ff6b6b;
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 25px;
+  text-align: right;
+  opacity: 0.9;
+}
+
+/* Separador entre kills y deaths */
+.scoreboard-separator {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 12px;
+  margin: 0 2px;
+}
+
 /* Mensaje cuando no hay jugadores */
 .scoreboard-empty {
   color: rgba(255, 255, 255, 0.5);
@@ -5276,7 +5544,7 @@ canvas {
     top: 10px;
     left: 10px;
     min-width: 160px;
-    max-width: 220px;
+    max-width: 240px;
     padding: 10px;
   }
   
@@ -5295,6 +5563,10 @@ canvas {
   
   .scoreboard-kills {
     font-size: 14px;
+  }
+  
+  .scoreboard-deaths {
+    font-size: 12px;
   }
   
   .scoreboard-crown {
@@ -5671,6 +5943,179 @@ canvas {
   animation: weaponSelectorFadeIn 0.3s ease-out;
 }
 
+/* ==================== BOTTOM RIGHT PANEL STYLES ==================== */
+/* Requirements: 9.1, 9.2, 9.3 - Panel inferior derecho con Heal_Box, Dash_Box, Weapon_Info */
+
+#bottom-right-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  z-index: 100;
+}
+
+/* ==================== ACTION BOX BASE STYLES ==================== */
+/* Base styles for Heal_Box and Dash_Box */
+
+.action-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 70px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 8px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.action-box:hover {
+  background: rgba(0, 0, 0, 0.85);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.action-icon {
+  width: 24px;
+  height: 24px;
+  color: white;
+  stroke-width: 2;
+  transition: all 0.2s ease;
+}
+
+.action-key {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'Segoe UI', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* ==================== DASH BOX STYLES ==================== */
+/* Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8 - Cuadro de dash */
+
+#dash-box {
+  order: 2;
+  padding-top: 20px;
+}
+
+#dash-box .action-icon {
+  color: #ffcc00;
+}
+
+/* Estado sin cargas */
+#dash-box.no-charges .dash-circle-progress {
+  stroke: rgba(60, 60, 60, 0.8);
+}
+
+#dash-box.no-charges .action-icon {
+  color: rgba(100, 100, 100, 0.6);
+}
+
+/* Animación de recarga */
+/* Requirements: 4.8 - Indicador de progreso circular que se llena gradualmente */
+@keyframes dashRechargeProgress {
+  from {
+    stroke-dashoffset: 97.4;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ==================== WEAPON INFO STYLES (dentro del panel) ==================== */
+/* Requirements: 7.1, 7.2, 7.3, 7.4, 7.5 - Panel de información del arma */
+
+#bottom-right-panel #weapon-info {
+  position: relative;
+  bottom: auto;
+  right: auto;
+  order: 3;
+  /* Estilos consistentes con action-box */
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 10px 14px;
+  min-width: 120px;
+  transition: all 0.2s ease;
+}
+
+#bottom-right-panel #weapon-info:hover {
+  background: rgba(0, 0, 0, 0.85);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Slots de armas dentro del panel */
+#bottom-right-panel .weapon-slot {
+  padding: 4px 6px;
+  gap: 8px;
+}
+
+#bottom-right-panel .weapon-slot.secundario {
+  font-size: 12px;
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+}
+
+#bottom-right-panel .weapon-slot.principal {
+  background: rgba(255, 170, 0, 0.08);
+  border: 1px solid rgba(255, 170, 0, 0.15);
+}
+
+/* Nombre del arma dentro del panel */
+#bottom-right-panel #weapon-name {
+  font-size: 14px;
+  color: #ffaa00;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+/* Munición dentro del panel */
+#bottom-right-panel #ammo {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: white;
+}
+
+/* Requirements: 7.5 - Munición baja en rojo cuando <= 5 */
+#bottom-right-panel #ammo.low {
+  color: #ff4444;
+  animation: ammoLowPulse 2s ease-in-out infinite;
+}
+
+/* Requirements: 7.4 - Recargando en amarillo */
+#bottom-right-panel #ammo.reloading {
+  color: #ffaa00;
+}
+
+/* Requirements: 7.3 - Ocultar munición con cuchillo */
+#bottom-right-panel #ammo.hidden {
+  display: none;
+}
+
+/* Tecla de slot dentro del panel */
+#bottom-right-panel .slot-tecla {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Nombre del slot dentro del panel */
+#bottom-right-panel .slot-nombre {
+  font-size: 12px;
+}
+
 /* 
 ==================== FPS UI RESPONSIVE STYLES ==================== */
 /* Requirements: 6.2, 6.3 - Responsive design for FPS UI elements */
@@ -5728,8 +6173,10 @@ canvas {
     font-size: 9px;
   }
   
-  /* Dash Charges - Reduced size */
-  /* Requirements: 2.6, 2.7, 2.8 */
+  /* OLD DASH-CHARGES RESPONSIVE STYLES - DEPRECATED
+   * Now using dash-box in bottom-right-panel
+   */
+  /*
   #dash-charges {
     font-size: 10px;
     gap: 6px;
@@ -5738,6 +6185,7 @@ canvas {
   #dash-charges > span:first-child {
     font-size: 9px;
   }
+  */
   
   .dash-icons-container {
     gap: 4px;
@@ -5763,6 +6211,73 @@ canvas {
     border-radius: 10px;
     min-width: 120px;
     gap: 6px;
+  }
+  
+  /* Bottom Right Panel - Reduced size */
+  /* Requirements: 9.1, 9.2, 9.3 */
+  #bottom-right-panel {
+    bottom: 15px;
+    right: 15px;
+    gap: 8px;
+  }
+  
+  .action-box {
+    width: 50px;
+    height: 60px;
+    padding: 6px;
+    border-radius: 10px;
+  }
+  
+  .action-icon {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .action-key {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+  
+  #dash-circle {
+    width: 28px;
+    height: 28px;
+    top: -10px;
+  }
+  
+  .dash-circle-number {
+    font-size: 12px;
+  }
+  
+  /* Weapon Info dentro del panel - Responsive */
+  /* Requirements: 7.1, 7.2 */
+  #bottom-right-panel #weapon-info {
+    padding: 8px 10px;
+    min-width: 100px;
+    border-radius: 10px;
+  }
+
+  #bottom-right-panel #weapon-name {
+    font-size: 12px;
+  }
+
+  #bottom-right-panel #ammo {
+    font-size: 16px;
+  }
+
+  #bottom-right-panel .weapon-slot {
+    padding: 3px 5px;
+    gap: 6px;
+    border-radius: 6px;
+  }
+
+  #bottom-right-panel .slot-nombre {
+    font-size: 10px;
+  }
+
+  #bottom-right-panel .slot-tecla {
+    padding: 2px 5px;
+    font-size: 8px;
+    border-radius: 3px;
   }
   
   #weapon-name {
@@ -5792,7 +6307,7 @@ canvas {
   /* Kill Feed - Reduced size */
   /* Requirements: 3.3 */
   #kill-feed {
-    top: 8px;
+    top: 220px;
     right: 8px;
     width: 260px;
     max-height: 180px;
@@ -5852,6 +6367,40 @@ canvas {
     max-height: 90px !important;
   }
   
+  /* Bottom Right Panel - Further reduced */
+  #bottom-right-panel {
+    bottom: 10px;
+    right: 10px;
+    gap: 6px;
+  }
+  
+  .action-box {
+    width: 44px;
+    height: 52px;
+    padding: 4px;
+    border-radius: 8px;
+  }
+  
+  .action-icon {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .action-key {
+    font-size: 9px;
+    padding: 1px 5px;
+  }
+  
+  #dash-circle {
+    width: 24px;
+    height: 24px;
+    top: -8px;
+  }
+  
+  .dash-circle-number {
+    font-size: 10px;
+  }
+  
   /* Player Status Panel - Further reduced */
   #player-status-panel {
     bottom: 10px;
@@ -5894,6 +6443,38 @@ canvas {
     gap: 4px;
   }
   
+  /* Weapon Info dentro del panel - Very small screens */
+  /* Requirements: 7.1, 7.2 */
+  #bottom-right-panel #weapon-info {
+    padding: 6px 8px;
+    min-width: 90px;
+    border-radius: 8px;
+  }
+
+  #bottom-right-panel #weapon-name {
+    font-size: 10px;
+  }
+
+  #bottom-right-panel #ammo {
+    font-size: 14px;
+  }
+
+  #bottom-right-panel .weapon-slot {
+    padding: 2px 4px;
+    gap: 4px;
+    border-radius: 4px;
+  }
+
+  #bottom-right-panel .slot-nombre {
+    font-size: 9px;
+  }
+
+  #bottom-right-panel .slot-tecla {
+    padding: 1px 4px;
+    font-size: 7px;
+    border-radius: 2px;
+  }
+  
   #weapon-name {
     font-size: 11px;
   }
@@ -5918,6 +6499,7 @@ canvas {
   
   /* Kill Feed - Further reduced */
   #kill-feed {
+    top: 180px;
     width: 200px;
     max-height: 140px;
   }
@@ -5953,9 +6535,25 @@ canvas {
     max-width: 240px;
   }
   
+  /* Bottom Right Panel - Max width limit */
+  #bottom-right-panel {
+    max-width: 400px;
+  }
+  
+  .action-box {
+    max-width: 70px;
+    max-height: 80px;
+  }
+  
   /* Weapon Info Panel - Max width limit */
   #weapon-info {
     max-width: 200px;
+  }
+  
+  /* Weapon Info dentro del panel - Large screens */
+  /* Requirements: 7.1, 7.2 */
+  #bottom-right-panel #weapon-info {
+    max-width: 160px;
   }
   
   /* Kill Feed - Max width limit */
@@ -5985,6 +6583,11 @@ canvas {
   #player-status-panel {
     bottom: 30px;
     left: 30px;
+  }
+  
+  #bottom-right-panel {
+    bottom: 30px;
+    right: 30px;
   }
   
   #weapon-info {

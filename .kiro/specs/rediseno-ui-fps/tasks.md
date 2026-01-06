@@ -1,100 +1,134 @@
 # Implementation Plan
 
-- [x] 1. Actualizar estilos CSS del Chat System
-  - [x] 1.1 Modificar posición del chat de bottom-left a top-left
-    - Cambiar `bottom: 20px` a `top: 20px` en el contenedor del chat
-    - Mantener `left: 20px`
-    - Actualizar estilos en `src/ui/chatSystem.js`
-    - _Requirements: 1.1_
-  - [x] 1.2 Aplicar estilos modernos al chat
-    - Agregar `backdrop-filter: blur(10px)`
-    - Cambiar `border-radius` a `12px`
-    - Actualizar borde a `1px solid rgba(255, 255, 255, 0.1)`
-    - Cambiar fuente a `'Segoe UI', sans-serif`
-    - _Requirements: 1.1, 3.1_
-  - [ ]* 1.3 Write property test for chat positioning
-    - **Property 1: Posicionamiento del Chat**
-    - **Validates: Requirements 1.1**
+- [x] 1. Integrar Lucide Icons y ocultar chat
+  - [x] 1.1 Agregar script de Lucide Icons al index.html
+    - Agregar `<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>` en el head
+    - _Requirements: 6.1_
+  - [x] 1.2 Modificar chatSystem.js para ocultar chat por defecto
+    - Cambiar el estado inicial del chat a oculto (`display: none`)
+    - Mantener funcionalidad de mostrar con tecla T
+    - Ocultar al enviar mensaje o presionar Escape
+    - _Requirements: 1.1, 1.2, 1.3, 1.4_
+  - [ ]* 1.3 Write property test for chat hidden state
+    - **Property 1: Chat oculto al inicio**
+    - **Validates: Requirements 1.1, 1.4**
 
-- [x] 2. Crear panel integrado de vida y dash
-  - [x] 2.1 Actualizar estilos CSS del contenedor de vida
-    - Mover `#health-bar-container` de `bottom: 30px; left: 50%` a `bottom: 20px; left: 20px`
-    - Remover `transform: translateX(-50%)`
-    - Aplicar estilos modernos con blur y bordes redondeados
-    - _Requirements: 2.1, 3.1_
-  - [x] 2.2 Actualizar estilos CSS de las cargas de dash
-    - Mover `#dash-charges` para integrarlo con el contenedor de vida
-    - Cambiar layout de horizontal a integrado con la barra de vida
-    - Rediseñar indicadores de dash con estilo moderno
-    - _Requirements: 2.1, 2.6, 2.7, 2.8_
-  - [x] 2.3 Crear contenedor unificado para vida y dash
-    - Crear nuevo elemento `#player-status-panel` que contenga ambos
-    - Aplicar estilos de fondo con blur y bordes redondeados
-    - Organizar layout con flexbox
-    - _Requirements: 2.1, 3.1_
-  - [ ]* 2.4 Write property test for health bar color states
-    - **Property 2: Color de la Barra de Vida según Porcentaje**
-    - **Validates: Requirements 2.3, 2.4, 2.5**
-  - [ ]* 2.5 Write property test for dash charge states
-    - **Property 3: Estado Visual de Cargas de Dash**
-    - **Validates: Requirements 2.6, 2.7, 2.8**
-  - [ ]* 2.6 Write property test for player status panel positioning
-    - **Property 5: Posicionamiento del Panel de Estado**
+- [x] 2. Mover scoreboard a esquina superior izquierda
+  - [x] 2.1 Actualizar estilos CSS del scoreboard
+    - Cambiar posición a `top: 20px; left: 20px`
+    - Aplicar estilos modernos consistentes
+    - _Requirements: 2.1, 2.2_
+  - [ ]* 2.2 Write property test for scoreboard positioning
+    - **Property 2: Posicionamiento del Scoreboard**
     - **Validates: Requirements 2.1**
 
-- [x] 3. Checkpoint - Make sure all tests are passing
+- [x] 3. Rediseñar barra de vida
+  - [x] 3.1 Actualizar estilos CSS de la barra de vida
+    - Cambiar dimensiones a 250px x 25px
+    - Remover fondo negro del contenedor
+    - Mantener posición en esquina inferior izquierda
+    - _Requirements: 3.1, 3.2_
+  - [x] 3.2 Actualizar función actualizarBarraVida en ui.js
+    - Asegurar transición suave de 150ms
+    - Implementar clases de color según porcentaje (low, medium, normal)
+    - _Requirements: 3.3, 3.4, 3.5, 3.6_
+  - [ ]* 3.3 Write property test for health bar dimensions
+    - **Property 3: Dimensiones de la Barra de Vida**
+    - **Validates: Requirements 3.1, 3.2**
+  - [ ]* 3.4 Write property test for health bar color states
+    - **Property 4: Color de la Barra de Vida según Porcentaje**
+    - **Validates: Requirements 3.4, 3.5, 3.6**
+  - [ ]* 3.5 Write property test for health bar width
+    - **Property 5: Ancho de la Barra de Vida proporcional**
+    - **Validates: Requirements 3.3**
+
+- [x] 4. Checkpoint - Verificar cambios básicos
   - Ensure all tests pass, ask the user if questions arise.
 
-- [x] 4. Actualizar panel de información del arma
-  - [x] 4.1 Aplicar estilos modernos al panel de arma
-    - Actualizar `#weapon-info` con blur y bordes redondeados
-    - Mantener posición en esquina inferior derecha
-    - Aplicar estilos consistentes con el resto de la UI
-    - _Requirements: 4.1, 3.1_
-  - [x] 4.2 Actualizar estilos de slots de arma
-    - Modernizar `.weapon-slot` con nuevos estilos
-    - Mejorar indicadores visuales de arma activa/secundaria
-    - _Requirements: 4.2_
-  - [ ]* 4.3 Write property test for weapon info display
-    - **Property 4: Información del Arma según Estado**
-    - **Validates: Requirements 4.2, 4.3, 4.4, 4.5**
-  - [ ]* 4.4 Write property test for weapon panel positioning
-    - **Property 6: Posicionamiento del Panel de Arma**
-    - **Validates: Requirements 4.1**
-
-- [x] 5. Actualizar efectos visuales y animaciones
-  - [x] 5.1 Mejorar animación de cambio de arma
-    - Actualizar estilos de `#weapon-change-notification`
-    - Aplicar diseño moderno con blur
-    - _Requirements: 3.4_
-  - [x] 5.2 Mejorar efecto de daño recibido
-    - Actualizar `#damage-flash` con gradiente más suave
-    - Ajustar timing de la animación
-    - _Requirements: 3.2_
-  - [x] 5.3 Mejorar animaciones del kill feed
-    - Actualizar `.kill-entry` con estilos modernos
-    - Mejorar animación de entrada
-    - _Requirements: 3.3_
-
-- [x] 6. Actualizar funciones de UI en JavaScript
-  - [x] 6.1 Actualizar función actualizarCargasDash
-    - Modificar `src/utils/ui.js` para usar nuevos selectores
-    - Actualizar lógica de clases CSS para nuevos estilos
-    - _Requirements: 2.6, 2.7, 2.8_
-  - [x] 6.2 Verificar compatibilidad con modo local y online
-    - Asegurar que los estilos se aplican correctamente en ambos modos
-    - Probar transiciones entre modos
+- [x] 5. Crear panel inferior derecho con Heal_Box, Dash_Box y Weapon_Info
+  - [x] 5.1 Crear estructura HTML del bottom-right-panel
+    - Crear contenedor flex `#bottom-right-panel`
+    - Mover `#weapon-info` dentro del panel
+    - _Requirements: 9.1, 9.2_
+  - [x] 5.2 Crear estructura HTML del Dash_Box
+    - Crear `#dash-box` con circunferencia SVG, icono zap y tecla E
+    - Agregar `#dash-circle` con SVG para progreso y número de cargas
+    - _Requirements: 4.1, 4.2, 4.3, 4.4_
+  - [x] 5.3 Crear estructura HTML del Heal_Box
+    - Crear `#heal-box` con icono heart y tecla C
     - _Requirements: 5.1, 5.2, 5.3_
+  - [x] 5.4 Agregar estilos CSS para bottom-right-panel
+    - Estilos flex con gap de 10px
+    - Posición fixed en esquina inferior derecha
+    - _Requirements: 9.1, 9.2, 9.3_
+  - [x] 5.5 Agregar estilos CSS para Dash_Box
+    - Estilos del cuadro, circunferencia, icono y tecla
+    - Animación de progreso de recarga
+    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8_
+  - [x] 5.6 Agregar estilos CSS para Heal_Box
+    - Estilos del cuadro, icono y tecla
+    - Estados enabled/disabled
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+  - [ ]* 5.7 Write property test for element distribution
+    - **Property 8: Distribución de Elementos**
+    - **Validates: Requirements 9.1, 9.2**
 
-- [x] 7. Agregar estilos responsive
-  - [x] 7.1 Agregar media queries para pantallas pequeñas
-    - Reducir tamaños de elementos para resoluciones < 768px
-    - Ajustar márgenes y padding
-    - _Requirements: 6.2_
-  - [x] 7.2 Agregar límites para pantallas grandes
-    - Establecer max-width para elementos de UI
-    - Evitar elementos excesivamente grandes en resoluciones > 1920px
-    - _Requirements: 6.3_
+- [x] 6. Implementar lógica JavaScript para Dash_Box y Heal_Box
+  - [x] 6.1 Crear función actualizarDashBox en ui.js
+    - Actualizar número de cargas en la circunferencia
+    - Actualizar color del borde (verde/gris)
+    - Actualizar progreso de recarga con SVG stroke-dashoffset
+    - _Requirements: 4.5, 4.6, 4.7, 4.8, 4.9_
+  - [x] 6.2 Crear función actualizarHealBox en ui.js
+    - Actualizar estado enabled/disabled del icono
+    - Mostrar indicador de cooldown si aplica
+    - _Requirements: 5.4, 5.5, 5.6_
+  - [x] 6.3 Inicializar Lucide Icons al cargar la página
+    - Llamar a `lucide.createIcons()` después de crear elementos
+    - _Requirements: 6.1, 6.2, 6.3_
+  - [ ]* 6.4 Write property test for dash circle state
+    - **Property 6: Estado Visual del Dash Circle**
+    - **Validates: Requirements 4.5, 4.6, 4.7, 4.8**
+  - [ ]* 6.5 Write property test for heal box state
+    - **Property 7: Estado Visual del Heal Box**
+    - **Validates: Requirements 5.4, 5.5**
 
-- [x] 8. Final Checkpoint - Make sure all tests are passing
+- [x] 7. Checkpoint - Verificar nuevos componentes
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 8. Integrar con sistemas existentes
+  - [x] 8.1 Conectar actualizarDashBox con sistema de dash existente
+    - Modificar src/sistemas/dash.js para llamar a actualizarDashBox
+    - Pasar estado de cargas y progreso de recarga
+    - _Requirements: 4.5, 4.6, 4.7, 4.8, 4.9_
+  - [x] 8.2 Conectar actualizarHealBox con sistema de curación existente
+    - Modificar sistema de curación para llamar a actualizarHealBox
+    - Pasar estado de disponibilidad y cooldown
+    - _Requirements: 5.4, 5.5, 5.6_
+  - [x] 8.3 Remover sistema de dash anterior (dash-charges)
+    - Eliminar o comentar código del sistema anterior
+    - Actualizar referencias en otros archivos
+    - _Requirements: 4.1_
+
+- [x] 9. Actualizar estilos del Weapon Info
+  - [x] 9.1 Ajustar estilos del weapon-info para el nuevo panel
+    - Asegurar que se integra correctamente en bottom-right-panel
+    - Mantener funcionalidad existente
+    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+  - [ ]* 9.2 Write property test for weapon info positioning
+    - **Property 9: Posicionamiento del Weapon Info**
+    - **Validates: Requirements 7.1**
+  - [ ]* 9.3 Write property test for weapon info display
+    - **Property 10: Información del Arma**
+    - **Validates: Requirements 7.2, 7.5**
+
+- [x] 10. Agregar estilos responsive
+  - [x] 10.1 Agregar media queries para pantallas pequeñas
+    - Reducir tamaños para resoluciones < 768px
+    - _Requirements: 10.2_
+  - [x] 10.2 Agregar límites para pantallas grandes
+    - Establecer max-width para resoluciones > 1920px
+    - _Requirements: 10.3_
+
+- [ ] 11. Final Checkpoint - Verificar implementación completa
   - Ensure all tests pass, ask the user if questions arise.

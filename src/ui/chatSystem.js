@@ -26,19 +26,20 @@ export class ChatSystem {
   
   createChatUI() {
     // Contenedor principal del chat
+    // OPTIMIZADO: Removido backdrop-filter para mejor rendimiento
+    // REDISEÑO UI: Chat oculto por defecto (display: none)
     this.chatContainer = document.createElement('div');
     this.chatContainer.id = 'chat-container';
     this.chatContainer.style.cssText = `
       position: fixed;
       top: 20px;
-      left: 20px;
+      right: 20px;
       width: 320px;
       max-height: 250px;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(10px);
+      background: rgba(0, 0, 0, 0.75);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 12px;
-      display: flex;
+      display: none;
       flex-direction: column;
       font-family: 'Segoe UI', sans-serif;
       font-size: 13px;
@@ -144,8 +145,7 @@ export class ChatSystem {
     
     document.body.appendChild(this.chatContainer);
     
-    // Estado inicial: semi-transparente
-    this.chatContainer.style.opacity = '0.7';
+    // Estado inicial: chat oculto (display: none ya está configurado)
   }
   
   setupEventListeners() {
@@ -170,9 +170,10 @@ export class ChatSystem {
     
     this.chatInput.addEventListener('blur', () => {
       setTimeout(() => {
-        this.chatContainer.style.opacity = '0.7';
-        this.chatActivo = false;
-        this.notificarCambioEstado(false);
+        // Ocultar el chat cuando pierde el foco
+        if (!this.chatActivo) {
+          this.chatContainer.style.display = 'none';
+        }
       }, 2000);
     });
     
@@ -181,6 +182,11 @@ export class ChatSystem {
       if (e.key.toLowerCase() === 't' && !this.chatInput.matches(':focus') && !this.chatActivo) {
         e.preventDefault();
         this.abrirChat();
+      }
+      // Tecla Escape para cerrar el chat
+      if (e.key === 'Escape' && this.chatActivo) {
+        e.preventDefault();
+        this.cerrarChat();
       }
     });
   }
@@ -203,6 +209,8 @@ export class ChatSystem {
   }
   
   abrirChat() {
+    // Mostrar el chat (estaba oculto por defecto)
+    this.chatContainer.style.display = 'flex';
     this.chatInput.focus();
     this.chatContainer.style.opacity = '1';
     this.chatActivo = true;
@@ -213,9 +221,10 @@ export class ChatSystem {
     this.chatInput.blur();
     this.chatActivo = false;
     this.notificarCambioEstado(false);
+    // Ocultar el chat completamente al cerrar
     setTimeout(() => {
       if (!this.chatActivo) {
-        this.chatContainer.style.opacity = '0.7';
+        this.chatContainer.style.display = 'none';
       }
     }, 100);
   }
@@ -340,13 +349,15 @@ export class ChatSystem {
     // Scroll al final
     this.messagesArea.scrollTop = this.messagesArea.scrollHeight;
     
-    // Mostrar chat temporalmente
-    this.chatContainer.style.opacity = '1';
-    setTimeout(() => {
-      if (!this.chatInput.matches(':focus')) {
-        this.chatContainer.style.opacity = '0.7';
-      }
-    }, 3000);
+    // Solo mostrar temporalmente si el chat ya está visible
+    if (this.chatContainer.style.display !== 'none') {
+      this.chatContainer.style.opacity = '1';
+      setTimeout(() => {
+        if (!this.chatInput.matches(':focus') && !this.chatActivo) {
+          this.chatContainer.style.display = 'none';
+        }
+      }, 3000);
+    }
   }
   
   clearMessages() {
@@ -356,17 +367,26 @@ export class ChatSystem {
   
   toggleChat() {
     const isHidden = this.messagesArea.style.display === 'none';
+    const killFeed = document.getElementById('kill-feed');
     
     if (isHidden) {
       this.messagesArea.style.display = 'block';
       this.inputContainer.style.display = 'flex';
       this.chatContainer.style.maxHeight = '250px';
       this.chatHeader.querySelector('button').textContent = '−';
+      // Kill feed vuelve a posición normal cuando chat está expandido
+      if (killFeed) {
+        killFeed.classList.remove('chat-minimized');
+      }
     } else {
       this.messagesArea.style.display = 'none';
       this.inputContainer.style.display = 'none';
       this.chatContainer.style.maxHeight = 'none';
       this.chatHeader.querySelector('button').textContent = '+';
+      // Kill feed sube cuando chat está minimizado
+      if (killFeed) {
+        killFeed.classList.add('chat-minimized');
+      }
     }
   }
   
