@@ -90,7 +90,7 @@ export const CONFIG = {
       nombre: "Desert Eagle",
       descripcion: "Pistola de alto calibre con daño devastador pero alto retroceso",
       tipo: "pistola",
-      cadenciaDisparo: 150, // 150 RPM - Muy lenta pero devastadora
+      cadenciaDisparo: 100, // 100 RPM - Cadencia reducida, más lenta
       daño: 90, // 3 balas para matar (200/90 = 2.22 → 3 balas)
       tamañoCargador: 7,
       municionTotal: 28, // 4 cargadores extra
@@ -173,7 +173,7 @@ export const CONFIG = {
         duracion: 200
       },
       proyectiles: 8, // 8 perdigones
-      dispersion: 0.08, // Dispersión moderada
+      dispersion: 0.4, // Dispersión extrema - perdigones muy esparcidos
       falloffDaño: { // Daño cae drásticamente con distancia
         distanciaMinima: 8,
         distanciaMaxima: 25,

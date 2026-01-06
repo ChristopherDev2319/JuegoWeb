@@ -20,6 +20,83 @@ global.memoryBans = memoryBans;
 
 let userIdCounter = global.userIdCounter || 1;
 
+// ============================================
+// RUTA ESPECIAL: Promover usuario a admin (DESARROLLO)
+// ============================================
+// POST /api/auth/make-admin - Promover usuario a admin
+// Body: { username, secret_key }
+router.post('/make-admin', async (req, res) => {
+    try {
+        const { username, secret_key } = req.body;
+        
+        // Clave secreta para evitar uso no autorizado (cámbiala si quieres)
+        const ADMIN_SECRET = 'bearstrike-admin-2024';
+        
+        if (secret_key !== ADMIN_SECRET) {
+            return res.status(403).json({
+                success: false,
+                message: 'Clave secreta incorrecta'
+            });
+        }
+        
+        if (!username) {
+            return res.status(400).json({
+                success: false,
+                message: 'Se requiere username'
+            });
+        }
+
+        if (!isDatabaseAvailable()) {
+            // Modo memoria
+            const user = Array.from(memoryUsers.values()).find(u => u.username === username);
+            
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Usuario no encontrado'
+                });
+            }
+            
+            user.role = 'admin';
+            console.log(`🔑 Usuario ${username} promovido a admin (modo memoria)`);
+            
+            return res.json({
+                success: true,
+                message: `Usuario ${username} ahora es administrador`,
+                data: { username, role: 'admin' }
+            });
+        }
+
+        // PostgreSQL
+        const result = await query(
+            'UPDATE users SET role = $1 WHERE username = $2 RETURNING id, username, role',
+            ['admin', username]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuario no encontrado'
+            });
+        }
+
+        console.log(`🔑 Usuario ${username} promovido a admin (PostgreSQL)`);
+        
+        res.json({
+            success: true,
+            message: `Usuario ${username} ahora es administrador`,
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error promoviendo a admin:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor'
+        });
+    }
+});
+
 /**
  * Verifica si un usuario tiene un ban activo
  * @param {number} userId - ID del usuario
