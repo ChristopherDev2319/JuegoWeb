@@ -218,9 +218,14 @@ export class RemotePlayer {
       this.animacionesDelModelo = gltf.animations || [];
       
       this.characterModel.traverse((child) => {
+        // IMPORTANTE: Desactivar frustum culling para evitar que el modelo
+        // desaparezca cuando la cámara mira hacia arriba
+        child.frustumCulled = false;
+        
         if (child.isMesh) {
           child.castShadow = false;
           child.receiveShadow = false;
+          child.frustumCulled = false;
         }
         
         // Buscar y guardar referencias a las armas del modelo
@@ -589,10 +594,13 @@ export class RemotePlayer {
           this.modeloCuchilloTPS.traverse((child) => {
             // Ocultar TODOS los objetos del cuchillo inicialmente
             child.visible = false;
+            // Desactivar frustum culling
+            child.frustumCulled = false;
             
             if (child.isMesh) {
               child.castShadow = false;
               child.receiveShadow = false;
+              child.frustumCulled = false;
               this.meshesCuchillo.push(child);
               console.log(`🔪 Mesh del cuchillo encontrado: ${child.name}`);
             }
@@ -696,10 +704,13 @@ export class RemotePlayer {
           this.modeloJuiceBoxTPS.traverse((child) => {
             // Ocultar TODOS los objetos del JuiceBox inicialmente
             child.visible = false;
+            // Desactivar frustum culling
+            child.frustumCulled = false;
             
             if (child.isMesh) {
               child.castShadow = false;
               child.receiveShadow = false;
+              child.frustumCulled = false;
               this.meshesJuiceBox.push(child);
               console.log(`🧃 Mesh del JuiceBox encontrado: ${child.name}`);
             }
@@ -1208,6 +1219,7 @@ export class RemotePlayer {
     this.mesh.position.y = 1;
     this.mesh.castShadow = false;
     this.mesh.receiveShadow = false;
+    this.mesh.frustumCulled = false;
     
     this.group.add(this.mesh);
   }

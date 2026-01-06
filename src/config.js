@@ -288,13 +288,14 @@ export const CONFIG = {
     tiempoEspera: 5000
   },
 
-  // Configuración de límites del mapa (paredes exteriores)
+  // Configuración de límites del mapa (paredes invisibles)
+  // Unidades de malla: X=4, Z=8 (escalado 5x = X=20, Z=40 en mundo)
   // Requirements: 3.1, 3.2, 3.3
   limitesMapa: {
-    minX: -122,              // Límite mínimo en X
-    maxX: 122,               // Límite máximo en X
-    minZ: -122,              // Límite mínimo en Z
-    maxZ: 122,               // Límite máximo en Z
+    minX: -20,               // Límite mínimo en X (-4 unidades de malla * 5)
+    maxX: 20,                // Límite máximo en X (4 unidades de malla * 5)
+    minZ: -40,               // Límite mínimo en Z (-8 unidades de malla * 5)
+    maxZ: 40,                // Límite máximo en Z (8 unidades de malla * 5)
     margenSeguridad: 0.5     // Margen de separación del límite
   },
 

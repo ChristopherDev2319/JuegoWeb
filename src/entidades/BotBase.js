@@ -147,9 +147,14 @@ export class BotBase {
         this.modelo.traverse((child) => {
           child.visible = true;
           
+          // IMPORTANTE: Desactivar frustum culling para evitar que el modelo
+          // desaparezca cuando la cámara mira hacia arriba
+          child.frustumCulled = false;
+          
           if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
+            child.frustumCulled = false;
             console.log(`🤖 Bot ${this.tipo}: Mesh: ${child.name}`);
           }
         });
@@ -198,6 +203,7 @@ export class BotBase {
     meshFallback.position.y = 1;
     meshFallback.castShadow = true;
     meshFallback.receiveShadow = true;
+    meshFallback.frustumCulled = false;
     
     this.mesh.add(meshFallback);
     this.modeloCargado = true;

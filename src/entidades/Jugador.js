@@ -116,6 +116,31 @@ export function calcularDireccionMovimiento(teclas) {
 
 
 /**
+ * Aplica los límites del mapa (paredes invisibles) a la posición del jugador
+ * @param {THREE.Vector3} posicion - Posición a limitar
+ */
+function aplicarLimitesMapa(posicion) {
+  const limites = CONFIG.limitesMapa;
+  if (!limites) return;
+  
+  const margen = limites.margenSeguridad || 0.5;
+  
+  // Limitar en X
+  if (posicion.x < limites.minX + margen) {
+    posicion.x = limites.minX + margen;
+  } else if (posicion.x > limites.maxX - margen) {
+    posicion.x = limites.maxX - margen;
+  }
+  
+  // Limitar en Z
+  if (posicion.z < limites.minZ + margen) {
+    posicion.z = limites.minZ + margen;
+  } else if (posicion.z > limites.maxZ - margen) {
+    posicion.z = limites.maxZ - margen;
+  }
+}
+
+/**
  * Actualiza el movimiento horizontal del jugador
  * Usa el sistema de colisiones con Rapier3D para detectar y resolver colisiones
  * El character controller maneja automáticamente escalones y rampas
@@ -170,6 +195,9 @@ export function actualizarMovimiento(teclas) {
       // Aplicar posición completa incluyendo Y
       jugador.posicion.copy(resultado.posicion);
       
+      // Aplicar límites del mapa (paredes invisibles)
+      aplicarLimitesMapa(jugador.posicion);
+      
       // Actualizar estado de suelo desde el character controller
       if (resultado.enSuelo) {
         if (!jugador.enSuelo) {
@@ -197,6 +225,9 @@ export function actualizarMovimiento(teclas) {
         jugador.posicion.z = posicionFinal.z;
       }
       
+      // Aplicar límites del mapa (paredes invisibles)
+      aplicarLimitesMapa(jugador.posicion);
+      
       // Verificar si el jugador está atrapado y desatorar si es necesario
       const estadoAtrapado = verificarYDesatorar(jugador.posicion);
       if (estadoAtrapado.necesitaCorreccion) {
@@ -210,6 +241,9 @@ export function actualizarMovimiento(teclas) {
       jugador.posicion.x += desplazamientoX;
       jugador.posicion.z += desplazamientoZ;
     }
+    
+    // Aplicar límites del mapa (paredes invisibles)
+    aplicarLimitesMapa(jugador.posicion);
   }
 }
 
