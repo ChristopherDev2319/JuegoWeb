@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Clicks Fix - Configuración</title>
+    <link rel="stylesheet" href="css/estilos.css" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+</head>
+<body style="background: #1a1a1a; color: white; padding: 20px;">
+    <h1>🖱️ Test Clicks Fix - Configuración</h1>
+    
+    <div style="margin: 30px 0; padding: 20px; background: #2a2a2a; border-radius: 10px;">
+        <h2>📋 Configuración del Lobby (Test de Clicks)</h2>
+        <div id="lobby-config">
+            <div class="config-lista">
+                <div class="config-item" data-test="sensibilidad">
+                    <label>Sensibilidad</label>
+                    <div class="config-control">
+                        <input type="range" id="test-sensibilidad" min="0.001" max="0.01" step="0.001" value="0.002">
+                        <span id="test-sensibilidad-valor">0.002</span>
+                    </div>
+                </div>
+                
+                <div class="config-item" data-test="volumen">
+                    <label>Volumen</label>
+                    <div class="config-control">
+                        <input type="range" id="test-volumen" min="0" max="1" step="0.1" value="0.5">
+                        <span id="test-volumen-valor">50%</span>
+                    </div>
+                </div>
+                
+                <div class="config-item" data-test="fps">
+                    <label>Mostrar FPS</label>
+                    <input type="checkbox" id="test-mostrar-fps">
+                </div>
+                
+                <div class="config-item" data-test="crosshair">
+                    <label>Crosshair Dinámico</label>
+                    <input type="checkbox" id="test-crosshair-dinamico" checked>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div style="margin: 30px 0; padding: 20px; background: #2a2a2a; border-radius: 10px;">
+        <h2>📊 Estadísticas del Menú de Pausa (Test de Visibilidad)</h2>
+        <div id="pause-menu" style="position: relative; background: white; padding: 20px; border-radius: 10px;">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">15</div>
+                    <div class="stat-label">Kills</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">3</div>
+                    <div class="stat-label">Muertes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">5.00</div>
+                    <div class="stat-label">K/D</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">85%</div>
+                    <div class="stat-label">Precisión</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">120</div>
+                    <div class="stat-label">Disparos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">05:30</div>
+                    <div class="stat-label">Tiempo</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div style="margin: 30px 0; padding: 20px; background: #2a2a2a; border-radius: 10px;">
+        <h3>📝 Log de Clicks:</h3>
+        <div id="click-log" style="background: #1a1a1a; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;">
+            <!-- Los logs aparecerán aquí -->
+        </div>
+        <button id="clear-log" style="margin-top: 10px; padding: 5px 10px; background: #f44336; color: white; border: none; border-radius: 3px; cursor: pointer;">
+            Limpiar Log
+        </button>
+    </div>
+    
+    <div style="margin: 30px 0; padding: 20px; background: #2a2a2a; border-radius: 10px;">
+        <h3>✅ Verificaciones:</h3>
+        <ul>
+            <li><strong>Sliders:</strong> Deben moverse y actualizar valores</li>
+            <li><strong>Checkboxes:</strong> Deben cambiar estado al hacer click</li>
+            <li><strong>Etiquetas:</strong> Deben ser visibles pero no clickeables</li>
+            <li><strong>Valores:</strong> Deben actualizarse en tiempo real</li>
+        </ul>
+    </div>
+    
+    <p><a href="/" style="color: #4CAF50; font-size: 18px;">🎮 Volver al Juego</a></p>
+
+    <script>
+        const clickLog = document.getElementById('click-log');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            clickLog.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            clickLog.scrollTop = clickLog.scrollHeight;
+            console.log(message);
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Página cargada, configurando event listeners...');
+            
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+            
+            // Test de sliders
+            const sensibilidadSlider = document.getElementById('test-sensibilidad');
+            const volumenSlider = document.getElementById('test-volumen');
+            const sensibilidadValor = document.getElementById('test-sensibilidad-valor');
+            const volumenValor = document.getElementById('test-volumen-valor');
+            
+            if (sensibilidadSlider) {
+                sensibilidadSlider.addEventListener('input', function(e) {
+                    const valor = parseFloat(e.target.value);
+                    sensibilidadValor.textContent = valor.toFixed(3);
+                    log(`🎯 Sensibilidad cambiada: ${valor.toFixed(3)}`);
+                });
+                
+                sensibilidadSlider.addEventListener('click', function() {
+                    log('🖱️ Click en slider de sensibilidad');
+                });
+                
+                log('✅ Event listeners de sensibilidad configurados');
+            } else {
+                log('❌ No se encontró el slider de sensibilidad');
+            }
+            
+            if (volumenSlider) {
+                volumenSlider.addEventListener('input', function(e) {
+                    const valor = parseFloat(e.target.value);
+                    volumenValor.textContent = `${Math.round(valor * 100)}%`;
+                    log(`🔊 Volumen cambiado: ${Math.round(valor * 100)}%`);
+                });
+                
+                volumenSlider.addEventListener('click', function() {
+                    log('🖱️ Click en slider de volumen');
+                });
+                
+                log('✅ Event listeners de volumen configurados');
+            } else {
+                log('❌ No se encontró el slider de volumen');
+            }
+            
+            // Test de checkboxes
+            const fpsCheckbox = document.getElementById('test-mostrar-fps');
+            const crosshairCheckbox = document.getElementById('test-crosshair-dinamico');
+            
+            if (fpsCheckbox) {
+                fpsCheckbox.addEventListener('change', function(e) {
+                    log(`📊 Mostrar FPS: ${e.target.checked ? 'Activado' : 'Desactivado'}`);
+                });
+                
+                fpsCheckbox.addEventListener('click', function() {
+                    log('🖱️ Click en checkbox FPS');
+                });
+                
+                log('✅ Event listeners de FPS configurados');
+            } else {
+                log('❌ No se encontró el checkbox de FPS');
+            }
+            
+            if (crosshairCheckbox) {
+                crosshairCheckbox.addEventListener('change', function(e) {
+                    log(`🎯 Crosshair dinámico: ${e.target.checked ? 'Activado' : 'Desactivado'}`);
+                });
+                
+                crosshairCheckbox.addEventListener('click', function() {
+                    log('🖱️ Click en checkbox crosshair');
+                });
+                
+                log('✅ Event listeners de crosshair configurados');
+            } else {
+                log('❌ No se encontró el checkbox de crosshair');
+            }
+            
+            // Test de clicks en config items
+            document.querySelectorAll('.config-item').forEach((item, index) => {
+                const testType = item.dataset.test;
+                
+                item.addEventListener('click', function(e) {
+                    log(`🖱️ Click en config-item: ${testType} (elemento ${index})`);
+                    
+                    // Efecto visual
+                    this.style.background = 'rgba(126, 200, 227, 0.3)';
+                    setTimeout(() => {
+                        this.style.background = '';
+                    }, 300);
+                });
+                
+                log(`✅ Event listener configurado para config-item: ${testType}`);
+            });
+            
+            // Test de clicks en labels
+            document.querySelectorAll('#lobby-config label').forEach((label, index) => {
+                label.addEventListener('click', function(e) {
+                    log(`🏷️ Click en label ${index}: "${this.textContent}" (esto NO debería pasar)`);
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+            });
+            
+            // Botón limpiar log
+            document.getElementById('clear-log').addEventListener('click', function() {
+                clickLog.innerHTML = '';
+                log('🧹 Log limpiado');
+            });
+            
+            log('🎉 Todos los event listeners configurados correctamente');
+        });
+        
+        // Test de detección de elementos
+        window.addEventListener('load', function() {
+            log('🔍 Verificando elementos después de load...');
+            
+            const elementos = {
+                sensibilidad: document.getElementById('test-sensibilidad'),
+                volumen: document.getElementById('test-volumen'),
+                fps: document.getElementById('test-mostrar-fps'),
+                crosshair: document.getElementById('test-crosshair-dinamico')
+            };
+            
+            Object.entries(elementos).forEach(([nombre, elemento]) => {
+                if (elemento) {
+                    const estilos = window.getComputedStyle(elemento);
+                    log(`✅ ${nombre}: encontrado, pointer-events: ${estilos.pointerEvents}, cursor: ${estilos.cursor}`);
+                } else {
+                    log(`❌ ${nombre}: NO encontrado`);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

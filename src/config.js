@@ -21,100 +21,97 @@ export const CONFIG = {
   },
 
   armas: {
-    // M4A1: Rifle versátil, equilibrado - META para rondas completas
+    // M4A1: Rifle versátil, fácil de controlar - Similar al Phantom de Valorant / M4A4 de CS2
+    // Características: Alta cadencia, daño moderado, fácil control, buena precisión
     "M4A1": {
       nombre: "M4A1",
-      descripcion: "Rifle de asalto versátil con buen equilibrio entre daño y precisión",
+      descripcion: "Rifle de asalto versátil con alta cadencia y fácil control de retroceso",
       tipo: "rifle",
-      cadenciaDisparo: 800, // 800 RPM (sincronizado con servidor: 60000/75ms)
-      daño: 30, // Igual que servidor (200 vida / 30 daño = 7 balas para matar)
+      cadenciaDisparo: 700, // 700 RPM - Cadencia alta
+      daño: 28, // 8 balas para matar (200/28 = 7.14)
       tamañoCargador: 30,
-      municionTotal: 210,
-      tiempoRecarga: 2.0, // 2 segundos como servidor
-      velocidadBala: 60.0,
+      municionTotal: 120, // 4 cargadores extra
+      tiempoRecarga: 2.2, // Recarga moderada
+      velocidadBala: 65.0,
       modelo: "modelos/FBX/Weapons/M4A1.fbx",
       sonidoDisparo: "sonidos/M4A1.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
       rotacion: { x: 0, y: Math.PI, z: 0 },
       retroceso: {
-        cantidad: 0.06, // Retroceso moderado
-        arriba: 0.03,
-        duracion: 60
+        cantidad: 0.04, // Retroceso bajo - fácil de controlar
+        arriba: 0.025,
+        duracion: 50
       },
-      multiplicadorHeadshot: 4.0, // Headshot letal
-      dispersion: 0.02, // Preciso pero no perfecto
+      multiplicadorHeadshot: 3.5, // Headshot: 98 daño (2 headshots matan)
+      dispersion: 0.015, // Muy preciso
       apuntado: {
-        zoom: 1.5,
-        reduccionRetroceso: 0.5,
-        tiempoTransicion: 0.25,
+        zoom: 1.4,
+        reduccionRetroceso: 0.6, // Gran reducción al apuntar
+        tiempoTransicion: 0.2, // Rápido para apuntar
         posicionArma: { x: 0, y: -0.1, z: -0.2 },
-        reduccionDispersion: 0.3
+        reduccionDispersion: 0.4
       }
     },
     
-    // AK-47: Alto daño, alto retroceso - Riesgo/Recompensa
+    // AK-47: Alto daño, difícil control - Similar al Vandal de Valorant / AK-47 de CS2
+    // Características: Daño alto, cadencia media, retroceso fuerte, recompensa skill
     "AK47": {
       nombre: "AK-47",
-      descripcion: "Rifle de asalto potente con alto retroceso pero gran daño",
+      descripcion: "Rifle de asalto potente con alto daño pero difícil de controlar",
       tipo: "rifle",
-      cadenciaDisparo: 550, // 550 RPM (sincronizado con servidor: 60000/109ms)
-      daño: 45, // Igual que servidor (200 vida / 45 daño = 5 balas para matar)
+      cadenciaDisparo: 600, // 600 RPM - Cadencia media
+      daño: 38, // 6 balas para matar (200/38 = 5.26)
       tamañoCargador: 30,
-      municionTotal: 210,
-      tiempoRecarga: 2.5,
-      velocidadBala: 63.0,
+      municionTotal: 90, // 3 cargadores extra
+      tiempoRecarga: 2.5, // Recarga más lenta
+      velocidadBala: 60.0,
       modelo: "modelos/FBX/Weapons/AK47.fbx",
       sonidoDisparo: "sonidos/AK47.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
       rotacion: { x: 0, y: 0, z: 0 },
       retroceso: {
-        cantidad: 0.12, // Retroceso alto - difícil de controlar
-        arriba: 0.08,
-        duracion: 90
+        cantidad: 0.09, // Retroceso alto - requiere control
+        arriba: 0.06,
+        duracion: 80
       },
-      multiplicadorHeadshot: 4.0, // Headshot letal
-      dispersion: 0.035, // Menos preciso que M4A1
+      multiplicadorHeadshot: 4.0, // Headshot: 152 daño (1 headshot + 2 body = kill)
+      dispersion: 0.025, // Menos preciso que M4A1
       apuntado: {
-        zoom: 1.4,
-        reduccionRetroceso: 0.4, // Menos reducción que M4A1
-        tiempoTransicion: 0.3,
+        zoom: 1.35,
+        reduccionRetroceso: 0.45, // Menos reducción que M4A1
+        tiempoTransicion: 0.28, // Más lento para apuntar
         posicionArma: { x: 0, y: -0.12, z: -0.25 },
-        reduccionDispersion: 0.4
+        reduccionDispersion: 0.35
       }
     },
     
-    // Pistola: Eco rounds, precisión - Arma económica
+    // Desert Eagle: Pistola de alto calibre - 3 disparos para matar
     "PISTOLA": {
-      nombre: "Colt 1911",
-      descripcion: "Pistola semiautomática precisa y confiable para combate cercano",
+      nombre: "Desert Eagle",
+      descripcion: "Pistola de alto calibre con daño devastador pero alto retroceso",
       tipo: "pistola",
-      cadenciaDisparo: 400, // 400 RPM (sincronizado con servidor: 60000/150ms)
-      daño: 20, // Igual que servidor (200 vida / 20 daño = 10 balas para matar)
+      cadenciaDisparo: 150, // 150 RPM - Muy lenta pero devastadora
+      daño: 90, // 3 balas para matar (200/90 = 2.22 → 3 balas)
       tamañoCargador: 7,
-      municionTotal: 35,
-      tiempoRecarga: 1.5, // 1.5 segundos como servidor
-      velocidadBala: 45.0,
+      municionTotal: 28, // 4 cargadores extra
+      tiempoRecarga: 1.8,
+      velocidadBala: 50.0,
       modelo: "modelos/FBX/Weapons/1911.fbx",
       sonidoDisparo: "sonidos/pistola.mp3",
       posicion: { x: 0.2, y: -0.4, z: -0.3 },
       rotacion: { x: 0, y: 0, z: 0 },
       retroceso: {
-        cantidad: 0.08, // Retroceso notable pero manejable
-        arriba: 0.04,
-        duracion: 70
+        cantidad: 0.15, // Retroceso alto - pistola potente
+        arriba: 0.1,
+        duracion: 100
       },
-      multiplicadorHeadshot: 4.0, // Headshot letal de cerca
+      multiplicadorHeadshot: 2.5, // Headshot: 225 daño (1 shot kill)
       semiAutomatica: true,
-      dispersion: 0.015, // Muy precisa
-      falloffDaño: { // Daño disminuye con distancia
-        distanciaMinima: 10,
-        distanciaMaxima: 30,
-        dañoMinimo: 20
-      },
+      dispersion: 0.02, // Precisa pero no perfecta
       apuntado: {
-        zoom: 1.25,
-        reduccionRetroceso: 0.6,
-        tiempoTransicion: 0.15,
+        zoom: 1.3,
+        reduccionRetroceso: 0.5,
+        tiempoTransicion: 0.18,
         posicionArma: { x: 0, y: -0.25, z: -0.08 },
         reduccionDispersion: 0.5
       }

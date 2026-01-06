@@ -93,7 +93,7 @@ canvas {
   transform: translateY(15px);
   transition: opacity 0.3s ease, transform 0.3s ease;
   position: relative;
-  z-index: 1;
+  z-index: 10;
 }
 
 .lobby-pantalla.active {
@@ -101,6 +101,7 @@ canvas {
   opacity: 1;
   transform: translateY(0);
   animation: fadeSlideIn 0.3s ease forwards;
+  z-index: 10;
 }
 
 .lobby-pantalla.exiting {
@@ -202,6 +203,8 @@ canvas {
   max-width: 480px;
   box-sizing: border-box;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  z-index: 20;
 }
 
 .lobby-container:hover {
@@ -217,6 +220,8 @@ canvas {
   height: 100%;
   padding: 30px;
   box-sizing: border-box;
+  position: relative;
+  z-index: 15;
 }
 
 /* Título del lobby */
@@ -512,6 +517,8 @@ canvas {
   position: relative;
   overflow: hidden;
   box-shadow: 0 4px 0 #D0D0D0;
+  z-index: 20;
+  pointer-events: auto;
 }
 
 .lobby-btn:hover {
@@ -889,27 +896,131 @@ canvas {
   margin-bottom: 25px;
 }
 
-.config-item {
+/* Configuración del lobby - elementos clickeables */
+#lobby-config .config-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 18px 20px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(126, 200, 227, 0.1);
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(126, 200, 227, 0.2);
   transition: all 0.25s ease;
+  position: relative;
+  z-index: 100;
 }
 
-.config-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(126, 200, 227, 0.2);
+#lobby-config .config-item:hover {
+  background: rgba(126, 200, 227, 0.15);
+  border-color: rgba(126, 200, 227, 0.4);
 }
 
-.config-item label {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 15px;
-  font-weight: 600;
-  margin: 0;
+/* Control container para inputs */
+#lobby-config .config-control {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  pointer-events: auto;
+  z-index: 200;
+  position: relative;
+}
+
+/* Asegurar que los inputs sean clickeables */
+#lobby-config .config-item input {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  z-index: 300 !important;
+  position: relative !important;
+}
+
+#lobby-config .config-item input[type="range"] {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 130px;
+  height: 8px;
+  background: rgba(126, 200, 227, 0.3);
+  border-radius: 4px;
+  z-index: 300 !important;
+}
+
+#lobby-config .config-item input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(135deg, #5BA3C0 0%, #3D8EB0 100%);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(91, 163, 192, 0.4);
+  transition: all 0.2s ease;
+  border: 2px solid white;
+}
+
+#lobby-config .config-item input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(91, 163, 192, 0.5);
+}
+
+#lobby-config .config-item input[type="checkbox"] {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  background: white;
+  border: 3px solid rgba(126, 200, 227, 0.5);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+#lobby-config .config-item input[type="checkbox"]:checked {
+  background: linear-gradient(135deg, #5BA3C0 0%, #3D8EB0 100%);
+  border-color: #5BA3C0;
+}
+
+#lobby-config .config-item input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+#lobby-config .config-item input[type="checkbox"]:hover {
+  border-color: #5BA3C0;
+}
+
+/* Valores de configuración */
+#lobby-config .config-control span {
+  color: #2C5F7C;
+  font-weight: 700;
+  font-size: 14px;
+  min-width: 55px;
+  text-align: right;
+  background: rgba(126, 200, 227, 0.2);
+  padding: 4px 10px;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+/* Etiquetas de configuración del lobby */
+#lobby-config .config-item label {
+  color: #2C5F7C !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  margin: 0 !important;
+  flex: 1 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: none !important; /* Las etiquetas no deben interceptar clicks */
 }
 
 .config-control {
@@ -2030,10 +2141,14 @@ canvas {
   box-shadow: 0 3px 0 #D0D0D0;
 }
 
-.setting-item label {
-  color: #2C5F7C;
-  font-size: 14px;
-  font-weight: 600;
+/* Etiquetas de configuración en el menú de pausa */
+#pause-menu .setting-item label {
+  color: #2C5F7C !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .setting-item input[type="range"] {
@@ -2108,42 +2223,49 @@ canvas {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 20px;
   align-content: center;
   flex: 1;
+  padding: 15px;
 }
 
 .stat-card {
   background: #F0FAFF;
-  border-radius: 14px;
-  padding: 16px 12px;
+  border-radius: 18px;
+  padding: 30px 20px;
   text-align: center;
   border: 3px solid #E8E8E8;
   transition: all 0.2s ease;
-  box-shadow: 0 3px 0 #D0D0D0;
+  box-shadow: 0 5px 0 #D0D0D0;
+  min-height: 80px;
 }
 
 .stat-card:hover {
   background: white;
   border-color: #7EC8E3;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 0 #5BA3C0;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 0 #5BA3C0;
 }
 
 .stat-value {
-  font-size: 28px;
+  font-size: 42px;
   font-weight: 800;
   color: #5BA3C0;
   line-height: 1;
+  margin-bottom: 8px;
 }
 
-.stat-label {
-  color: #6A9BB5;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-top: 6px;
-  font-weight: 600;
+/* Etiquetas de estadísticas en el menú de pausa */
+#pause-menu .stat-label {
+  color: #6A9BB5 !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  margin-top: 6px !important;
+  font-weight: 600 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 /* FPS Counter */
@@ -2519,8 +2641,11 @@ canvas {
 }
 
 .stat-label {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: 14px !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .stat-value {
@@ -3855,6 +3980,7 @@ canvas {
   position: relative;
   padding: 20px;
   box-sizing: border-box;
+  z-index: 10;
 }
 
 .lobby-center {
@@ -3865,6 +3991,8 @@ canvas {
   gap: 40px;
   animation: fadeInScale 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
   text-align: center;
+  position: relative;
+  z-index: 15;
 }
 
 @keyframes fadeInScale {
@@ -4028,6 +4156,8 @@ canvas {
   position: relative;
   overflow: hidden;
   box-shadow: 0 6px 0 #D0D0D0, 0 10px 25px rgba(0, 0, 0, 0.1);
+  z-index: 20;
+  pointer-events: auto;
 }
 
 .game-btn::before {
@@ -4039,6 +4169,7 @@ canvas {
   height: 100%;
   background: linear-gradient(180deg, rgba(255,255,255,0.8) 0%, transparent 50%);
   pointer-events: none;
+  z-index: -1;
 }
 
 .game-btn:hover {

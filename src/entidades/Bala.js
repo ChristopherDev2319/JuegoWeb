@@ -25,25 +25,15 @@ export class Bala {
     this.velocidadBala = configBala.velocidad || 30.0;
     this.dañoBala = configBala.daño || 20;
     
-    // Crear mesh de la bala
-    const geometria = new THREE.CylinderGeometry(0.02, 0.02, 0.1, 6);
-    const material = new THREE.MeshStandardMaterial({
-      color: 0xffd700,
-      emissive: 0xffaa00,
-      emissiveIntensity: 0.5,
-      metalness: 0.8,
-      roughness: 0.2
+    // Crear mesh INVISIBLE de la bala (solo para tracking de posición)
+    // La bala ya no es visible - usamos hitscan con efectos visuales
+    const geometria = new THREE.SphereGeometry(0.01, 4, 4);
+    const material = new THREE.MeshBasicMaterial({
+      visible: false  // Bala invisible
     });
 
     this.mesh = new THREE.Mesh(geometria, material);
-    this.mesh.castShadow = true;
     this.mesh.position.copy(posicion);
-
-    // Orientar la bala en la dirección de movimiento
-    this.mesh.quaternion.setFromUnitVectors(
-      new THREE.Vector3(0, 1, 0),
-      direccion.clone().normalize()
-    );
 
     // Propiedades de movimiento
     this.direccion = direccion.clone().normalize();
@@ -58,29 +48,51 @@ export class Bala {
     this.raycaster = new THREE.Raycaster();
 
     scene.add(this.mesh);
-    this.crearDestelloDisparo(posicion);
+    
+    // Crear muzzle flash en la posición del arma
+    this.crearMuzzleFlash(posicion);
   }
 
   /**
-   * Crea el efecto visual del destello del disparo
+   * Crea el efecto de muzzle flash (destello del cañón)
    * @param {THREE.Vector3} posicion - Posición del destello
    */
-  crearDestelloDisparo(posicion) {
-    const geometriaDestello = new THREE.SphereGeometry(0.08, 8, 8);
+  crearMuzzleFlash(posicion) {
+    // Destello principal (luz brillante)
+    const geometriaDestello = new THREE.SphereGeometry(0.12, 8, 8);
     const materialDestello = new THREE.MeshBasicMaterial({
       color: 0xffdd00,
       transparent: true,
-      opacity: 0.7
+      opacity: 0.9
     });
     const destello = new THREE.Mesh(geometriaDestello, materialDestello);
     destello.position.copy(posicion);
     this.scene.add(destello);
 
-    setTimeout(() => {
-      this.scene.remove(destello);
-      geometriaDestello.dispose();
-      materialDestello.dispose();
-    }, 100);
+    // Luz puntual para iluminar el área
+    const luz = new THREE.PointLight(0xffaa00, 2, 5);
+    luz.position.copy(posicion);
+    this.scene.add(luz);
+
+    // Animar y remover el destello rápidamente
+    let frame = 0;
+    const animarDestello = () => {
+      frame++;
+      materialDestello.opacity = 0.9 - (frame * 0.15);
+      destello.scale.setScalar(1 + frame * 0.3);
+      luz.intensity = 2 - (frame * 0.4);
+      
+      if (frame >= 6) {
+        this.scene.remove(destello);
+        this.scene.remove(luz);
+        geometriaDestello.dispose();
+        materialDestello.dispose();
+        luz.dispose();
+      } else {
+        requestAnimationFrame(animarDestello);
+      }
+    };
+    requestAnimationFrame(animarDestello);
   }
 
 

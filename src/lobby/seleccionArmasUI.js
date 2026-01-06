@@ -66,13 +66,18 @@ function crearElementosDOM() {
       <h2 class="seleccion-armas-titulo">Selecciona tu Arma</h2>
       <div class="seleccion-armas-grid" id="grid-armas"></div>
       <button class="seleccion-armas-btn-jugar" id="btn-jugar-arma" disabled>
-        <span class="btn-jugar-icono">🎮</span>
+        <span class="btn-jugar-icono"><i data-lucide="play"></i></span>
         <span class="btn-jugar-texto">Jugar</span>
       </button>
     </div>
   `;
   
   document.body.appendChild(contenedor);
+  
+  // Reinicializar iconos Lucide después de agregar el HTML
+  if (typeof window.reinicializarIconos === 'function') {
+    window.reinicializarIconos();
+  }
 }
 
 /**
@@ -118,9 +123,16 @@ function generarTarjetasArmas() {
   
   // Crear tarjeta para cada arma
   armas.forEach(arma => {
+    console.log(`🔫 Generando tarjeta para ${arma.nombre} con icono:`, arma.icono);
     const tarjeta = crearTarjetaArma(arma);
     elementos.gridArmas.appendChild(tarjeta);
   });
+  
+  // Reinicializar iconos Lucide después de generar las tarjetas
+  if (typeof window.reinicializarIconos === 'function') {
+    window.reinicializarIconos();
+    console.log('🎨 Iconos Lucide reinicializados en menú de selección');
+  }
 }
 
 /**
@@ -134,9 +146,26 @@ function crearTarjetaArma(arma) {
   tarjeta.className = 'tarjeta-arma';
   tarjeta.dataset.tipo = arma.tipo;
   
-  // Calcular barras de stats (normalizar a porcentaje)
-  const dañoPct = Math.min(100, (arma.stats.daño / 120) * 100);
-  const cadenciaPct = Math.min(100, (arma.stats.cadencia / 800) * 100);
+  // Calcular barras de stats con valores reales de daño efectivo
+  // Daño efectivo por arma (considerando proyectiles múltiples):
+  // - Sniper: 200 (one-shot)
+  // - Escopeta: 192 (24 × 8 perdigones)
+  // - Desert Eagle: 90
+  // - AK47: 38
+  // - M4A1: 28
+  // - MP5: 24
+  const dañosEfectivos = {
+    'SNIPER': 200,
+    'ESCOPETA': 192,  // 24 × 8 perdigones
+    'PISTOLA': 90,
+    'AK47': 38,
+    'M4A1': 28,
+    'MP5': 24
+  };
+  
+  const dañoEfectivo = dañosEfectivos[arma.tipo] || arma.stats.daño;
+  const dañoPct = Math.min(100, (dañoEfectivo / 200) * 100);
+  const cadenciaPct = Math.min(100, (arma.stats.cadencia / 850) * 100);
   const precisionPct = arma.stats.precision * 100;
   
   tarjeta.innerHTML = `
@@ -416,6 +445,11 @@ export function generarGridArmasMuerte(armaPrevia = null, onSeleccionar = null) 
     
     grid.appendChild(tarjeta);
   });
+  
+  // Reinicializar iconos Lucide después de generar el grid de muerte
+  if (typeof window.reinicializarIconos === 'function') {
+    window.reinicializarIconos();
+  }
   
   menuMuerteInicializado = true;
 }

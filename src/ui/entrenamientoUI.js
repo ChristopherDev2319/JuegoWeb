@@ -161,13 +161,13 @@ export function mostrarIndicadorZona(nombreZona, tipoZona) {
   if (zoneIconElement) {
     switch (tipoZona) {
       case 'estatico':
-        zoneIconElement.textContent = '🎯';
+        zoneIconElement.innerHTML = '<i data-lucide="target"></i>';
         break;
       case 'movil':
         zoneIconElement.textContent = '🏃';
         break;
       case 'tirador':
-        zoneIconElement.textContent = '⚔️';
+        zoneIconElement.innerHTML = '<i data-lucide="swords"></i>';
         break;
       default:
         zoneIconElement.textContent = '📍';
