@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Storage Fix - Tracking Prevention</title>
+    <link rel="stylesheet" href="css/estilos.css" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+</head>
+<body style="background: #1a1a1a; color: white; padding: 20px;">
+    <h1>🔧 Test Storage Fix - Tracking Prevention</h1>
+    
+    <div style="margin: 30px 0; padding: 20px; background: #2a2a2a; border-radius: 10px;">
+        <h2>💾 Estado del Storage</h2>
+        <div id="storage-status">Verificando...</div>
+        <button id="test-storage" style="margin-top: 10px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            Probar Storage
+        </button>
+    </div>
+    
+    <div style="margin: 30px 0;">
+        <h2>📋 Configuración del Lobby (Test)</h2>
+        <div id="lobby-config">
+            <div class="config-lista">
+                <div class="config-item" data-config="sensibilidad">
+                    <label>Sensibilidad</label>
+                    <div class="config-control">
+                        <input type="range" id="test-sensibilidad" min="0.001" max="0.01" step="0.001" value="0.002">
+                        <span id="test-sensibilidad-valor">0.002</span>
+                    </div>
+                </div>
+                
+                <div class="config-item" data-config="volumen">
+                    <label>Volumen</label>
+                    <div class="config-control">
+                        <input type="range" id="test-volumen" min="0" max="1" step="0.1" value="0.5">
+                        <span id="test-volumen-valor">50%</span>
+                    </div>
+                </div>
+                
+                <div class="config-item" data-config="fps">
+                    <label>Mostrar FPS</label>
+                    <input type="checkbox" id="test-mostrar-fps">
+                </div>
+                
+                <div class="config-item" data-config="crosshair">
+                    <label>Crosshair Dinámico</label>
+                    <input type="checkbox" id="test-crosshair-dinamico" checked>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button id="save-config" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+                    Guardar Configuración
+                </button>
+                <button id="load-config" style="padding: 10px 20px; background: #FF9800; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    Cargar Configuración
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div style="margin: 30px 0;">
+        <h2>📊 Estadísticas del Menú de Pausa (Test)</h2>
+        <div id="pause-menu" style="position: relative; background: white; padding: 20px; border-radius: 10px;">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="kills-stat">0</div>
+                    <div class="stat-label">Kills</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="deaths-stat">0</div>
+                    <div class="stat-label">Muertes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="kd-ratio">0.00</div>
+                    <div class="stat-label">K/D</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="accuracy-stat">0%</div>
+                    <div class="stat-label">Precisión</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="shots-fired">0</div>
+                    <div class="stat-label">Disparos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="playtime-stat">00:00</div>
+                    <div class="stat-label">Tiempo</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button id="update-stats" style="padding: 10px 20px; background: #9C27B0; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    Simular Estadísticas
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div style="margin: 30px 0; padding: 20px; background: #2a2a2a; border-radius: 10px;">
+        <h3>📝 Log de Eventos:</h3>
+        <div id="event-log" style="background: #1a1a1a; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;">
+            <!-- Los logs aparecerán aquí -->
+        </div>
+    </div>
+    
+    <p><a href="/" style="color: #4CAF50; font-size: 18px;">🎮 Volver al Juego</a></p>
+
+    <script type="module">
+        // Importar el módulo de storage
+        import { getStorageJSON, setStorageJSON, getStorageInfo, getStorageItem, setStorageItem } from './src/utils/storage.js';
+        
+        const eventLog = document.getElementById('event-log');
+        const storageStatus = document.getElementById('storage-status');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            eventLog.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            eventLog.scrollTop = eventLog.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateStorageStatus() {
+            const info = getStorageInfo();
+            storageStatus.innerHTML = `
+                <div><strong>Estado:</strong> ${info.available ? '✅ Disponible' : '⚠️ No disponible'}</div>
+                <div><strong>Mensaje:</strong> ${info.message}</div>
+                <div><strong>Items en fallback:</strong> ${info.fallbackItems}</div>
+            `;
+        }
+        
+        // Verificar storage al cargar
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Página cargada, verificando storage...');
+            updateStorageStatus();
+            
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+            
+            // Cargar configuración guardada
+            loadConfiguration();
+        });
+        
+        // Test básico de storage
+        document.getElementById('test-storage').addEventListener('click', function() {
+            log('🧪 Probando storage básico...');
+            
+            const testData = { test: true, timestamp: Date.now() };
+            const saved = setStorageJSON('test_data', testData);
+            
+            if (saved) {
+                log('✅ Datos guardados correctamente');
+            } else {
+                log('⚠️ Datos guardados en memoria temporal');
+            }
+            
+            const loaded = getStorageJSON('test_data', null);
+            if (loaded && loaded.test) {
+                log('✅ Datos cargados correctamente');
+            } else {
+                log('❌ Error cargando datos');
+            }
+            
+            updateStorageStatus();
+        });
+        
+        // Guardar configuración
+        document.getElementById('save-config').addEventListener('click', function() {
+            log('💾 Guardando configuración...');
+            
+            const config = {
+                sensibilidad: parseFloat(document.getElementById('test-sensibilidad').value),
+                volumen: parseFloat(document.getElementById('test-volumen').value),
+                mostrarFps: document.getElementById('test-mostrar-fps').checked,
+                crosshairDinamico: document.getElementById('test-crosshair-dinamico').checked,
+                timestamp: Date.now()
+            };
+            
+            const saved = setStorageJSON('test_config', config);
+            if (saved) {
+                log('✅ Configuración guardada: ' + JSON.stringify(config));
+            } else {
+                log('⚠️ Configuración guardada en memoria temporal');
+            }
+            
+            updateStorageStatus();
+        });
+        
+        // Cargar configuración
+        document.getElementById('load-config').addEventListener('click', function() {
+            loadConfiguration();
+        });
+        
+        function loadConfiguration() {
+            log('📂 Cargando configuración...');
+            
+            const config = getStorageJSON('test_config', null);
+            if (config) {
+                document.getElementById('test-sensibilidad').value = config.sensibilidad || 0.002;
+                document.getElementById('test-sensibilidad-valor').textContent = (config.sensibilidad || 0.002).toFixed(3);
+                
+                document.getElementById('test-volumen').value = config.volumen || 0.5;
+                document.getElementById('test-volumen-valor').textContent = `${Math.round((config.volumen || 0.5) * 100)}%`;
+                
+                document.getElementById('test-mostrar-fps').checked = config.mostrarFps || false;
+                document.getElementById('test-crosshair-dinamico').checked = config.crosshairDinamico !== undefined ? config.crosshairDinamico : true;
+                
+                log('✅ Configuración cargada: ' + JSON.stringify(config));
+            } else {
+                log('ℹ️ No hay configuración guardada');
+            }
+        }
+        
+        // Simular estadísticas
+        document.getElementById('update-stats').addEventListener('click', function() {
+            log('📊 Simulando estadísticas...');
+            
+            const kills = Math.floor(Math.random() * 20) + 1;
+            const deaths = Math.floor(Math.random() * 10) + 1;
+            const shots = Math.floor(Math.random() * 100) + 20;
+            const hits = Math.floor(shots * (Math.random() * 0.5 + 0.3)); // 30-80% accuracy
+            
+            document.getElementById('kills-stat').textContent = kills;
+            document.getElementById('deaths-stat').textContent = deaths;
+            document.getElementById('kd-ratio').textContent = (kills / deaths).toFixed(2);
+            document.getElementById('shots-fired').textContent = shots;
+            document.getElementById('accuracy-stat').textContent = `${Math.round((hits / shots) * 100)}%`;
+            document.getElementById('playtime-stat').textContent = '05:30';
+            
+            log(`📈 Estadísticas actualizadas: ${kills}K/${deaths}D, ${Math.round((hits / shots) * 100)}% precisión`);
+        });
+        
+        // Event listeners para sliders
+        document.getElementById('test-sensibilidad').addEventListener('input', function() {
+            document.getElementById('test-sensibilidad-valor').textContent = this.value;
+        });
+        
+        document.getElementById('test-volumen').addEventListener('input', function() {
+            document.getElementById('test-volumen-valor').textContent = `${Math.round(this.value * 100)}%`;
+        });
+        
+        // Test de clicks en config items
+        document.querySelectorAll('.config-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const configType = this.dataset.config;
+                log(`🖱️ Click en configuración: ${configType}`);
+                this.style.background = 'rgba(126, 200, 227, 0.2)';
+                setTimeout(() => {
+                    this.style.background = '';
+                }, 200);
+            });
+        });
+    </script>
+</body>
+</html>

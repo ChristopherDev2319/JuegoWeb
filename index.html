@@ -6,7 +6,11 @@
     <title>BearStrike - FPS Online</title>
     <link rel="icon" type="image/png" href="logo de la pagina/LOGO_FINAL.png">
     <link rel="shortcut icon" type="image/png" href="logo de la pagina/LOGO_FINAL.png">
-    <link rel="stylesheet" href="css/estilos.css" />
+    
+    <!-- Lucide Icons - Iconos modernos para gaming -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+    
+    <link rel="stylesheet" href="css/estilos.css?v=20260105c" />
     
     <!-- Lucide Icons para iconos SVG profesionales -->
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
@@ -34,9 +38,9 @@
             <!-- Nickname con avatar -->
             <div class="nickname-section">
               <div class="nickname-input-group">
-                <div class="avatar-minimal"><span>👤</span></div>
+                <div class="avatar-minimal"><span><i data-lucide="user"></i></span></div>
                 <input type="text" id="nombre-jugador" placeholder="Ingresa tu nickname..." maxlength="16" class="nickname-input">
-                <button id="btn-nombre-aleatorio" class="random-btn" title="Nickname aleatorio">🎲</button>
+                <button id="btn-nombre-aleatorio" class="random-btn" title="Nickname aleatorio"><i data-lucide="dice-6"></i></button>
               </div>
               <span id="nombre-error" class="error-minimal"></span>
             </div>
@@ -44,14 +48,14 @@
             <!-- Botones de juego -->
             <div class="game-buttons">
               <button id="btn-modo-online" class="game-btn primary-btn">
-                <span class="btn-icon-game">🌐</span>
+                <span class="btn-icon-game"><i data-lucide="globe"></i></span>
                 <div class="btn-content-game">
                   <span class="btn-title-game">Jugar Online</span>
                   <span class="btn-subtitle-game">Multijugador</span>
                 </div>
               </button>
               <button id="btn-modo-local" class="game-btn secondary-btn">
-                <span class="btn-icon-game">🎮</span>
+                <span class="btn-icon-game"><i data-lucide="gamepad-2"></i></span>
                 <div class="btn-content-game">
                   <span class="btn-title-game">Modo Local</span>
                   <span class="btn-subtitle-game">Práctica</span>
@@ -62,8 +66,8 @@
           
           <!-- Opciones en la esquina superior derecha -->
           <div class="corner-options">
-            <button id="lobby-login-btn" class="login-btn-corner"><span>🔐</span> Iniciar Sesión</button>
-            <button id="btn-config-lobby" class="corner-btn"><span>⚙️</span></button>
+            <button id="lobby-login-btn" class="login-btn-corner"><span><i data-lucide="log-in"></i></span> Iniciar Sesión</button>
+            <button id="btn-config-lobby" class="corner-btn"><span><i data-lucide="settings"></i></span></button>
           </div>
         </div>
       </div>
@@ -81,14 +85,14 @@
             
             <div class="lobby-botones">
               <button id="btn-partida-publica" class="lobby-btn btn-primario">
-                <span class="btn-icono-grande">🔓</span>
+                <span class="btn-icono-grande"><i data-lucide="unlock"></i></span>
                 <span class="btn-texto">
                   <span class="btn-titulo">Partida Pública</span>
                   <span class="btn-desc">Matchmaking automático</span>
                 </span>
               </button>
               <button id="btn-partida-privada" class="lobby-btn btn-secundario">
-                <span class="btn-icono-grande">🔒</span>
+                <span class="btn-icono-grande"><i data-lucide="lock"></i></span>
                 <span class="btn-texto">
                   <span class="btn-titulo">Partida Privada</span>
                   <span class="btn-desc">Juega con amigos</span>
@@ -109,14 +113,14 @@
             
             <div class="lobby-botones">
               <button id="btn-crear-partida" class="lobby-btn btn-primario">
-                <span class="btn-icono-grande">➕</span>
+                <span class="btn-icono-grande"><i data-lucide="plus"></i></span>
                 <span class="btn-texto">
                   <span class="btn-titulo">Crear Partida</span>
                   <span class="btn-desc">Crea una sala nueva</span>
                 </span>
               </button>
               <button id="btn-unirse-partida" class="lobby-btn btn-secundario">
-                <span class="btn-icono-grande">🚪</span>
+                <span class="btn-icono-grande"><i data-lucide="door-open"></i></span>
                 <span class="btn-texto">
                   <span class="btn-titulo">Unirse a Partida</span>
                   <span class="btn-desc">Ingresa código de sala</span>
@@ -143,7 +147,7 @@
             </div>
             
             <button id="btn-confirmar-crear" class="lobby-btn btn-primario btn-full">
-              <span>🎯</span> Crear Partida
+              <span><i data-lucide="target"></i></span> Crear Partida
             </button>
             
             <span id="crear-error" class="error-mensaje centro"></span>
@@ -171,7 +175,7 @@
             </div>
             
             <button id="btn-confirmar-unirse" class="lobby-btn btn-primario btn-full">
-              <span>🚀</span> Unirse
+              <span><i data-lucide="rocket"></i></span> Unirse
             </button>
             
             <span id="unirse-error" class="error-mensaje centro"></span>
@@ -225,7 +229,7 @@
             </div>
             
             <button id="btn-iniciar-partida" class="lobby-btn btn-primario btn-full">
-              <span>▶️</span> Iniciar Partida
+              <span><i data-lucide="play"></i></span> Iniciar Partida
             </button>
           </div>
         </div>
@@ -269,7 +273,7 @@
             </div>
             
             <button id="btn-guardar-config" class="lobby-btn btn-primario btn-full">
-              <span>💾</span> Guardar Configuración
+              <span><i data-lucide="save"></i></span> Guardar Configuración
             </button>
           </div>
         </div>
@@ -401,27 +405,27 @@
       <div class="pause-content">
         <div class="pause-buttons">
           <button id="resume-btn" class="pause-btn primary">
-            <span class="btn-icon">▶</span>
+            <span class="btn-icon"><i data-lucide="play"></i></span>
             Continuar
           </button>
           
           <button id="settings-btn" class="pause-btn">
-            <span class="btn-icon">⚙</span>
+            <span class="btn-icon"><i data-lucide="settings"></i></span>
             Configuración
           </button>
           
           <button id="controls-btn" class="pause-btn">
-            <span class="btn-icon">🎮</span>
+            <span class="btn-icon"><i data-lucide="gamepad-2"></i></span>
             Controles
           </button>
           
           <button id="stats-btn" class="pause-btn">
-            <span class="btn-icon">📊</span>
+            <span class="btn-icon"><i data-lucide="bar-chart-3"></i></span>
             Estadísticas
           </button>
           
           <button id="exit-btn" class="pause-btn danger">
-            <span class="btn-icon">🚪</span>
+            <span class="btn-icon"><i data-lucide="door-open"></i></span>
             Salir
           </button>
         </div>
@@ -490,16 +494,8 @@
               <div class="stat-label">K/D</div>
             </div>
             <div class="stat-card">
-              <div class="stat-value" id="accuracy-stat">0%</div>
-              <div class="stat-label">Precisión</div>
-            </div>
-            <div class="stat-card">
               <div class="stat-value" id="shots-fired">0</div>
               <div class="stat-label">Disparos</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value" id="playtime-stat">00:00</div>
-              <div class="stat-label">Tiempo</div>
             </div>
           </div>
         </div>
@@ -603,5 +599,34 @@
 
     <!-- Punto de entrada principal del juego -->
     <script type="module" src="src/main.js"></script>
+    
+    <!-- Inicializar iconos Lucide -->
+    <script>
+      // Inicializar Lucide icons después de que se cargue el DOM
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('🎨 Inicializando iconos Lucide...');
+        if (typeof lucide !== 'undefined') {
+          lucide.createIcons();
+          console.log('✅ Iconos Lucide inicializados correctamente');
+        } else {
+          console.error('❌ Lucide no está disponible');
+        }
+      });
+      
+      // También inicializar cuando se carga la página completamente
+      window.addEventListener('load', function() {
+        if (typeof lucide !== 'undefined') {
+          lucide.createIcons();
+          console.log('🔄 Iconos Lucide reinicializados después de load');
+        }
+      });
+      
+      // Función global para reinicializar iconos cuando sea necesario
+      window.reinicializarIconos = function() {
+        if (typeof lucide !== 'undefined') {
+          lucide.createIcons();
+        }
+      };
+    </script>
   </body>
 </html>

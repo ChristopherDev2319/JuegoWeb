@@ -8,6 +8,7 @@
 // Importar módulos del juego
 import { CONFIG } from './config.js';
 import { ChatSystem } from './ui/chatSystem.js';
+import { getStorageJSON, setStorageJSON, getStorageInfo } from './utils/storage.js';
 
 import { 
   inicializarEscena, 
@@ -257,9 +258,10 @@ window.modoJuegoActual = modoJuegoActual;
  */
 function leerConfiguracionGuardada() {
   try {
-    const configGuardada = localStorage.getItem('gameConfig');
-    if (configGuardada) {
-      const config = JSON.parse(configGuardada);
+    console.log('💾 Storage Info:', getStorageInfo());
+    const config = getStorageJSON('gameConfig', null);
+    
+    if (config) {
       CONFIG.red.habilitarMultijugador = config.multiplayerEnabled;
       
       console.log('📋 Configuración cargada:');
@@ -268,9 +270,11 @@ function leerConfiguracionGuardada() {
       if (!config.multiplayerEnabled) {
         console.log('🎯 Modo local activado');
       }
+    } else {
+      console.log('ℹ️ No hay configuración guardada');
     }
   } catch (error) {
-    console.warn('No se pudo cargar la configuración guardada:', error);
+    console.warn('⚠️ No se pudo cargar la configuración guardada:', error);
   }
 }
 
@@ -499,8 +503,13 @@ function mostrarIndicadorModoLocal() {
     indicador = document.createElement('div');
     indicador.id = 'modo-local-indicator';
     indicador.className = 'modo-local-indicator';
-    indicador.innerHTML = '🎮 Modo Local';
+    indicador.innerHTML = '<i data-lucide="gamepad-2"></i> Modo Local';
     document.body.appendChild(indicador);
+    
+    // Reinicializar iconos Lucide después de agregar el HTML
+    if (typeof window.reinicializarIconos === 'function') {
+      window.reinicializarIconos();
+    }
   }
   
   indicador.style.display = 'block';
@@ -674,7 +683,7 @@ function mostrarMensajeMunicion(cantidad) {
   // Crear elemento de mensaje
   const mensaje = document.createElement('div');
   mensaje.className = 'ammo-pickup-message';
-  mensaje.innerHTML = `+${cantidad} 🔫`;
+  mensaje.innerHTML = `+${cantidad} <i data-lucide="crosshair"></i>`;
   mensaje.style.cssText = `
     position: fixed;
     bottom: 150px;
@@ -707,6 +716,11 @@ function mostrarMensajeMunicion(cantidad) {
   }
 
   document.body.appendChild(mensaje);
+  
+  // Reinicializar iconos Lucide después de agregar el HTML
+  if (typeof window.reinicializarIconos === 'function') {
+    window.reinicializarIconos();
+  }
 
   // Remover después de la animación
   setTimeout(() => {
@@ -1375,7 +1389,7 @@ function actualizarStatsLocales(stat, incremento = 1) {
     const authState = obtenerEstadoAuth();
     if (authState.isAuthenticated) return; // Solo para usuarios no autenticados
     
-    const statsLocales = JSON.parse(localStorage.getItem('gameStats') || '{}');
+    const statsLocales = getStorageJSON('gameStats', {});
     statsLocales[stat] = (statsLocales[stat] || 0) + incremento;
     
     // Calcular experiencia basada en acciones
@@ -1387,9 +1401,12 @@ function actualizarStatsLocales(stat, incremento = 1) {
       statsLocales.experience = (statsLocales.experience || 0) + 5; // 5 XP por impacto
     }
     
-    localStorage.setItem('gameStats', JSON.stringify(statsLocales));
+    const guardado = setStorageJSON('gameStats', statsLocales);
+    if (!guardado) {
+      console.warn('⚠️ Estadísticas guardadas en memoria temporal');
+    }
   } catch (error) {
-    console.warn('Error actualizando estadísticas locales:', error);
+    console.warn('⚠️ Error actualizando estadísticas locales:', error);
   }
 }
 
@@ -3016,8 +3033,8 @@ window.abrirMenuUsuario = function() {
       };
     } else {
       // Usuario no autenticado - usar datos locales del localStorage
-      const statsLocales = JSON.parse(localStorage.getItem('gameStats') || '{}');
-      const configLocal = JSON.parse(localStorage.getItem('gameConfig') || '{}');
+      const statsLocales = getStorageJSON('gameStats', {});
+      const configLocal = getStorageJSON('gameConfig', {});
       
       // Calcular nivel basado en experiencia local
       const experiencia = statsLocales.experience || 0;

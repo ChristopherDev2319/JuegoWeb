@@ -216,7 +216,7 @@ export function agregarExperiencia(exp) {
         progresoLocal.progress.level++;
         progresoLocal.progress.experience -= expRequerida;
         
-        console.log(`🎉 ¡Subiste al nivel ${progresoLocal.progress.level}!`);
+        console.log(`[NIVEL UP] ¡Subiste al nivel ${progresoLocal.progress.level}!`);
         
         // Aquí podrías desbloquear armas nuevas
         desbloquearArmasPorNivel(progresoLocal.progress.level);
@@ -243,7 +243,7 @@ function desbloquearArmasPorNivel(nivel) {
         for (const arma of nuevasArmas) {
             if (!progresoLocal.progress.unlockedWeapons.includes(arma)) {
                 progresoLocal.progress.unlockedWeapons.push(arma);
-                console.log(`🔓 ¡Arma desbloqueada: ${arma}!`);
+                console.log(`[ARMA DESBLOQUEADA] ¡Arma desbloqueada: ${arma}!`);
             }
         }
     }

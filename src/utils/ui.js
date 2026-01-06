@@ -484,12 +484,17 @@ export function agregarEntradaKillFeed(killerName, victimName, localPlayerName =
   
   entry.innerHTML = `
     <span class="${killerClass}">${killerDisplay}</span>
-    <span class="weapon-icon">🔫</span>
+    <span class="weapon-icon"><i data-lucide="skull"></i></span>
     <span class="${victimClass}">${victimDisplay}</span>
   `;
   
   // Add to top of kill feed
   killFeed.insertBefore(entry, killFeed.firstChild);
+  
+  // Reinicializar iconos Lucide después de agregar el HTML
+  if (typeof window.reinicializarIconos === 'function') {
+    window.reinicializarIconos();
+  }
   
   // Remove entry after 5 seconds
   setTimeout(() => {
@@ -799,7 +804,7 @@ export function actualizarBarraCuracion(progreso) {
       text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
       white-space: nowrap;
     `;
-    textoProgreso.textContent = '🧃 Curando...';
+    textoProgreso.textContent = 'Curando...';
     
     container.appendChild(barraProgreso);
     container.appendChild(textoProgreso);
@@ -823,7 +828,7 @@ export function actualizarBarraCuracion(progreso) {
   const textoProgreso = document.getElementById('healing-bar-text');
   if (textoProgreso) {
     const porcentaje = Math.round(progreso * 100);
-    textoProgreso.textContent = `🧃 Curando... ${porcentaje}%`;
+    textoProgreso.textContent = `Curando... ${porcentaje}%`;
   }
 }
 

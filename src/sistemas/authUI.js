@@ -363,14 +363,19 @@ function actualizarUIAuth() {
             // Crear botón de perfil clickeable
             authHint.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" id="user-profile-btn">
-                    <span>✅ Conectado como <strong>${authState.user.username}</strong></span>
+                    <span><i data-lucide="check-circle"></i> Conectado como <strong>${authState.user.username}</strong></span>
                     <button style="background: rgba(79, 195, 247, 0.2); border: 1px solid #4FC3F7; border-radius: 6px; padding: 4px 8px; color: #4FC3F7; font-size: 12px; cursor: pointer;">
-                        👤 Perfil
+                        <i data-lucide="user"></i> Perfil
                     </button>
                 </div>
             `;
             authHint.style.color = '#00ff00';
             authHint.style.fontSize = '14px';
+            
+            // Reinicializar iconos Lucide después de agregar el HTML
+            if (typeof window.reinicializarIconos === 'function') {
+                window.reinicializarIconos();
+            }
             
             // Agregar event listener al botón de perfil
             const profileBtn = document.getElementById('user-profile-btn');
@@ -414,10 +419,15 @@ function actualizarUIAuth() {
                     <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
                         <span style="color: rgba(255, 255, 255, 0.6); font-size: 12px;">Modo Local</span>
                         <button style="background: rgba(79, 195, 247, 0.2); border: 1px solid #4FC3F7; border-radius: 6px; padding: 4px 8px; color: #4FC3F7; font-size: 12px; cursor: pointer;" onclick="window.abrirMenuUsuario()">
-                            👤 Mi Personaje
+                            <i data-lucide="user"></i> Mi Personaje
                         </button>
                     </div>
                 `;
+                
+                // Reinicializar iconos Lucide después de agregar el HTML
+                if (typeof window.reinicializarIconos === 'function') {
+                    window.reinicializarIconos();
+                }
             }
         }
     }

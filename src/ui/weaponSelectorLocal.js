@@ -98,7 +98,7 @@ function generarGridArmas() {
     }
     
     // Obtener icono del arma
-    const icono = obtenerIconoArma(configArma.tipo);
+    const icono = obtenerIconoArma(tipoArma);
     
     // Tecla numérica para selección rápida
     const tecla = index + 1;
@@ -116,6 +116,11 @@ function generarGridArmas() {
     
     weaponSelectorGrid.appendChild(weaponItem);
   });
+  
+  // Reinicializar iconos Lucide después de agregar el HTML
+  if (typeof window.reinicializarIconos === 'function') {
+    window.reinicializarIconos();
+  }
 }
 
 /**
@@ -174,18 +179,33 @@ export function actualizarSelectorArmaActiva() {
 }
 
 /**
- * Obtiene el icono emoji para un tipo de arma
+ * Obtiene el icono Lucide específico para cada arma
  */
 function obtenerIconoArma(tipoArma) {
-  const iconos = {
-    'rifle': '🔫',
-    'pistola': '🔫',
-    'francotirador': '🎯',
-    'escopeta': '💥',
-    'subfusil': '⚡'
+  // Mapeo específico por tipo de arma
+  const iconosPorTipo = {
+    'rifle': '<i data-lucide="target"></i>',
+    'pistola': '<i data-lucide="circle-dot"></i>',
+    'francotirador': '<i data-lucide="crosshair"></i>',
+    'escopeta': '<i data-lucide="flame"></i>',
+    'subfusil': '<i data-lucide="bolt"></i>',
+    'melee': '<i data-lucide="sword"></i>'
   };
   
-  return iconos[tipoArma] || '🔫';
+  // Mapeo específico por nombre de arma (más específico)
+  const iconosPorArma = {
+    'M4A1': '<i data-lucide="target"></i>',
+    'AK47': '<i data-lucide="zap"></i>',
+    'PISTOLA': '<i data-lucide="circle-dot"></i>',
+    'SNIPER': '<i data-lucide="crosshair"></i>',
+    'ESCOPETA': '<i data-lucide="flame"></i>',
+    'MP5': '<i data-lucide="bolt"></i>',
+    'KNIFE': '<i data-lucide="sword"></i>',
+    'JUICEBOX': '<i data-lucide="heart-pulse"></i>'
+  };
+  
+  // Primero intentar por nombre específico, luego por tipo
+  return iconosPorArma[tipoArma] || iconosPorTipo[tipoArma] || '<i data-lucide="circle-dot"></i>';
 }
 
 /**
