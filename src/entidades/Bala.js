@@ -9,6 +9,34 @@
 import { CONFIG } from '../config.js';
 import { raycastBala } from '../sistemas/colisiones.js';
 
+// Pool de geometrías y materiales reutilizables para optimización
+let geometriaBalaCompartida = null;
+let materialBalaCompartido = null;
+let geometriaFlashCompartida = null;
+let materialFlashCompartido = null;
+
+function obtenerGeometriaBala() {
+  if (!geometriaBalaCompartida) {
+    geometriaBalaCompartida = new THREE.SphereGeometry(0.01, 4, 4);
+  }
+  return geometriaBalaCompartida;
+}
+
+function obtenerMaterialBala() {
+  if (!materialBalaCompartido) {
+    materialBalaCompartido = new THREE.MeshBasicMaterial({ visible: false });
+  }
+  return materialBalaCompartido;
+}
+
+// Geometría y material compartidos para muzzle flash (optimización)
+function obtenerGeometriaFlash() {
+  if (!geometriaFlashCompartida) {
+    geometriaFlashCompartida = new THREE.PlaneGeometry(0.3, 0.3);
+  }
+  return geometriaFlashCompartida;
+}
+
 export class Bala {
   /**
    * @param {THREE.Scene} scene - Escena de Three.js
@@ -21,18 +49,12 @@ export class Bala {
     this.scene = scene;
     this.onImpactoCallback = onImpacto;
     
-    // Configuración de la bala (usar valores por defecto si no se especifican)
+    // Configuración de la bala
     this.velocidadBala = configBala.velocidad || 30.0;
     this.dañoBala = configBala.daño || 20;
     
-    // Crear mesh INVISIBLE de la bala (solo para tracking de posición)
-    // La bala ya no es visible - usamos hitscan con efectos visuales
-    const geometria = new THREE.SphereGeometry(0.01, 4, 4);
-    const material = new THREE.MeshBasicMaterial({
-      visible: false  // Bala invisible
-    });
-
-    this.mesh = new THREE.Mesh(geometria, material);
+    // Usar geometría y material compartidos (optimización)
+    this.mesh = new THREE.Mesh(obtenerGeometriaBala(), obtenerMaterialBala());
     this.mesh.position.copy(posicion);
 
     // Propiedades de movimiento
@@ -49,50 +71,46 @@ export class Bala {
 
     scene.add(this.mesh);
     
-    // Crear muzzle flash en la posición del arma
-    this.crearMuzzleFlash(posicion);
+    // Crear muzzle flash simple
+    this.crearMuzzleFlash(posicion, direccion);
   }
-
+  
   /**
-   * Crea el efecto de muzzle flash (destello del cañón)
-   * @param {THREE.Vector3} posicion - Posición del destello
+   * Crea un muzzle flash simple y eficiente
+   * @param {THREE.Vector3} posicion - Posición del disparo
+   * @param {THREE.Vector3} direccion - Dirección del disparo
    */
-  crearMuzzleFlash(posicion) {
-    // Destello principal (luz brillante)
-    const geometriaDestello = new THREE.SphereGeometry(0.12, 8, 8);
-    const materialDestello = new THREE.MeshBasicMaterial({
-      color: 0xffdd00,
+  crearMuzzleFlash(posicion, direccion) {
+    // Crear material para este flash (se destruye después)
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xffaa00,
       transparent: true,
-      opacity: 0.9
+      opacity: 0.9,
+      side: THREE.DoubleSide,
+      depthWrite: false
     });
-    const destello = new THREE.Mesh(geometriaDestello, materialDestello);
-    destello.position.copy(posicion);
-    this.scene.add(destello);
-
-    // Luz puntual para iluminar el área
-    const luz = new THREE.PointLight(0xffaa00, 2, 5);
-    luz.position.copy(posicion);
-    this.scene.add(luz);
-
-    // Animar y remover el destello rápidamente
-    let frame = 0;
-    const animarDestello = () => {
-      frame++;
-      materialDestello.opacity = 0.9 - (frame * 0.15);
-      destello.scale.setScalar(1 + frame * 0.3);
-      luz.intensity = 2 - (frame * 0.4);
-      
-      if (frame >= 6) {
-        this.scene.remove(destello);
-        this.scene.remove(luz);
-        geometriaDestello.dispose();
-        materialDestello.dispose();
-        luz.dispose();
-      } else {
-        requestAnimationFrame(animarDestello);
-      }
-    };
-    requestAnimationFrame(animarDestello);
+    
+    const flash = new THREE.Mesh(obtenerGeometriaFlash(), material);
+    
+    // Posicionar el flash cerca del arma
+    const posFlash = posicion.clone();
+    const arriba = new THREE.Vector3(0, 1, 0);
+    const derecha = new THREE.Vector3().crossVectors(direccion, arriba).normalize();
+    
+    posFlash.add(derecha.multiplyScalar(0.2));
+    posFlash.add(new THREE.Vector3(0, -0.1, 0));
+    posFlash.add(direccion.clone().multiplyScalar(0.4));
+    
+    flash.position.copy(posFlash);
+    flash.lookAt(posFlash.clone().add(direccion));
+    
+    this.scene.add(flash);
+    
+    // Remover después de 40ms (2-3 frames)
+    setTimeout(() => {
+      this.scene.remove(flash);
+      material.dispose();
+    }, 40);
   }
 
 
@@ -143,144 +161,36 @@ export class Bala {
    * @param {THREE.Vector3} posicion - Posición del impacto
    */
   crearEfectoImpacto(posicion) {
-    // Sin partículas rojas - solo un destello simple
-    const geometriaDestello = new THREE.SphereGeometry(0.1, 6, 6);
-    const materialDestello = new THREE.MeshBasicMaterial({
-      color: 0xffff00,
-      transparent: true,
-      opacity: 0.8
-    });
-    const destello = new THREE.Mesh(geometriaDestello, materialDestello);
-    destello.position.copy(posicion);
-    this.scene.add(destello);
-
-    // Desvanecer el destello
-    let vida = 0;
-    const animar = () => {
-      vida += 0.05;
-      materialDestello.opacity = 0.8 - vida;
-      destello.scale.setScalar(1 + vida);
-
-      if (vida > 0.8) {
-        this.scene.remove(destello);
-        geometriaDestello.dispose();
-        materialDestello.dispose();
-      } else {
-        requestAnimationFrame(animar);
-      }
-    };
-    animar();
+    // Efecto simplificado - sin partículas para mejor rendimiento
   }
 
   /**
-   * Crea efecto visual de impacto en pared
+   * Crea efecto visual de impacto en pared (optimizado)
    * Requirements: 1.3 - Create impact effect when bullet hits wall
    * @param {THREE.Vector3} posicion - Posición del impacto
    * @param {THREE.Vector3} normal - Normal de la superficie impactada
    */
   crearEfectoImpactoPared(posicion, normal) {
-    // Crear destello de impacto
-    const geometriaDestello = new THREE.SphereGeometry(0.06, 6, 6);
-    const materialDestello = new THREE.MeshBasicMaterial({
-      color: 0xffaa00,
-      transparent: true,
-      opacity: 0.8
-    });
-    const destello = new THREE.Mesh(geometriaDestello, materialDestello);
-    destello.position.copy(posicion);
-    this.scene.add(destello);
-
-    // Desvanecer el destello
-    let opacidad = 0.8;
-    const desvanecerDestello = () => {
-      opacidad -= 0.08;
-      materialDestello.opacity = opacidad;
-      if (opacidad > 0) {
-        requestAnimationFrame(desvanecerDestello);
-      } else {
-        this.scene.remove(destello);
-        geometriaDestello.dispose();
-        materialDestello.dispose();
-      }
-    };
-    requestAnimationFrame(desvanecerDestello);
-
-    // Crear partículas de escombros que salen en dirección de la normal
-    const numParticulas = 6;
-    for (let i = 0; i < numParticulas; i++) {
-      const geometria = new THREE.BoxGeometry(0.03, 0.03, 0.03);
-      const material = new THREE.MeshBasicMaterial({ 
-        color: 0x888888,
-        transparent: true,
-        opacity: 0.9
-      });
-      const particula = new THREE.Mesh(geometria, material);
-      particula.position.copy(posicion);
-
-      // Calcular dirección de la partícula basada en la normal
-      const direccionBase = normal ? normal.clone() : new THREE.Vector3(0, 1, 0);
-      const velocidad = new THREE.Vector3(
-        direccionBase.x + (Math.random() - 0.5) * 0.8,
-        direccionBase.y + Math.random() * 0.5,
-        direccionBase.z + (Math.random() - 0.5) * 0.8
-      ).multiplyScalar(0.15);
-
-      this.scene.add(particula);
-
-      let vida = 0;
-      const gravedad = -0.01;
-      const animar = () => {
-        vida += 0.016;
-        velocidad.y += gravedad;
-        particula.position.add(velocidad);
-        material.opacity = Math.max(0, 0.9 - vida * 2);
-
-        if (vida > 0.4) {
-          this.scene.remove(particula);
-          geometria.dispose();
-          material.dispose();
-        } else {
-          requestAnimationFrame(animar);
-        }
-      };
-      animar();
-    }
-
-    // Crear marca de impacto (decal simplificado)
+    // Efecto mínimo: solo una marca de impacto sin partículas
     if (normal) {
-      const geometriaMarca = new THREE.CircleGeometry(0.08, 8);
+      const geometriaMarca = new THREE.CircleGeometry(0.06, 6);
       const materialMarca = new THREE.MeshBasicMaterial({
-        color: 0x333333,
+        color: 0x222222,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.5,
         side: THREE.DoubleSide
       });
       const marca = new THREE.Mesh(geometriaMarca, materialMarca);
-      
-      // Posicionar ligeramente fuera de la superficie
       marca.position.copy(posicion).add(normal.clone().multiplyScalar(0.01));
-      
-      // Orientar la marca hacia la normal de la superficie
       marca.lookAt(posicion.clone().add(normal));
-      
       this.scene.add(marca);
 
-      // Desvanecer la marca después de un tiempo
+      // Remover marca después de 3 segundos
       setTimeout(() => {
-        let opacidadMarca = 0.6;
-        const desvanecerMarca = () => {
-          opacidadMarca -= 0.02;
-          materialMarca.opacity = opacidadMarca;
-          if (opacidadMarca > 0) {
-            requestAnimationFrame(desvanecerMarca);
-          } else {
-            this.scene.remove(marca);
-            geometriaMarca.dispose();
-            materialMarca.dispose();
-          }
-        };
-        desvanecerMarca();
-      }, 2000);
+        this.scene.remove(marca);
+        geometriaMarca.dispose();
+        materialMarca.dispose();
+      }, 3000);
     }
   }
 
@@ -346,8 +256,7 @@ export class Bala {
    */
   destruir() {
     this.scene.remove(this.mesh);
-    this.mesh.geometry.dispose();
-    this.mesh.material.dispose();
+    // No destruir geometría/material compartidos
   }
 
   /**

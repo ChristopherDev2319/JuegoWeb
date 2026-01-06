@@ -78,8 +78,6 @@ function handleLobbyMessage(ws, message) {
   const action = message.data.action;
   const data = message.data;
   
-  console.log(`[LOBBY] Player ${playerId} action: ${action}`);
-  
   switch (action) {
     case 'matchmaking': {
       const sala = encontrarMejorSala(roomManager);
@@ -97,8 +95,6 @@ function handleLobbyMessage(ws, message) {
         playerRooms.set(playerId, sala.id);
         ws.inLobby = false;
         ws.roomId = sala.id;
-        
-        console.log(`[LOBBY] Player ${playerId} joined room ${sala.codigo} via matchmaking`);
         
         ws.send(serializeMessage('lobbyResponse', {
           action: 'matchmaking',
@@ -140,8 +136,6 @@ function handleLobbyMessage(ws, message) {
       playerRooms.set(playerId, sala.id);
       ws.inLobby = false;
       ws.roomId = sala.id;
-      
-      console.log(`[LOBBY] Player ${playerId} created private room ${sala.codigo}`);
       
       ws.send(serializeMessage('lobbyResponse', {
         action: 'createPrivate',
@@ -205,8 +199,6 @@ function handleLobbyMessage(ws, message) {
       playerRooms.set(playerId, sala.id);
       ws.inLobby = false;
       ws.roomId = sala.id;
-      
-      console.log(`[LOBBY] Player ${playerId} joined private room ${sala.codigo}`);
       
       ws.send(serializeMessage('lobbyResponse', {
         action: 'joinPrivate',
@@ -295,7 +287,6 @@ function handleMessage(ws, data) {
     const player = currentGameManager.getPlayer(playerId);
     if (player && inputData.weaponType) {
       player.changeWeapon(inputData.weaponType);
-      console.log(`[WEAPON] Player ${playerId} changed to ${inputData.weaponType}`);
     }
     return;
   }
@@ -330,7 +321,6 @@ function handleMessage(ws, data) {
       // Asegurar que el jugador tiene el cuchillo equipado en el servidor
       if (player.currentWeapon !== 'KNIFE') {
         player.changeWeapon('KNIFE');
-        console.log(`[MELEE] Auto-equipped KNIFE for player ${playerId}`);
       }
     }
   }
@@ -347,7 +337,6 @@ function handleMessage(ws, data) {
     } else {
       broadcast(serializeMessage('playerHealing', healingData));
     }
-    console.log(`[HEAL] Player ${playerId} started healing`);
     return;
   }
   
@@ -366,7 +355,6 @@ function handleMessage(ws, data) {
         const actualHealed = player.heal(healAmount);
         healingData.newHealth = player.health;
         healingData.healedAmount = actualHealed;
-        console.log(`[HEAL] Player ${playerId} completed healing - ${actualHealed} HP restored (now ${player.health}/${player.maxHealth})`);
       }
     }
     
@@ -375,7 +363,6 @@ function handleMessage(ws, data) {
     } else {
       broadcast(serializeMessage('playerHealing', healingData));
     }
-    console.log(`[HEAL] Player ${playerId} ${message.type === 'healCancel' ? 'cancelled' : 'completed'} healing`);
     return;
   }
   

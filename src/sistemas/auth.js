@@ -48,8 +48,6 @@ export function inicializarAuth(callbacks = {}) {
             limpiarAuth();
         }
     }
-    
-    console.log('✅ Sistema de autenticación inicializado');
 }
 
 /**
@@ -84,8 +82,6 @@ export async function registrarUsuario(username, email, password) {
             if (authCallbacks.onLogin) {
                 authCallbacks.onLogin(authState.user);
             }
-            
-            console.log('✅ Usuario registrado exitosamente:', data.data.user.username);
         } else {
             console.error('Error en registro:', data.message);
             if (authCallbacks.onError) {
@@ -136,8 +132,6 @@ export async function iniciarSesion(username, password) {
             if (authCallbacks.onLogin) {
                 authCallbacks.onLogin(authState.user);
             }
-            
-            console.log('✅ Sesión iniciada exitosamente:', data.data.user.username);
         } else {
             if (authCallbacks.onError) {
                 authCallbacks.onError(data.message);
@@ -167,8 +161,6 @@ export function cerrarSesion() {
     if (authCallbacks.onLogout) {
         authCallbacks.onLogout();
     }
-    
-    console.log('✅ Sesión cerrada');
 }
 
 /**

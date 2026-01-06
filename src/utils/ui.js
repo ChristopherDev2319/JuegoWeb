@@ -5,12 +5,51 @@
  * NOTA: Los valores de munición y estado de arma se reciben del servidor.
  * El cliente NO calcula estos valores localmente - solo los muestra.
  * Requisitos: 2.4
+ * 
+ * OPTIMIZACIÓN: Cache de elementos DOM para evitar queries repetidas
+ * Requirements: 5.1 - Usar referencias DOM cacheadas en lugar de consultar cada frame
  */
+
+// ============================================
+// CACHE DE ELEMENTOS DOM - OPTIMIZACIÓN 5.1
+// ============================================
+let cachedAmmoDiv = null;
+let cachedWeaponNameDiv = null;
+let cachedCrosshair = null;
+let cachedAimIndicator = null;
+let cachedKillFeed = null;
+let cachedSlotSuperior = null;
+let cachedSlotInferior = null;
+let cachedSlotNombre = null;
+
+// Cache de estado anterior para actualizaciones condicionales - OPTIMIZACIÓN 5.2
+let lastAmmoState = { currentAmmo: null, totalAmmo: null, isReloading: null, isHidden: null };
+let lastCrosshairState = { estaApuntando: null };
+
+/**
+ * Inicializa el cache de elementos DOM
+ * Debe llamarse una vez cuando el DOM esté listo
+ * Requirements: 5.1 - Cache de referencias DOM
+ */
+export function inicializarCacheDOM() {
+  cachedAmmoDiv = document.getElementById('ammo');
+  cachedWeaponNameDiv = document.getElementById('weapon-name');
+  cachedCrosshair = document.getElementById('crosshair');
+  cachedAimIndicator = document.getElementById('aim-indicator');
+  cachedKillFeed = document.getElementById('kill-feed');
+  cachedSlotSuperior = document.getElementById('weapon-slot-superior');
+  cachedSlotInferior = document.getElementById('weapon-slot-inferior');
+  if (cachedSlotSuperior) {
+    cachedSlotNombre = cachedSlotSuperior.querySelector('.slot-nombre');
+  }
+}
 
 /**
  * Actualiza el display de munición con valores del servidor
  * NOTA: Los valores de munición son autoritativos del servidor
  * Requirements: 4.1, 4.2 - Ocultar contador cuando cuchillo está equipado
+ * OPTIMIZADO: Cache de DOM y actualizaciones condicionales
+ * Requirements: 5.1, 5.2
  * 
  * @param {Object} estadoMunicion - Estado de munición recibido del servidor
  * @param {number} estadoMunicion.currentAmmo - Munición actual en cargador (del servidor)
@@ -23,33 +62,51 @@
  * @param {string} [estadoMunicion.tipoArma] - Tipo de arma actual
  */
 export function actualizarMunicion(estadoMunicion) {
-  const ammoDiv = document.getElementById('ammo');
-  if (!ammoDiv) return;
+  // Usar cache o buscar elemento si no está cacheado
+  if (!cachedAmmoDiv) {
+    cachedAmmoDiv = document.getElementById('ammo');
+  }
+  if (!cachedAmmoDiv) return;
 
   // Verificar si es cuchillo o JuiceBox - ocultar munición
   // Requirements: 4.1, 4.2 - Ocultar contador de munición cuando cuchillo está equipado
   const esCuchillo = estadoMunicion.esCuchillo || estadoMunicion.tipoArma === 'KNIFE';
   const esJuiceBox = estadoMunicion.esJuiceBox;
+  const shouldHide = esCuchillo || esJuiceBox;
   
-  if (esCuchillo || esJuiceBox) {
-    ammoDiv.classList.add('hidden');
-    return;
-  } else {
-    ammoDiv.classList.remove('hidden');
+  // OPTIMIZACIÓN 5.2: Solo actualizar DOM si el estado de visibilidad cambió
+  if (lastAmmoState.isHidden !== shouldHide) {
+    if (shouldHide) {
+      cachedAmmoDiv.classList.add('hidden');
+    } else {
+      cachedAmmoDiv.classList.remove('hidden');
+    }
+    lastAmmoState.isHidden = shouldHide;
   }
+  
+  if (shouldHide) return;
 
   // Soportar tanto nombres en inglés (del servidor) como español (del cliente)
   const estaRecargando = estadoMunicion.isReloading || estadoMunicion.estaRecargando;
+  const municionActual = estadoMunicion.currentAmmo ?? estadoMunicion.municionActual ?? 0;
+  const municionTotal = estadoMunicion.totalAmmo ?? estadoMunicion.municionTotal ?? 0;
   
-  if (estaRecargando) {
-    ammoDiv.textContent = 'RECARGANDO...';
-    ammoDiv.style.color = '#ffaa00';
-  } else {
-    // Valores del servidor tienen prioridad
-    const municionActual = estadoMunicion.currentAmmo ?? estadoMunicion.municionActual ?? 0;
-    const municionTotal = estadoMunicion.totalAmmo ?? estadoMunicion.municionTotal ?? 0;
-    ammoDiv.textContent = `${municionActual} / ${municionTotal}`;
-    ammoDiv.style.color = municionActual <= 5 ? '#ff0000' : 'white';
+  // OPTIMIZACIÓN 5.2: Solo actualizar DOM si los valores cambiaron
+  if (lastAmmoState.isReloading !== estaRecargando ||
+      lastAmmoState.currentAmmo !== municionActual ||
+      lastAmmoState.totalAmmo !== municionTotal) {
+    
+    if (estaRecargando) {
+      cachedAmmoDiv.textContent = 'RECARGANDO...';
+      cachedAmmoDiv.style.color = '#ffaa00';
+    } else {
+      cachedAmmoDiv.textContent = `${municionActual} / ${municionTotal}`;
+      cachedAmmoDiv.style.color = municionActual <= 5 ? '#ff0000' : 'white';
+    }
+    
+    lastAmmoState.isReloading = estaRecargando;
+    lastAmmoState.currentAmmo = municionActual;
+    lastAmmoState.totalAmmo = municionTotal;
   }
 }
 
@@ -57,44 +114,69 @@ export function actualizarMunicion(estadoMunicion) {
  * Actualiza el display del arma actual
  * NOTA: Los valores de munición vienen del servidor
  * Requirements: 4.3, 4.4, 4.5 - UI de munición con slots intercambiables
+ * OPTIMIZADO: Cache de DOM
+ * Requirements: 5.1
  * 
  * @param {Object} estadoArma - Estado completo del arma (combinación de visual local + munición del servidor)
  */
 export function actualizarInfoArma(estadoArma) {
   // Verificar si es cuchillo
   const esCuchillo = estadoArma.tipoActual === 'KNIFE' || estadoArma.esCuchillo;
+  const esJuiceBox = estadoArma.esJuiceBox;
+  
+  // Usar cache o buscar elemento si no está cacheado
+  if (!cachedWeaponNameDiv) {
+    cachedWeaponNameDiv = document.getElementById('weapon-name');
+  }
   
   // Actualizar nombre del arma (valor visual local)
-  const weaponNameDiv = document.getElementById('weapon-name');
-  if (weaponNameDiv && estadoArma.nombre) {
+  if (cachedWeaponNameDiv && estadoArma.nombre) {
     let nombreTexto = estadoArma.nombre;
     
     // Si el JuiceBox está equipado, mostrar "Botiquín"
-    if (estadoArma.esJuiceBox) {
+    if (esJuiceBox) {
       nombreTexto = 'Botiquín';
     }
     
     if (estadoArma.estaApuntando) {
       nombreTexto += ' [APUNTANDO]';
     }
-    weaponNameDiv.textContent = nombreTexto;
+    cachedWeaponNameDiv.textContent = nombreTexto;
     
     // Cambiar color si está apuntando
-    weaponNameDiv.style.color = estadoArma.estaApuntando ? '#00ff00' : '#ffaa00';
+    cachedWeaponNameDiv.style.color = estadoArma.estaApuntando ? '#00ff00' : '#ffaa00';
   }
 
   // Actualizar munición (valores del servidor) - incluir info de cuchillo y JuiceBox
   actualizarMunicion({
     ...estadoArma,
     esCuchillo: esCuchillo,
-    esJuiceBox: estadoArma.esJuiceBox,
+    esJuiceBox: esJuiceBox,
     tipoArma: estadoArma.tipoActual
   });
 
   // Actualizar slots de arma
   // Requirements: 4.3, 4.4, 4.5 - Slots intercambiables
-  const armaSecundaria = esCuchillo ? estadoArma.armaPrincipalPrevia : 'Cuchillo';
-  const nombreArmaEquipada = estadoArma.esJuiceBox ? 'Botiquín' : estadoArma.nombre;
+  // Determinar qué mostrar en el slot intercambiable [Q]
+  let armaSecundaria;
+  if (esJuiceBox) {
+    // Cuando tienes JuiceBox, Q siempre va al arma principal
+    // Mostrar el nombre del arma principal en el slot
+    armaSecundaria = estadoArma.armaPrincipal || estadoArma.armaPrincipalPrevia || 'M4A1';
+    // Obtener el nombre legible del arma
+    if (armaSecundaria && armaSecundaria !== 'Cuchillo' && armaSecundaria !== 'KNIFE') {
+      // Es un tipo de arma, buscar su nombre en CONFIG si está disponible
+      armaSecundaria = armaSecundaria; // Mantener el tipo como nombre por ahora
+    }
+  } else if (esCuchillo) {
+    // Cuando tienes cuchillo, mostrar el arma principal
+    armaSecundaria = estadoArma.armaPrincipalPrevia || estadoArma.armaPrincipal;
+  } else {
+    // Cuando tienes arma, mostrar "Cuchillo"
+    armaSecundaria = 'Cuchillo';
+  }
+  
+  const nombreArmaEquipada = esJuiceBox ? 'Botiquín' : estadoArma.nombre;
   actualizarSlotsArma(nombreArmaEquipada, armaSecundaria, esCuchillo);
 
   // Actualizar crosshair
@@ -103,33 +185,46 @@ export function actualizarInfoArma(estadoArma) {
 
 /**
  * Actualiza el crosshair basado en el estado de apuntado
+ * OPTIMIZADO: Cache de DOM y actualizaciones condicionales
+ * Requirements: 5.1, 5.2
  * @param {Object} estadoArma - Estado del arma
  */
 export function actualizarCrosshair(estadoArma) {
-  const crosshair = document.getElementById('crosshair');
-  const aimIndicator = document.getElementById('aim-indicator');
+  // Usar cache o buscar elementos si no están cacheados
+  if (!cachedCrosshair) {
+    cachedCrosshair = document.getElementById('crosshair');
+  }
+  if (!cachedAimIndicator) {
+    cachedAimIndicator = document.getElementById('aim-indicator');
+  }
   
-  if (crosshair) {
+  // OPTIMIZACIÓN 5.2: Solo actualizar si el estado de apuntado cambió
+  if (lastCrosshairState.estaApuntando === estadoArma.estaApuntando) {
+    return;
+  }
+  lastCrosshairState.estaApuntando = estadoArma.estaApuntando;
+  
+  if (cachedCrosshair) {
     if (estadoArma.estaApuntando) {
       // Crosshair más pequeño y preciso al apuntar
-      crosshair.style.transform = 'translate(-50%, -50%) scale(0.5)';
-      crosshair.style.backgroundColor = '#00ff00';
-      crosshair.style.boxShadow = '0 0 0 1px rgba(0, 255, 0, 0.8)';
-      crosshair.classList.add('aiming');
+      cachedCrosshair.style.transform = 'translate(-50%, -50%) scale(0.5)';
+      cachedCrosshair.style.backgroundColor = '#00ff00';
+      cachedCrosshair.style.boxShadow = '0 0 0 1px rgba(0, 255, 0, 0.8)';
+      cachedCrosshair.classList.add('aiming');
     } else {
       // Crosshair normal
-      crosshair.style.transform = 'translate(-50%, -50%) scale(1)';
-      crosshair.style.backgroundColor = 'white';
-      crosshair.style.boxShadow = '0 0 0 2px rgba(0, 0, 0, 0.5)';
-      crosshair.classList.remove('aiming');
+      cachedCrosshair.style.transform = 'translate(-50%, -50%) scale(1)';
+      cachedCrosshair.style.backgroundColor = 'white';
+      cachedCrosshair.style.boxShadow = '0 0 0 2px rgba(0, 0, 0, 0.5)';
+      cachedCrosshair.classList.remove('aiming');
     }
   }
   
-  if (aimIndicator) {
+  if (cachedAimIndicator) {
     if (estadoArma.estaApuntando) {
-      aimIndicator.classList.add('active');
+      cachedAimIndicator.classList.add('active');
     } else {
-      aimIndicator.classList.remove('active');
+      cachedAimIndicator.classList.remove('active');
     }
   }
 }
@@ -459,16 +554,25 @@ export function setCallbackSeleccionarArma(callback) {
   callbackSeleccionarArma = callback;
 }
 
+// Constante para el límite máximo de entradas en el kill feed
+// Requirements: 5.4 - Limitar entradas a 5 máximo
+const KILL_FEED_MAX_ENTRIES = 5;
+
 /**
  * Add entry to kill feed
  * Requirements: 4.1, 4.3, 5.3, 5.4
+ * OPTIMIZADO: Cache de DOM y eliminación eficiente de entradas antiguas
+ * Requirements: 5.1, 5.4
  * @param {string} killerName - Nombre de lobby del asesino
  * @param {string} victimName - Nombre de lobby de la víctima
  * @param {string} localPlayerName - Nombre del jugador local (para resaltar)
  */
 export function agregarEntradaKillFeed(killerName, victimName, localPlayerName = null) {
-  const killFeed = document.getElementById('kill-feed');
-  if (!killFeed) return;
+  // Usar cache o buscar elemento si no está cacheado
+  if (!cachedKillFeed) {
+    cachedKillFeed = document.getElementById('kill-feed');
+  }
+  if (!cachedKillFeed) return;
   
   const entry = document.createElement('div');
   entry.className = 'kill-entry';
@@ -489,10 +593,13 @@ export function agregarEntradaKillFeed(killerName, victimName, localPlayerName =
   `;
   
   // Add to top of kill feed
-  killFeed.insertBefore(entry, killFeed.firstChild);
+  cachedKillFeed.insertBefore(entry, cachedKillFeed.firstChild);
   
   // Reinicializar iconos Lucide después de agregar el HTML
-  if (typeof window.reinicializarIconos === 'function') {
+  // Usar función debounced para optimización (Requirement 1.3)
+  if (typeof window.reinicializarIconosDebounced === 'function') {
+    window.reinicializarIconosDebounced();
+  } else if (typeof window.reinicializarIconos === 'function') {
     window.reinicializarIconos();
   }
   
@@ -503,9 +610,10 @@ export function agregarEntradaKillFeed(killerName, victimName, localPlayerName =
     }
   }, 5000);
   
-  // Limit kill feed to 5 entries
-  while (killFeed.children.length > 5) {
-    killFeed.removeChild(killFeed.lastChild);
+  // Requirements: 5.4 - Limitar kill feed a máximo 5 entradas
+  // Eliminar entradas antiguas de forma eficiente
+  while (cachedKillFeed.children.length > KILL_FEED_MAX_ENTRIES) {
+    cachedKillFeed.removeChild(cachedKillFeed.lastChild);
   }
 }
 
@@ -679,49 +787,62 @@ export function mostrarDañoCausado(damage) {
 /**
  * Actualiza los slots de arma en la UI
  * Requirements: 4.3, 4.4, 4.5 - UI de munición con slots intercambiables
+ * OPTIMIZADO: Cache de DOM
+ * Requirements: 5.1
  * 
  * @param {string} armaEquipada - Nombre del arma actualmente equipada
  * @param {string} armaSecundaria - Nombre del arma secundaria (para mostrar con [Q])
  * @param {boolean} esCuchillo - Si el arma equipada es el cuchillo
  */
 export function actualizarSlotsArma(armaEquipada, armaSecundaria, esCuchillo = false) {
-  const slotSuperior = document.getElementById('weapon-slot-superior');
-  const slotInferior = document.getElementById('weapon-slot-inferior');
-  const weaponName = document.getElementById('weapon-name');
-  const ammoDiv = document.getElementById('ammo');
+  // Usar cache o buscar elementos si no están cacheados
+  if (!cachedSlotSuperior) {
+    cachedSlotSuperior = document.getElementById('weapon-slot-superior');
+    if (cachedSlotSuperior) {
+      cachedSlotNombre = cachedSlotSuperior.querySelector('.slot-nombre');
+    }
+  }
+  if (!cachedSlotInferior) {
+    cachedSlotInferior = document.getElementById('weapon-slot-inferior');
+  }
+  if (!cachedWeaponNameDiv) {
+    cachedWeaponNameDiv = document.getElementById('weapon-name');
+  }
+  if (!cachedAmmoDiv) {
+    cachedAmmoDiv = document.getElementById('ammo');
+  }
   
-  if (!slotSuperior || !slotInferior) return;
+  if (!cachedSlotSuperior || !cachedSlotInferior) return;
   
   // Actualizar slot superior (arma secundaria con [Q])
-  const slotNombre = slotSuperior.querySelector('.slot-nombre');
-  if (slotNombre) {
-    slotNombre.textContent = armaSecundaria || 'Cuchillo';
+  if (cachedSlotNombre) {
+    cachedSlotNombre.textContent = armaSecundaria || 'Cuchillo';
   }
   
   // Mostrar/ocultar slot superior según si hay arma secundaria
   if (armaSecundaria) {
-    slotSuperior.classList.remove('hidden');
+    cachedSlotSuperior.classList.remove('hidden');
   } else {
-    slotSuperior.classList.add('hidden');
+    cachedSlotSuperior.classList.add('hidden');
   }
   
   // Actualizar slot inferior (arma equipada)
-  if (weaponName) {
+  if (cachedWeaponNameDiv) {
     // Si es "Botiquín", mantener ese nombre, sino usar el nombre del arma
     if (armaEquipada === 'Botiquín') {
-      weaponName.textContent = 'Botiquín';
+      cachedWeaponNameDiv.textContent = 'Botiquín';
     } else {
-      weaponName.textContent = armaEquipada || 'Sin arma';
+      cachedWeaponNameDiv.textContent = armaEquipada || 'Sin arma';
     }
   }
   
   // Ocultar munición si es cuchillo o JuiceBox
   // Requirements: 4.1, 4.2 - Ocultar contador de munición cuando cuchillo está equipado
-  if (ammoDiv) {
+  if (cachedAmmoDiv) {
     if (esCuchillo || armaEquipada === 'Botiquín') {
-      ammoDiv.classList.add('hidden');
+      cachedAmmoDiv.classList.add('hidden');
     } else {
-      ammoDiv.classList.remove('hidden');
+      cachedAmmoDiv.classList.remove('hidden');
     }
   }
 }
@@ -729,22 +850,30 @@ export function actualizarSlotsArma(armaEquipada, armaSecundaria, esCuchillo = f
 /**
  * Oculta el contador de munición
  * Requirements: 4.1 - Ocultar contador cuando cuchillo está equipado
+ * OPTIMIZADO: Cache de DOM
+ * Requirements: 5.1
  */
 export function ocultarContadorMunicion() {
-  const ammoDiv = document.getElementById('ammo');
-  if (ammoDiv) {
-    ammoDiv.classList.add('hidden');
+  if (!cachedAmmoDiv) {
+    cachedAmmoDiv = document.getElementById('ammo');
+  }
+  if (cachedAmmoDiv) {
+    cachedAmmoDiv.classList.add('hidden');
   }
 }
 
 /**
  * Muestra el contador de munición
  * Requirements: 4.2 - Mostrar contador cuando arma principal está equipada
+ * OPTIMIZADO: Cache de DOM
+ * Requirements: 5.1
  */
 export function mostrarContadorMunicion() {
-  const ammoDiv = document.getElementById('ammo');
-  if (ammoDiv) {
-    ammoDiv.classList.remove('hidden');
+  if (!cachedAmmoDiv) {
+    cachedAmmoDiv = document.getElementById('ammo');
+  }
+  if (cachedAmmoDiv) {
+    cachedAmmoDiv.classList.remove('hidden');
   }
 }
 
@@ -1000,13 +1129,19 @@ export function actualizarHealBox(estadoHeal) {
  * Requirements: 6.1, 6.2, 6.3
  */
 export function inicializarLucideIcons() {
-  // Verificar que Lucide esté disponible
-  if (typeof window.lucide !== 'undefined' && window.lucide.createIcons) {
+  // Usar la función debounced global si está disponible (optimización de rendimiento)
+  // Requirement 1.3: Use debounced reinitialize function
+  if (typeof window.reinicializarIconosDebounced === 'function') {
+    window.reinicializarIconosDebounced();
+  } else if (typeof window.lucide !== 'undefined' && window.lucide.createIcons) {
+    // Fallback si la función debounced no está disponible
     window.lucide.createIcons();
   } else {
     // Reintentar después de un breve delay si Lucide aún no está cargado
     setTimeout(() => {
-      if (typeof window.lucide !== 'undefined' && window.lucide.createIcons) {
+      if (typeof window.reinicializarIconosDebounced === 'function') {
+        window.reinicializarIconosDebounced();
+      } else if (typeof window.lucide !== 'undefined' && window.lucide.createIcons) {
         window.lucide.createIcons();
       }
     }, 100);

@@ -45,8 +45,6 @@ export function inicializarAuthUI() {
     
     // Verificar estado inicial
     actualizarUIAuth();
-    
-    console.log('✅ UI de autenticación inicializada');
 }
 
 /**
@@ -82,9 +80,6 @@ function obtenerElementosDOM() {
         authLoading: document.getElementById('auth-loading')
     };
     
-    // Debug: verificar si los elementos existen
-    console.log('🔍 Debug elementos DOM:');
-    console.log('- authOverlay:', elementos.authOverlay);
 }
 
 /**
@@ -212,7 +207,6 @@ async function manejarSubmitLogin(e) {
         
         if (resultado.success) {
             // Login exitoso, el callback onLogin se encarga del resto
-            console.log('✅ Login exitoso');
         } else {
             // Mostrar error específico del servidor
             mostrarError(resultado.message || 'Error en el login');
@@ -276,7 +270,6 @@ async function manejarSubmitRegister(e) {
         
         if (resultado.success) {
             // Registro exitoso, el callback onLogin se encarga del resto
-            console.log('✅ Registro exitoso');
         } else {
             // Mostrar error específico del servidor
             mostrarError(resultado.message || 'Error en el registro');
@@ -292,7 +285,6 @@ async function manejarSubmitRegister(e) {
  * Manejar login exitoso
  */
 function manejarLogin(user) {
-    console.log('✅ Usuario logueado:', user.username);
     actualizarUIAuth();
     
     // Cargar progreso del usuario
@@ -309,7 +301,6 @@ function manejarLogin(user) {
  * Manejar logout
  */
 function manejarLogout() {
-    console.log('✅ Usuario deslogueado');
     actualizarUIAuth();
     
     // Mostrar notificación
@@ -320,8 +311,6 @@ function manejarLogout() {
  * Manejar carga de progreso
  */
 function manejarProgresoCargar(progreso) {
-    console.log('✅ Progreso cargado:', progreso);
-    
     // Aplicar configuración al juego
     aplicarConfiguracionAlJuego(progreso.config);
     
@@ -333,8 +322,6 @@ function manejarProgresoCargar(progreso) {
  * Manejar guardado de progreso
  */
 function manejarProgresoGuardar(progreso) {
-    console.log('✅ Progreso guardado:', progreso);
-    
     // Actualizar UI con nueva información
     actualizarInfoUsuario(progreso);
 }
@@ -345,16 +332,11 @@ function manejarProgresoGuardar(progreso) {
 function actualizarUIAuth() {
     const authState = obtenerEstadoAuth();
     
-    console.log('🔍 Debug actualizarUIAuth:');
-    console.log('- authState:', authState);
-    
     // Botón del lobby
     const lobbyLoginBtn = document.getElementById('lobby-login-btn');
     const authHint = document.querySelector('.auth-hint');
     
     if (authState.isAuthenticated) {
-        console.log('✅ Usuario autenticado, actualizando UI');
-        
         // Ocultar botón del lobby y mostrar info del usuario
         if (lobbyLoginBtn) {
             lobbyLoginBtn.style.display = 'none';
@@ -391,8 +373,6 @@ function actualizarUIAuth() {
             }
         }
     } else {
-        console.log('❌ Usuario NO autenticado, mostrando botón de login solo en lobby');
-        
         // Solo mostrar botón si estamos en el lobby (no en partida)
         const lobbyScreen = document.getElementById('lobby-screen');
         const isInLobby = lobbyScreen && !lobbyScreen.classList.contains('hidden');

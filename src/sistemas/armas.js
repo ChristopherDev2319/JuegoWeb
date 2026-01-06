@@ -1816,53 +1816,52 @@ export async function alternarCuchillo(weaponContainer = null) {
     return true;
     
   } else if (itemActual === 'JUICEBOX') {
-    // JUICEBOX -> CUCHILLO (Q siempre va al cuchillo)
+    // JUICEBOX -> ir al item que muestra la UI (el slot intercambiable)
+    // La UI siempre muestra el arma principal cuando tienes cuchillo/JuiceBox
+    // Por lo tanto, Q desde JuiceBox siempre va al arma principal (lo que muestra la UI)
+    
     // Cancelar curación si estaba en progreso
     if (estadoCuracion.curacionEnProgreso) {
       cancelarCuracion();
     }
     
-    // Guardar arma principal si no está guardada
-    if (!estadoEquipamiento.armaPrincipal) {
-      estadoEquipamiento.armaPrincipal = arma.tipoActual !== 'KNIFE' && arma.tipoActual !== 'JUICEBOX' 
-        ? arma.tipoActual 
-        : 'M4A1';
-    }
-    
-    // Actualizar estado unificado - ir al CUCHILLO
-    estadoEquipamiento.itemEquipado = 'CUCHILLO';
-    estadoEquipamiento.itemPrevioAJuiceBox = null; // Limpiar memoria
+    // Limpiar memoria del JuiceBox
+    estadoEquipamiento.itemPrevioAJuiceBox = null;
     
     // Mantener compatibilidad con estados legacy
     estadoCuracion.juiceBoxEquipado = false;
     estadoCuracion.armaPreviaACuracion = null;
-    estadoCuchillo.equipado = true;
-    estadoCuchillo.armaPrincipalPrevia = estadoEquipamiento.armaPrincipal;
     
-    // Equipar cuchillo
-    arma.tipoActual = 'KNIFE';
+    // Siempre ir al arma principal (lo que muestra la UI en el slot intercambiable)
+    const armaPrincipal = estadoEquipamiento.armaPrincipal || 'M4A1';
+    
+    if (!CONFIG.armas[armaPrincipal]) {
+      console.warn(`⚠️ Arma no válida: ${armaPrincipal}, usando M4A1`);
+      estadoEquipamiento.itemEquipado = 'ARMA';
+      estadoCuchillo.equipado = false;
+      arma.tipoActual = 'M4A1';
+      
+      if (weaponContainer) {
+        await cambiarModeloArma('M4A1', weaponContainer);
+      }
+      
+      actualizarVisibilidadModelos(estadoEquipamiento.itemEquipado);
+      return true;
+    }
+    
+    estadoEquipamiento.itemEquipado = 'ARMA';
+    estadoCuchillo.equipado = false;
+    
+    arma.tipoActual = armaPrincipal;
     arma.estaRecargando = false;
     
-    // Requirements: 1.4 - Desactivar apuntado al equipar cuchillo
-    if (arma.estaApuntando) {
-      arma.estaApuntando = false;
-      arma.transicionApuntado = 0;
-      
-      if (camera) {
-        camera.fov = fovOriginal;
-        camera.updateProjectionMatrix();
-      }
-    }
-    
-    // Cargar modelo del cuchillo
+    // Cargar modelo del arma
     if (weaponContainer) {
-      await cambiarModeloArma('KNIFE', weaponContainer);
+      await cambiarModeloArma(armaPrincipal, weaponContainer);
     }
     
-    // Actualizar visibilidad de modelos
     actualizarVisibilidadModelos(estadoEquipamiento.itemEquipado);
-    
-    console.log(`🔪 Cuchillo equipado desde JuiceBox - Arma guardada: ${estadoEquipamiento.armaPrincipal}`);
+    console.log(`🔫 Arma ${armaPrincipal} restaurada desde JuiceBox (Q va al slot intercambiable)`);
     return true;
   }
   

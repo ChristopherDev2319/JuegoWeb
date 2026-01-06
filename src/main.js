@@ -86,7 +86,7 @@ import {
 } from './sistemas/controles.js';
 
 import { crearEfectoDash } from './utils/efectos.js';
-import { mostrarIndicadorDaño, mostrarMensajeConexion, ocultarMensajeConexion, mostrarPantallaMuerte, ocultarPantallaMuerte, agregarEntradaKillFeed, actualizarBarraVida, mostrarEfectoDaño, mostrarDañoCausado, actualizarInfoArma, mostrarCambioArma, actualizarBarraCuracion, ocultarBarraCuracion, actualizarHealBox, inicializarLucideIcons } from './utils/ui.js';
+import { mostrarIndicadorDaño, mostrarMensajeConexion, ocultarMensajeConexion, mostrarPantallaMuerte, ocultarPantallaMuerte, agregarEntradaKillFeed, actualizarBarraVida, mostrarEfectoDaño, mostrarDañoCausado, actualizarInfoArma, mostrarCambioArma, actualizarBarraCuracion, ocultarBarraCuracion, actualizarHealBox, inicializarLucideIcons, inicializarCacheDOM } from './utils/ui.js';
 
 // Network imports
 import { getConnection } from './network/connection.js';
@@ -1237,6 +1237,10 @@ async function inicializarJuegoCompleto() {
   // Inicializar displays de UI
   actualizarDisplayMunicion();
   actualizarRecargaDash();
+  
+  // Inicializar cache de elementos DOM para optimización
+  // Requirements: 5.1 - Cache de referencias DOM
+  inicializarCacheDOM();
   
   // Inicializar iconos de Lucide
   inicializarLucideIcons();
@@ -2427,14 +2431,14 @@ function obtenerFireRateServidor(tipoArma) {
   // Valores de fireRate del servidor (server/config.js WEAPON_CONFIG)
   // Estos valores son la ÚNICA fuente de verdad para la cadencia de disparo
   const fireRatesServidor = {
-    'M4A1': 75,      // 800 RPM (60000/75)
-    'AK47': 109,     // 550 RPM (60000/109)
-    'PISTOLA': 150,  // 400 RPM (60000/150)
+    'M4A1': 120,     // 500 RPM (60000/120)
+    'AK47': 133,     // 450 RPM (60000/133)
+    'PISTOLA': 400,  // 150 RPM (60000/400)
     'SNIPER': 1333,  // 45 RPM (60000/1333)
     'ESCOPETA': 857, // 70 RPM (60000/857)
-    'MP5': 71,       // 850 RPM (60000/71)
+    'MP5': 100,      // 600 RPM (60000/100)
     'KNIFE': 350,    // Cadencia de ataque melee
-    'default': 75    // Fallback igual a M4A1
+    'default': 100   // Fallback
   };
   
   return fireRatesServidor[tipoArma] || fireRatesServidor['default'];

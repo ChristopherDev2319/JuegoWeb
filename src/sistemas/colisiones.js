@@ -50,7 +50,6 @@ export async function inicializarColisiones(scene, onProgress = null) {
   
   // TEMPORALMENTE DESHABILITADO: Rapier tiene problemas con el raycast del trimesh
   // Usar directamente el fallback de raycasting que funciona
-  console.log('🔄 Usando sistema de colisiones con raycasting (fallback)...');
   await inicializarColisionesFallback(scene, onProgress);
 }
 
@@ -99,13 +98,10 @@ async function inicializarColisionesFallback(scene, onProgress) {
       
       usandoRapier = false;
       sistemaActivo = true;
-      console.log('✅ Sistema de colisiones inicializado (fallback raycasting)');
-      console.log('💡 Usa window.toggleCollisionDebug(true) para ver las colisiones');
       resolve();
     }, (progress) => {
       if (progress.total > 0) {
         const percent = Math.round((progress.loaded / progress.total) * 100);
-        console.log(`📦 Cargando geometría de colisiones: ${percent}%`);
         if (onProgress) onProgress(percent);
       }
     }, (error) => {
@@ -533,25 +529,12 @@ export function raycastBala(origen, direccion, distanciaMax) {
  * @returns {{posicionFinal: THREE.Vector3, colision: boolean, distanciaRecorrida: number, puntoImpacto: THREE.Vector3|null}}
  */
 export function shapeCastDash(posicionInicial, direccionDash, distanciaDash) {
-  // Log para verificar qué sistema se usa
-  if (!window._dashSystemLogged) {
-    console.log('🎯 Sistema de Dash:', {
-      usandoRapier: usandoRapier,
-      fisicaActiva: Fisica.estaActivo(),
-      sistemaColisionesActivo: sistemaActivo,
-      collisionModelCargado: !!collisionModel
-    });
-    window._dashSystemLogged = true;
-  }
-  
   // Usar Rapier si está disponible
   if (usandoRapier && Fisica.estaActivo()) {
-    console.log('🚀 Dash usando Rapier3D');
     return Fisica.shapeCastDash(posicionInicial, direccionDash, distanciaDash);
   }
   
   // Fallback: usar resolución de colisiones paso a paso
-  console.log('🚀 Dash usando Fallback (raycasting)');
   return shapeCastDashFallback(posicionInicial, direccionDash, distanciaDash);
 }
 
@@ -715,17 +698,7 @@ function shapeCastDashFallback(posicionInicial, direccionDash, distanciaDash) {
     posicionFinal.copy(posicionInicial);
     distanciaMinima = 0;
     hayColision = true;
-    console.log('⚠️ Dash bloqueado: no hay espacio para moverse');
   }
-
-  // Log del resultado del dash
-  console.log('🎯 Resultado Dash Fallback:', {
-    colision: hayColision,
-    distanciaOriginal: distanciaDash,
-    distanciaRecorrida: distanciaMinima,
-    posicionInicial: `(${posicionInicial.x.toFixed(2)}, ${posicionInicial.z.toFixed(2)})`,
-    posicionFinal: `(${posicionFinal.x.toFixed(2)}, ${posicionFinal.z.toFixed(2)})`
-  });
 
   return {
     posicionFinal: posicionFinal,
@@ -879,10 +852,7 @@ export function desatorarJugador(posicion) {
         estadoSuelo.altura + alturaOjos + 0.1,
         posicion.z
       );
-      console.log('🔧 Jugador desatorado hacia arriba');
     }
-  } else {
-    console.log('🔧 Jugador desatorado en dirección horizontal');
   }
   
   return mejorPosicion;
@@ -1147,8 +1117,6 @@ export function desatorarDespuesDash(posicion, direccionDash = null) {
     return posicion.clone();
   }
   
-  console.log('🔧 Desatorando jugador después del dash...');
-  
   // Requirements: 4.2 - Buscar primero en la dirección del dash
   // Si se proporciona dirección del dash, buscar primero en esa dirección
   if (direccionDash) {
@@ -1176,12 +1144,9 @@ export function desatorarDespuesDash(posicion, direccionDash = null) {
         );
         
         if (!hayColisionEnPosicionFallback(nuevaPosicion, radio, margen)) {
-          console.log(`✅ Jugador desatorado en dirección del dash (+${distancia} unidades)`);
           return nuevaPosicion;
         }
       }
-      
-      console.log('⚠️ No se encontró salida en dirección del dash, buscando en 8 direcciones...');
     }
   }
   
@@ -1255,13 +1220,10 @@ export function desatorarDespuesDash(posicion, direccionDash = null) {
   
   // Si encontramos posición horizontal válida, usarla
   if (mejorPosicion) {
-    console.log('✅ Jugador desatorado horizontalmente después del dash');
     return mejorPosicion;
   }
   
   // Requirements: 4.4 - Si no hay posición horizontal, mover hacia arriba
-  console.log('⬆️ No se encontró salida horizontal, moviendo hacia arriba...');
-  
   // Buscar espacio libre hacia arriba
   const incrementoAltura = 0.5;
   const alturaMaxima = 10.0; // Límite de búsqueda vertical
@@ -1274,7 +1236,6 @@ export function desatorarDespuesDash(posicion, direccionDash = null) {
     );
     
     if (!hayColisionEnPosicionFallback(nuevaPosicion, radio, margen)) {
-      console.log(`✅ Jugador desatorado hacia arriba (+${deltaY} unidades)`);
       return nuevaPosicion;
     }
   }
@@ -1287,12 +1248,10 @@ export function desatorarDespuesDash(posicion, direccionDash = null) {
       estadoSuelo.altura + alturaOjos + 0.5,
       posicion.z
     );
-    console.log('✅ Jugador colocado sobre el suelo detectado');
     return posicionSobreSuelo;
   }
   
   // Si todo falla, retornar posición original (no debería pasar)
-  console.warn('⚠️ No se pudo desatorar al jugador');
   return posicion.clone();
 }
 
@@ -1436,11 +1395,6 @@ export function toggleDebugVisual(visible = true) {
         transparent: true,
         opacity: 0.3
       });
-      console.log('🔍 Colisiones visibles (wireframe verde)');
-    } else {
-      console.log('🔍 Colisiones ocultas');
     }
-  } else if (usandoRapier) {
-    console.log('ℹ️ Debug visual no disponible con Rapier3D');
   }
 }

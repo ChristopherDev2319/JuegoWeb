@@ -59,7 +59,6 @@ export function inicializarMenuPausa(eventCallbacks = {}) {
   // Registrar verificador de menú en el sistema de controles
   establecerVerificadorMenu(estaMenuActivo);
   
-  console.log('✅ Menú de pausa inicializado');
   return true;
 }
 
@@ -257,8 +256,6 @@ function pausarJuego() {
   if (document.pointerLockElement) {
     document.exitPointerLock();
   }
-  
-  console.log('⏸️ Juego pausado');
 }
 
 /**
@@ -279,8 +276,6 @@ function reanudarConPointerLock() {
   if (callbacks.onReanudar) {
     callbacks.onReanudar();
   }
-  
-  console.log('▶️ Juego reanudado (con pointer lock)');
 }
 
 /**
@@ -302,8 +297,6 @@ function reanudarSinPointerLock() {
   if (callbacks.onReanudar) {
     callbacks.onReanudar();
   }
-  
-  console.log('▶️ Juego reanudado (click para activar controles)');
 }
 
 /**
@@ -315,8 +308,6 @@ function ocultarMenuSinPointerLock() {
   
   menuActivo = false;
   elementos.pauseMenu?.classList.add('hidden');
-  
-  console.log('🧪 PRUEBA: Menú ocultado sin pointer lock (tecla P)');
 }
 
 /**
@@ -381,7 +372,6 @@ function salirDelJuego() {
  */
 function cargarEstadisticasDesdeStorage() {
   try {
-    console.log('💾 Storage Info:', getStorageInfo());
     const stats = getStorageJSON('gameStats', {});
     
     if (Object.keys(stats).length > 0) {
@@ -390,9 +380,6 @@ function cargarEstadisticasDesdeStorage() {
       estadisticasJuego.shotsFired = stats.shotsFired || 0;
       estadisticasJuego.shotsHit = stats.shotsHit || 0;
       estadisticasJuego.playtime = stats.playtime || 0;
-      console.log('📊 Estadísticas cargadas:', estadisticasJuego);
-    } else {
-      console.log('📊 No hay estadísticas guardadas, usando valores por defecto');
     }
   } catch (error) {
     console.warn('⚠️ Error cargando estadísticas:', error);
@@ -405,7 +392,6 @@ function cargarEstadisticasDesdeStorage() {
 function cargarConfiguracion() {
   try {
     const config = getStorageJSON('pauseMenuConfig', {});
-    console.log('🔧 Configuración cargada:', config);
     
     // Aplicar configuración guardada
     if (elementos.mouseSensitivity && config.sensibilidad !== undefined) {
@@ -451,12 +437,7 @@ function guardarConfiguracion() {
       crosshairDinamico: elementos.dynamicCrosshair?.checked || true
     };
     
-    const guardado = setStorageJSON('pauseMenuConfig', config);
-    if (guardado) {
-      console.log('✅ Configuración guardada:', config);
-    } else {
-      console.warn('⚠️ Configuración guardada en memoria temporal');
-    }
+    setStorageJSON('pauseMenuConfig', config);
   } catch (error) {
     console.warn('⚠️ Error guardando configuración del menú:', error);
   }
@@ -466,24 +447,16 @@ function guardarConfiguracion() {
  * Actualiza las estadísticas mostradas
  */
 function actualizarEstadisticas() {
-  console.log('📊 Actualizando estadísticas:', estadisticasJuego);
-  
   // Calcular tiempo jugado
   estadisticasJuego.playtime = Date.now() - estadisticasJuego.startTime;
   
-  // Actualizar elementos DOM con verificación adicional
+  // Actualizar elementos DOM
   if (elementos.killsStat) {
     elementos.killsStat.textContent = estadisticasJuego.kills;
-    console.log('💀 Kills actualizados:', estadisticasJuego.kills);
-  } else {
-    console.warn('⚠️ Elemento kills-stat no encontrado');
   }
   
   if (elementos.deathsStat) {
     elementos.deathsStat.textContent = estadisticasJuego.deaths;
-    console.log('☠️ Deaths actualizados:', estadisticasJuego.deaths);
-  } else {
-    console.warn('⚠️ Elemento deaths-stat no encontrado');
   }
   
   // K/D Ratio
@@ -492,17 +465,11 @@ function actualizarEstadisticas() {
     estadisticasJuego.kills.toFixed(2);
   if (elementos.kdRatio) {
     elementos.kdRatio.textContent = kdRatio;
-    console.log('📈 K/D Ratio:', kdRatio);
-  } else {
-    console.warn('⚠️ Elemento kd-ratio no encontrado');
   }
   
   // Disparos
   if (elementos.shotsFired) {
     elementos.shotsFired.textContent = estadisticasJuego.shotsFired;
-    console.log('🔫 Disparos:', estadisticasJuego.shotsFired);
-  } else {
-    console.warn('⚠️ Elemento shots-fired no encontrado');
   }
   
   // Precisión
@@ -510,9 +477,6 @@ function actualizarEstadisticas() {
     Math.round((estadisticasJuego.shotsHit / estadisticasJuego.shotsFired) * 100) : 0;
   if (elementos.accuracyStat) {
     elementos.accuracyStat.textContent = `${precision}%`;
-    console.log('🎯 Precisión:', precision);
-  } else {
-    console.warn('⚠️ Elemento accuracy-stat no encontrado');
   }
   
   // Tiempo jugado
@@ -520,18 +484,7 @@ function actualizarEstadisticas() {
   const segundos = Math.floor((estadisticasJuego.playtime % 60000) / 1000);
   if (elementos.playtimeStat) {
     elementos.playtimeStat.textContent = `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
-    console.log('⏱️ Tiempo jugado:', `${minutos}:${segundos}`);
-  } else {
-    console.warn('⚠️ Elemento playtime-stat no encontrado');
   }
-  
-  // Verificar que las etiquetas sean visibles
-  const labels = document.querySelectorAll('#pause-menu .stat-label');
-  console.log(`🏷️ Etiquetas de estadísticas encontradas: ${labels.length}`);
-  labels.forEach((label, index) => {
-    const styles = window.getComputedStyle(label);
-    console.log(`Etiqueta ${index}: display=${styles.display}, visibility=${styles.visibility}, opacity=${styles.opacity}`);
-  });
 }
 
 /**
@@ -578,8 +531,6 @@ export function cerrarMenuForzado() {
   
   menuActivo = false;
   elementos.pauseMenu?.classList.add('hidden');
-  
-  console.log('⏹️ Menú cerrado forzadamente');
 }
 
 // Sistema de FPS Counter

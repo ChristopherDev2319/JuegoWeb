@@ -27,7 +27,7 @@ export const CONFIG = {
       nombre: "M4A1",
       descripcion: "Rifle de asalto versátil con alta cadencia y fácil control de retroceso",
       tipo: "rifle",
-      cadenciaDisparo: 700, // 700 RPM - Cadencia alta
+      cadenciaDisparo: 500, // 500 RPM - Cadencia reducida
       daño: 28, // 8 balas para matar (200/28 = 7.14)
       tamañoCargador: 30,
       municionTotal: 120, // 4 cargadores extra
@@ -59,7 +59,7 @@ export const CONFIG = {
       nombre: "AK-47",
       descripcion: "Rifle de asalto potente con alto daño pero difícil de controlar",
       tipo: "rifle",
-      cadenciaDisparo: 600, // 600 RPM - Cadencia media
+      cadenciaDisparo: 450, // 450 RPM - Cadencia reducida
       daño: 38, // 6 balas para matar (200/38 = 5.26)
       tamañoCargador: 30,
       municionTotal: 90, // 3 cargadores extra
@@ -195,7 +195,7 @@ export const CONFIG = {
       nombre: "MP5",
       descripcion: "Subfusil de alta cadencia ideal para combate rápido y móvil",
       tipo: "subfusil",
-      cadenciaDisparo: 850, // 850 RPM como servidor
+      cadenciaDisparo: 600, // 600 RPM - Cadencia reducida
       daño: 24, // Igual que servidor (200 vida / 24 daño = 9 balas para matar)
       tamañoCargador: 30,
       municionTotal: 240,

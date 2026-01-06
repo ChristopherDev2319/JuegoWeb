@@ -45,7 +45,6 @@ export async function cargarAnimacion(nombre) {
       if (gltf.animations && gltf.animations.length > 0) {
         const clip = gltf.animations[0];
         clipsCache[nombre] = clip;
-        console.log(`✅ Animación '${nombre}' cargada`);
         resolve(clip);
       } else {
         console.warn(`El archivo ${ruta} no contiene animaciones`);
@@ -65,7 +64,6 @@ export async function cargarAnimacion(nombre) {
 export async function precargarAnimaciones() {
   const promesas = Object.keys(ANIMACIONES).map(nombre => cargarAnimacion(nombre));
   await Promise.all(promesas);
-  console.log('✅ Todas las animaciones precargadas');
 }
 
 /**

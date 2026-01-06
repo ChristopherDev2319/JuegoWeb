@@ -64,16 +64,12 @@ export class BotManager {
       return;
     }
 
-    console.log('Inicializando sistema de bots de entrenamiento...');
-
     // Crear bots distribuidos por el mapa (sin zonas)
     // Requirements: 6.1, 6.2, 6.3 - Sin sistema de zonas
     this.crearBots();
 
     this.activo = true;
     this.inicializado = true;
-
-    console.log(`Sistema de bots inicializado: ${this.obtenerTotalBots()} bots distribuidos por el mapa`);
   }
 
   /**
@@ -112,8 +108,6 @@ export class BotManager {
   crearBots() {
     const posiciones = this.obtenerPosicionesFijas();
     
-    console.log('Creando bots en posiciones fijas...');
-    
     // Crear bots estáticos
     for (const pos of posiciones.estaticos) {
       this.crearBot('estatico', pos.x, pos.y, pos.z);
@@ -128,11 +122,6 @@ export class BotManager {
     for (const pos of posiciones.tiradores) {
       this.crearBot('tirador', pos.x, pos.y, pos.z);
     }
-    
-    console.log(`Bots creados: ${this.obtenerTotalBots()} total`);
-    console.log('  Estáticos:', posiciones.estaticos.length);
-    console.log('  Móviles:', posiciones.moviles.length);
-    console.log('  Tiradores:', posiciones.tiradores.length);
   }
 
 
@@ -214,7 +203,6 @@ export class BotManager {
    */
   registrarEliminacion(tipoBot) {
     this.estadisticas.registrarEliminacion(tipoBot);
-    console.log(`Bot ${tipoBot} eliminado. Total: ${this.estadisticas.obtenerTotalEliminaciones()}`);
     
     // Llamar callback de UI si está configurado
     // Requirement 6.2: Actualizar UI cuando se elimina un bot
@@ -397,8 +385,6 @@ export class BotManager {
    * Destruye el manager y limpia todos los recursos
    */
   destruir() {
-    console.log('Destruyendo sistema de bots...');
-
     // Destruir todos los bots
     for (const bot of this.obtenerTodosBots()) {
       bot.destruir();
@@ -418,7 +404,5 @@ export class BotManager {
 
     this.activo = false;
     this.inicializado = false;
-
-    console.log('Sistema de bots destruido');
   }
 }

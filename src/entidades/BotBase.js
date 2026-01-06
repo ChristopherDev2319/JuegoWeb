@@ -557,45 +557,37 @@ export class BotBase {
   }
 
   /**
-   * Crea efecto visual de partículas al reaparecer
+   * Crea efecto visual de partículas al reaparecer (optimizado)
    */
   crearEfectoRespawn() {
-    const particulas = 15;
+    // Reducido de 15 a 4 partículas
+    const particulas = 4;
     for (let i = 0; i < particulas; i++) {
       const geometria = new THREE.SphereGeometry(0.1, 4, 4);
       const material = new THREE.MeshBasicMaterial({
         color: this.color,
         transparent: true,
-        opacity: 0.8
+        opacity: 0.6
       });
       const particula = new THREE.Mesh(geometria, material);
-
       particula.position.copy(this.mesh.position);
       particula.position.y += Math.random() * 2;
-
-      const velocidad = new THREE.Vector3(
-        (Math.random() - 0.5) * 0.5,
-        Math.random() * 0.5,
-        (Math.random() - 0.5) * 0.5
-      );
-
       this.scene.add(particula);
 
-      let vida = 0;
-      const animar = () => {
-        vida += 0.016;
-        particula.position.add(velocidad.clone().multiplyScalar(0.02));
-        material.opacity = 0.8 - vida * 1.5;
-
-        if (vida > 0.5) {
+      // Usar setTimeout en lugar de requestAnimationFrame
+      let frame = 0;
+      const intervalo = setInterval(() => {
+        frame++;
+        particula.position.y += 0.08;
+        material.opacity -= 0.12;
+        
+        if (frame >= 5) {
+          clearInterval(intervalo);
           this.scene.remove(particula);
           geometria.dispose();
           material.dispose();
-        } else {
-          requestAnimationFrame(animar);
         }
-      };
-      animar();
+      }, 33);
     }
   }
 

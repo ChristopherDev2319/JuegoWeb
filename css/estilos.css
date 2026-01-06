@@ -58,26 +58,32 @@ canvas {
     radial-gradient(circle 4px at 60% 20%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.5) 50%, transparent 50%);
   animation: floatBubbles 12s ease-in-out infinite;
   pointer-events: none;
+  will-change: transform, opacity;
 }
 
+/* Optimized floatBubbles - simplified keyframes using only transform for GPU acceleration */
 @keyframes floatBubbles {
   0%, 100% { 
-    transform: translateY(0) translateX(0); 
-  }
-  25% {
-    transform: translateY(-15px) translateX(8px);
+    transform: translateY(0); 
+    opacity: 1;
   }
   50% { 
-    transform: translateY(-25px) translateX(0);
-  }
-  75% {
-    transform: translateY(-15px) translateX(-8px);
+    transform: translateY(-20px);
+    opacity: 0.85;
   }
 }
 
 #lobby-screen.hidden {
   opacity: 0;
   pointer-events: none;
+}
+
+/* Pause all animations when lobby is hidden to save resources */
+#lobby-screen.hidden,
+#lobby-screen.hidden::before,
+#lobby-screen.hidden::after,
+#lobby-screen.hidden * {
+  animation-play-state: paused !important;
 }
 
 #lobby-screen.hidden-immediate {
@@ -1023,103 +1029,7 @@ canvas {
   pointer-events: none !important; /* Las etiquetas no deben interceptar clicks */
 }
 
-.config-control {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-/* Estilos personalizados para sliders */
-.config-item input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 130px;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.config-item input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  background: linear-gradient(135deg, #7EC8E3 0%, #5BA3C0 100%);
-  border-radius: 50%;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(91, 163, 192, 0.4);
-  transition: all 0.2s ease;
-}
-
-.config-item input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
-  box-shadow: 0 4px 12px rgba(91, 163, 192, 0.5);
-}
-
-.config-item input[type="range"]::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  background: linear-gradient(135deg, #7EC8E3 0%, #5BA3C0 100%);
-  border-radius: 50%;
-  cursor: pointer;
-  border: none;
-  box-shadow: 0 2px 8px rgba(91, 163, 192, 0.4);
-}
-
-.config-item input[type="range"]:focus {
-  outline: none;
-}
-
-/* Estilos personalizados para checkboxes */
-.config-item input[type="checkbox"] {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 24px;
-  height: 24px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-}
-
-.config-item input[type="checkbox"]:checked {
-  background: linear-gradient(135deg, #7EC8E3 0%, #5BA3C0 100%);
-  border-color: #7EC8E3;
-}
-
-.config-item input[type="checkbox"]:checked::after {
-  content: '✓';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: white;
-  font-size: 14px;
-  font-weight: bold;
-}
-
-.config-item input[type="checkbox"]:hover {
-  border-color: rgba(126, 200, 227, 0.5);
-}
-
-.config-item input[type="checkbox"]:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(126, 200, 227, 0.2);
-}
-
-.config-control span {
-  color: #5BA3C0;
-  font-weight: 700;
-  font-size: 14px;
-  min-width: 55px;
-  text-align: right;
-  background: rgba(91, 163, 192, 0.15);
-  padding: 4px 10px;
-  border-radius: 8px;
-}
+/* NOTE: Generic .config-item styles consolidated into #lobby-config .config-item above */
 
 /* Indicador de modo local */
 #modo-local-indicator {
@@ -1849,33 +1759,6 @@ canvas {
   padding: 0;
   z-index: 100;
 }
-
-/* OLD DASH-CHARGES STYLES - DEPRECATED
- * Now using dash-box in bottom-right-panel
- * Keeping commented for reference
- */
-/*
-#dash-charges {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 12px;
-  font-weight: 600;
-  font-family: 'Segoe UI', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  background: rgba(0, 0, 0, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  padding: 8px 12px;
-}
-
-#dash-charges > span:first-child {
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 11px;
-}
-*/
 
 /* Contenedor de iconos de dash */
 .dash-icons-container {
@@ -3799,13 +3682,10 @@ canvas {
   background: #48bb78;
   border-radius: 50%;
   box-shadow: 0 0 15px rgba(72, 187, 120, 0.6);
-  animation: onlinePulseNew 2s ease-in-out infinite;
+  animation: onlinePulse 2s ease-in-out infinite;
 }
 
-@keyframes onlinePulseNew {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.7; transform: scale(1.2); }
-}
+/* NOTE: onlinePulseNew consolidated into onlinePulse */
 
 /* Responsive para el nuevo diseño */
 @media (max-width: 1200px) {
@@ -4604,14 +4484,10 @@ canvas {
 
 .error-minimal:not(:empty) {
   opacity: 1;
-  animation: shakeError 0.5s ease;
+  animation: errorShake 0.5s ease;
 }
 
-@keyframes shakeError {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-10px); }
-  40%, 80% { transform: translateX(10px); }
-}
+/* NOTE: shakeError consolidated into errorShake */
 
 /* Botones de juego - Cartoon */
 .game-buttons {
@@ -4858,7 +4734,7 @@ canvas {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  animation: pulse 2s ease-in-out infinite;
+  animation: infoDotPulse 2s ease-in-out infinite;
 }
 
 .info-dot.online {
@@ -4866,7 +4742,8 @@ canvas {
   box-shadow: 0 0 15px rgba(72, 187, 120, 0.7);
 }
 
-@keyframes pulse {
+/* Consolidated pulse animation for info-dot - renamed to avoid conflict with death-title pulse */
+@keyframes infoDotPulse {
   0%, 100% {
     opacity: 1;
     transform: scale(1);
@@ -5027,19 +4904,10 @@ canvas {
   width: 90%;
   max-height: 85vh;
   overflow-y: auto;
-  animation: slideUp 0.4s ease;
+  animation: fadeInUp 0.4s ease;
 }
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* NOTE: slideUp consolidated into fadeInUp - identical animation */
 
 .seleccion-armas-titulo {
   color: #2C5F7C;
@@ -6303,20 +6171,6 @@ canvas {
   #health-text {
     font-size: 9px;
   }
-  
-  /* OLD DASH-CHARGES RESPONSIVE STYLES - DEPRECATED
-   * Now using dash-box in bottom-right-panel
-   */
-  /*
-  #dash-charges {
-    font-size: 10px;
-    gap: 6px;
-  }
-  
-  #dash-charges > span:first-child {
-    font-size: 9px;
-  }
-  */
   
   .dash-icons-container {
     gap: 4px;

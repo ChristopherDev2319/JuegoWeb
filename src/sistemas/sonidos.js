@@ -41,8 +41,6 @@ export function inicializarSonidos() {
       audioPool[arma].audios.push(audio);
     }
   }
-  
-  console.log('🔊 Sistema de sonidos inicializado con pool de audio');
 }
 
 /**

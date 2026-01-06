@@ -54,7 +54,7 @@ export const WEAPON_CONFIG = {
   // Requisitos: 1.1 - Velocidad incrementada 50%
   default: {
     damage: 30,              // Daño por bala
-    fireRate: 75,            // Cadencia: 800 disparos por minuto (60000/75=800 RPM)
+    fireRate: 100,           // Cadencia: 600 disparos por minuto (60000/100=600 RPM)
     magazineSize: 30,        // Balas por cargador
     totalAmmo: 210,          // Munición de reserva - Actualizado
     reloadTime: 2000,        // Tiempo de recarga: 2 segundos
@@ -68,7 +68,7 @@ export const WEAPON_CONFIG = {
   // Características: Alta cadencia, bajo retroceso, buena precisión
   M4A1: {
     damage: 28,              // Daño por bala - moderado
-    fireRate: 86,            // Cadencia: 700 RPM (60000/86)
+    fireRate: 120,           // Cadencia: 500 RPM (60000/120)
     magazineSize: 30,        // Balas por cargador
     totalAmmo: 120,          // 4 cargadores extra
     reloadTime: 2200,        // Tiempo de recarga: 2.2 segundos
@@ -82,7 +82,7 @@ export const WEAPON_CONFIG = {
   // Características: Alto daño, retroceso fuerte, recompensa skill
   AK47: {
     damage: 38,              // Daño por bala - alto
-    fireRate: 100,           // Cadencia: 600 RPM (60000/100)
+    fireRate: 133,           // Cadencia: 450 RPM (60000/133)
     magazineSize: 30,        // Balas por cargador
     totalAmmo: 90,           // 3 cargadores extra
     reloadTime: 2500,        // Tiempo de recarga: 2.5 segundos
@@ -141,7 +141,7 @@ export const WEAPON_CONFIG = {
   // Requisitos: 1.1, 6.2 - Velocidad incrementada 50%, munición 240
   MP5: {
     damage: 24,              // Daño por bala - moderado
-    fireRate: 71,            // Cadencia: 850 RPM (60000/71) - muy rápido
+    fireRate: 100,           // Cadencia: 600 RPM (60000/100) - rápido
     magazineSize: 30,        // Balas por cargador
     totalAmmo: 240,          // Munición de reserva - Actualizado (Requisito 6.2)
     reloadTime: 2000,        // Tiempo de recarga: 2 segundos
