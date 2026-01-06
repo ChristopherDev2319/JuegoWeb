@@ -304,6 +304,20 @@ router.post('/login', validateLogin, async (req, res) => {
         // Generar token con role incluido
         const token = generateToken(user.id, user.username, user.email, user.role);
 
+        // Verificar si existe player_stats, si no, crearlo
+        const statsCheck = await query(
+            'SELECT user_id FROM player_stats WHERE user_id = $1',
+            [user.id]
+        );
+        
+        if (statsCheck.rows.length === 0) {
+            await query(
+                'INSERT INTO player_stats (user_id, kills, deaths, matches) VALUES ($1, 0, 0, 0)',
+                [user.id]
+            );
+            console.log(`✅ player_stats creado para usuario ${user.id}`);
+        }
+
         // Actualizar último login
         await query(
             'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',

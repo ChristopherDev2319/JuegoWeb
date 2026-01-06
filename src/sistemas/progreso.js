@@ -164,7 +164,7 @@ export async function guardarProgreso(nuevoProgreso = null) {
  * Actualizar estadísticas del jugador
  * @param {Object} stats - Nuevas estadísticas
  */
-export function actualizarEstadisticas(stats) {
+export async function actualizarEstadisticas(stats) {
     progresoLocal.stats = { ...progresoLocal.stats, ...stats };
     
     // Calcular precisión automáticamente
@@ -174,8 +174,36 @@ export function actualizarEstadisticas(stats) {
         );
     }
     
-    // Guardar automáticamente (sin esperar)
-    guardarProgreso();
+    // Guardar en localStorage siempre
+    localStorage.setItem('fps_game_progress', JSON.stringify(progresoLocal));
+    
+    // Si está autenticado, guardar en el servidor usando la API de stats
+    if (estaAutenticado()) {
+        try {
+            // Solo enviar kills, deaths, matches al servidor
+            const statsToSend = {};
+            if (stats.kills !== undefined) statsToSend.kills = 1; // Incrementar en 1
+            if (stats.deaths !== undefined) statsToSend.deaths = 1; // Incrementar en 1
+            if (stats.matches !== undefined) statsToSend.matches = 1; // Incrementar en 1
+            
+            if (Object.keys(statsToSend).length > 0) {
+                const response = await fetch(`${API_BASE_URL}/stats/update`, {
+                    method: 'PUT',
+                    headers: obtenerHeadersAuth(),
+                    body: JSON.stringify(statsToSend)
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    console.log('✅ Estadísticas actualizadas en servidor:', data.data);
+                } else {
+                    console.warn('⚠️ Error actualizando stats:', data.message);
+                }
+            }
+        } catch (error) {
+            console.error('Error actualizando estadísticas en servidor:', error);
+        }
+    }
 }
 
 /**
@@ -280,7 +308,36 @@ export function registrarDisparo() {
 export function registrarImpacto() {
     progresoLocal.stats.shotsHit++;
     agregarExperiencia(10); // 10 exp por impacto
-    actualizarEstadisticas({ shotsHit: progresoLocal.stats.shotsHit });
+    // No guardar en servidor, solo local
+    localStorage.setItem('fps_game_progress', JSON.stringify(progresoLocal));
+}
+
+/**
+ * Registrar partida jugada
+ */
+export async function registrarPartida() {
+    progresoLocal.stats.matches = (progresoLocal.stats.matches || 0) + 1;
+    
+    // Guardar en localStorage
+    localStorage.setItem('fps_game_progress', JSON.stringify(progresoLocal));
+    
+    // Si está autenticado, guardar en el servidor
+    if (estaAutenticado()) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/stats/update`, {
+                method: 'PUT',
+                headers: obtenerHeadersAuth(),
+                body: JSON.stringify({ matches: 1 })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                console.log('✅ Partida registrada en servidor');
+            }
+        } catch (error) {
+            console.error('Error registrando partida:', error);
+        }
+    }
 }
 
 /**

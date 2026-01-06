@@ -369,21 +369,13 @@ function salirDelJuego() {
 
 /**
  * Carga las estadísticas desde localStorage
+ * NOTA: Las estadísticas del menú de pausa son solo para la partida actual
+ * Se reinician al iniciar cada partida
  */
 function cargarEstadisticasDesdeStorage() {
-  try {
-    const stats = getStorageJSON('gameStats', {});
-    
-    if (Object.keys(stats).length > 0) {
-      estadisticasJuego.kills = stats.kills || 0;
-      estadisticasJuego.deaths = stats.deaths || 0;
-      estadisticasJuego.shotsFired = stats.shotsFired || 0;
-      estadisticasJuego.shotsHit = stats.shotsHit || 0;
-      estadisticasJuego.playtime = stats.playtime || 0;
-    }
-  } catch (error) {
-    console.warn('⚠️ Error cargando estadísticas:', error);
-  }
+  // Las estadísticas del menú de pausa son solo para la partida actual
+  // No se cargan de localStorage - se reinician al iniciar cada partida
+  reiniciarEstadisticas();
 }
 
 /**

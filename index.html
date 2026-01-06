@@ -64,6 +64,24 @@
           <!-- Opciones en la esquina superior derecha -->
           <div class="corner-options">
             <button id="lobby-login-btn" class="login-btn-corner"><span><i data-lucide="log-in"></i></span> Iniciar Sesión</button>
+            
+            <!-- Panel de usuario autenticado -->
+            <!-- Requirements: 1.3, 2.1, 3.1 - User panel with username, stats button, and logout button -->
+            <div id="user-panel" class="user-panel hidden">
+              <div class="user-info">
+                <span class="user-avatar"><i data-lucide="user"></i></span>
+                <span id="user-panel-name" class="user-name">Username</span>
+              </div>
+              <div class="user-actions">
+                <button id="btn-user-stats" class="user-action-btn" title="Ver estadísticas">
+                  <i data-lucide="bar-chart-3"></i>
+                </button>
+                <button id="btn-user-logout" class="user-action-btn logout" title="Cerrar sesión">
+                  <i data-lucide="log-out"></i>
+                </button>
+              </div>
+            </div>
+            
             <button id="btn-config-lobby" class="corner-btn"><span><i data-lucide="settings"></i></span></button>
           </div>
         </div>
@@ -554,6 +572,47 @@
         
         <div id="auth-error" class="auth-error hidden"></div>
         <div id="auth-loading" class="auth-loading hidden">Cargando...</div>
+      </div>
+    </div>
+
+    <!-- Modal de estadísticas del usuario -->
+    <!-- Requirements: 2.2, 2.3 - Stats modal with header, body, close button, and loading/error states -->
+    <div id="user-stats-modal" class="stats-modal hidden">
+      <div class="stats-modal-overlay"></div>
+      <div class="stats-modal-content">
+        <div class="stats-modal-header">
+          <h3>Mis Estadísticas</h3>
+          <button id="stats-modal-close" class="stats-modal-close">&times;</button>
+        </div>
+        <div id="stats-modal-body" class="stats-modal-body">
+          <!-- Loading state -->
+          <div id="stats-loading" class="stats-loading hidden">
+            <div class="stats-spinner"></div>
+            <p>Cargando estadísticas...</p>
+          </div>
+          <!-- Error state -->
+          <div id="stats-error" class="stats-error hidden">
+            <p id="stats-error-message">Error al cargar estadísticas</p>
+            <button id="stats-retry-btn" class="stats-retry-btn">Reintentar</button>
+          </div>
+          <!-- Stats content -->
+          <div id="stats-content" class="stats-content hidden">
+            <div class="stats-grid-modal">
+              <div class="stat-card-modal">
+                <div class="stat-value-modal" id="user-stats-kills">0</div>
+                <div class="stat-label-modal">Kills</div>
+              </div>
+              <div class="stat-card-modal">
+                <div class="stat-value-modal" id="user-stats-deaths">0</div>
+                <div class="stat-label-modal">Muertes</div>
+              </div>
+              <div class="stat-card-modal">
+                <div class="stat-value-modal" id="user-stats-matches">0</div>
+                <div class="stat-label-modal">Partidas</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

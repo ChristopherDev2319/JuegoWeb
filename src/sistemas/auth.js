@@ -26,9 +26,11 @@ let authCallbacks = {
 
 /**
  * Inicializar sistema de autenticación
+ * Requirements: 1.4 - Session persistence on page load
  * @param {Object} callbacks - Callbacks para eventos
+ * @returns {Promise<void>} Promise that resolves when initialization is complete
  */
-export function inicializarAuth(callbacks = {}) {
+export async function inicializarAuth(callbacks = {}) {
     authCallbacks = { ...authCallbacks, ...callbacks };
     
     // Verificar si hay token guardado
@@ -42,7 +44,8 @@ export function inicializarAuth(callbacks = {}) {
             authState.isAuthenticated = true;
             
             // Verificar si el token sigue siendo válido
-            verificarToken();
+            // Wait for verification to complete before returning
+            await verificarToken();
         } catch (error) {
             console.warn('Error cargando datos de autenticación guardados:', error);
             limpiarAuth();

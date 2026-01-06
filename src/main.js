@@ -104,6 +104,7 @@ import {
   registrarDeath as registrarDeathProgreso,
   registrarDisparo as registrarDisparoProgreso,
   registrarImpacto as registrarImpactoProgreso,
+  registrarPartida as registrarPartidaProgreso,
   actualizarTiempoJugado,
   actualizarConfiguracion
 } from './sistemas/progreso.js';
@@ -133,7 +134,7 @@ import {
 } from './ui/weaponSelectorLocal.js';
 
 // Sistema de menú de pausa
-import { inicializarMenuPausa, alternarMenuPausa, estaMenuActivo, cerrarMenuForzado } from './sistemas/menuPausa.js';
+import { inicializarMenuPausa, alternarMenuPausa, estaMenuActivo, cerrarMenuForzado, reiniciarEstadisticas as reiniciarEstadisticasPartida } from './sistemas/menuPausa.js';
 
 // Sistema de sonidos
 import { inicializarSonidos, reproducirSonidoDisparo } from './sistemas/sonidos.js';
@@ -477,6 +478,12 @@ function configurarBotonReaparecer(armaActual) {
 async function iniciarJuegoConArma(tipoArma) {
   console.log(`🎮 Iniciando juego con arma: ${tipoArma}`);
   
+  // Registrar partida jugada (se guarda en base de datos)
+  registrarPartidaProgreso();
+  
+  // Reiniciar estadísticas del menú de pausa (solo para esta partida)
+  reiniciarEstadisticasPartida();
+  
   // Ocultar menú de selección
   ocultarMenuArmas();
   ocultarMenuSeleccion();
@@ -797,8 +804,9 @@ async function inicializar() {
   cargarConfiguracionLobby();
   
   // Inicializar sistema de autenticación (opcional)
+  // Requirements: 1.4 - Session persistence on page load
   try {
-    inicializarAuthUI();
+    await inicializarAuthUI();
     console.log('✅ Sistema de autenticación inicializado');
   } catch (error) {
     console.warn('⚠️ Error inicializando autenticación:', error);
@@ -1217,8 +1225,9 @@ async function inicializarJuegoCompleto() {
   }
 
   // Inicializar sistema de autenticación
+  // Requirements: 1.4 - Session persistence on page load
   try {
-    inicializarAuthUI();
+    await inicializarAuthUI();
     console.log('✅ Sistema de autenticación inicializado');
   } catch (error) {
     console.warn('⚠️ Error inicializando autenticación:', error);
@@ -1335,8 +1344,8 @@ function volverAlLobby() {
     remotePlayerManager.clear();
   }
   
-  // Cerrar sesión y volver al login
-  cerrarSesion();
+  // NO cerrar sesión - mantener la sesión del usuario
+  // La sesión se restaurará automáticamente al recargar gracias a localStorage
   
   // Recargar la página para reiniciar completamente
   window.location.reload();

@@ -4603,6 +4603,7 @@ canvas {
   top: 30px;
   right: 30px;
   display: flex;
+  align-items: stretch;
   gap: 12px;
   animation: slideInRight 0.6s ease 0.3s both;
 }
@@ -4633,11 +4634,26 @@ canvas {
   box-shadow: 0 4px 0 #D0D0D0, 0 6px 15px rgba(0, 0, 0, 0.1);
 }
 
+/* Icono dentro del botón de configuración */
+.corner-btn span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.corner-btn i,
+.corner-btn svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
 .corner-btn:hover {
-  background: linear-gradient(135deg, #7EC8E3 0%, #5BA3C0 100%);
-  border-color: #5BA3C0;
+  background: linear-gradient(135deg, #B8E4F0 0%, #9DCFE8 100%);
+  border-color: #7EC8E3;
   transform: translateY(-3px) rotate(5deg);
-  box-shadow: 0 7px 0 #3D8EB0, 0 10px 20px rgba(126, 200, 227, 0.5);
+  box-shadow: 0 7px 0 #5BA3C0, 0 10px 20px rgba(126, 200, 227, 0.5);
 }
 
 .corner-btn:active {
@@ -4645,25 +4661,40 @@ canvas {
   box-shadow: 0 1px 0 #D0D0D0;
 }
 
-/* Botón de login con texto - Cartoon */
+/* Botón de login con texto - Cartoon (misma altura que corner-btn) */
 .login-btn-corner {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 12px 22px;
+  height: 50px;
+  padding: 0 18px;
   background: white;
   border: 4px solid #F5B041;
   border-radius: 14px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: #9A6700;
   box-shadow: 0 4px 0 #D68910, 0 6px 15px rgba(245, 176, 65, 0.4);
+  box-sizing: border-box;
 }
 
+/* Icono dentro del botón de login */
 .login-btn-corner span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 18px;
+  line-height: 1;
+}
+
+.login-btn-corner i,
+.login-btn-corner svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .login-btn-corner:hover {
@@ -4761,6 +4792,12 @@ canvas {
     font-size: 20px;
   }
   
+  .login-btn-corner {
+    height: 44px;
+    padding: 0 14px;
+    font-size: 12px;
+  }
+  
   .bottom-info {
     bottom: 20px;
   }
@@ -4816,11 +4853,16 @@ canvas {
     width: 40px;
     height: 40px;
     font-size: 18px;
+    border-width: 3px;
+    border-radius: 10px;
   }
   
   .login-btn-corner {
-    padding: 10px 16px;
-    font-size: 12px;
+    height: 40px;
+    padding: 0 12px;
+    font-size: 11px;
+    border-width: 3px;
+    border-radius: 10px;
   }
 }
 
@@ -6642,3 +6684,558 @@ canvas {
 }
 
 /* ==================== FIN FPS UI RESPONSIVE STYLES ==================== */
+
+/* ==================== USER PANEL STYLES ==================== */
+/* Requirements: 1.3, 4.2, 4.3 - User panel with cartoon theme */
+
+/* User Panel Container - Misma altura que corner-btn (50px) */
+.user-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 50px;
+  padding: 0 14px;
+  background: white;
+  border: 4px solid #7EC8E3;
+  border-radius: 14px;
+  box-shadow: 0 4px 0 #5BA3C0, 0 6px 15px rgba(126, 200, 227, 0.4);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: slideInRight 0.4s ease both;
+  box-sizing: border-box;
+}
+
+.user-panel:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #5BA3C0, 0 10px 20px rgba(126, 200, 227, 0.5);
+}
+
+.user-panel.hidden {
+  display: none;
+}
+
+/* User Info Section */
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #7EC8E3 0%, #5BA3C0 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 14px;
+  box-shadow: 0 2px 0 #3D8EB0;
+  flex-shrink: 0;
+}
+
+.user-avatar i {
+  width: 16px;
+  height: 16px;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #2C5F7C;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* User Actions Buttons */
+.user-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: 6px;
+  padding-left: 10px;
+  border-left: 2px solid #E8E8E8;
+}
+
+.user-action-btn {
+  width: 30px;
+  height: 30px;
+  background: white;
+  border: 2px solid #E8E8E8;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6A9BB5;
+  box-shadow: 0 2px 0 #D0D0D0;
+}
+
+.user-action-btn i {
+  width: 16px;
+  height: 16px;
+}
+
+.user-action-btn:hover {
+  background: #F0FAFF;
+  border-color: #7EC8E3;
+  color: #5BA3C0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 0 #5BA3C0;
+}
+
+.user-action-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #D0D0D0;
+}
+
+/* Logout button special styling */
+.user-action-btn.logout:hover {
+  background: #FFF5F5;
+  border-color: #E74C3C;
+  color: #E74C3C;
+  box-shadow: 0 4px 0 #C0392B;
+}
+
+/* ==================== STATS MODAL STYLES ==================== */
+/* Requirements: 2.2, 2.3, 2.4, 2.5 - Stats modal with loading and error states */
+
+/* Stats Modal Overlay */
+.stats-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 26000;
+  transition: opacity 0.3s ease;
+}
+
+.stats-modal.hidden {
+  display: none;
+}
+
+.stats-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+}
+
+/* Stats Modal Content Container */
+.stats-modal-content {
+  position: relative;
+  background: linear-gradient(135deg, #F8FCFF 0%, #EDF7FC 100%);
+  border-radius: 20px;
+  padding: 0;
+  box-shadow: 0 8px 0 rgba(91, 163, 192, 0.35), 0 20px 50px rgba(0, 0, 0, 0.4);
+  border: 4px solid #9DCFE8;
+  min-width: 400px;
+  max-width: 500px;
+  animation: statsModalSlideIn 0.3s ease both;
+  overflow: hidden;
+}
+
+@keyframes statsModalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Stats Modal Header */
+.stats-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  background: linear-gradient(135deg, #7EC8E3 0%, #5BA3C0 100%);
+  border-bottom: 4px solid #5BA3C0;
+}
+
+.stats-modal-header h3 {
+  color: white;
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.stats-modal-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+  line-height: 1;
+}
+
+.stats-modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+/* Stats Modal Body */
+.stats-modal-body {
+  padding: 25px;
+  min-height: 200px;
+}
+
+/* Stats Grid */
+.stats-grid-modal {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+/* Stats Card */
+.stat-card-modal {
+  background: white;
+  border: 3px solid #E8E8E8;
+  border-radius: 14px;
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 3px 0 #D0D0D0;
+  transition: all 0.25s ease;
+}
+
+.stat-card-modal:hover {
+  transform: translateY(-3px);
+  border-color: #7EC8E3;
+  box-shadow: 0 6px 0 #5BA3C0, 0 8px 15px rgba(126, 200, 227, 0.3);
+}
+
+.stat-value-modal {
+  font-size: 32px;
+  font-weight: 800;
+  color: #5BA3C0;
+  line-height: 1.2;
+  text-shadow: 0 2px 4px rgba(91, 163, 192, 0.2);
+}
+
+.stat-label-modal {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6A9BB5;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 8px;
+}
+
+/* Loading State */
+.stats-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 20px;
+}
+
+.stats-loading.hidden {
+  display: none;
+}
+
+.stats-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #E8E8E8;
+  border-top-color: #7EC8E3;
+  border-right-color: #5BA3C0;
+  border-radius: 50%;
+  animation: statsSpinner 1s linear infinite;
+}
+
+@keyframes statsSpinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.stats-loading p {
+  color: #6A9BB5;
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* Error State */
+.stats-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 15px;
+  text-align: center;
+}
+
+.stats-error.hidden {
+  display: none;
+}
+
+.stats-error p {
+  color: #E74C3C;
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.stats-retry-btn {
+  padding: 12px 24px;
+  background: white;
+  border: 3px solid #7EC8E3;
+  border-radius: 10px;
+  color: #5BA3C0;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #5BA3C0;
+  transition: all 0.25s ease;
+}
+
+.stats-retry-btn:hover {
+  background: #F0FAFF;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 0 #5BA3C0;
+}
+
+.stats-retry-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #5BA3C0;
+}
+
+/* Stats Content */
+.stats-content {
+  animation: statsContentFadeIn 0.3s ease both;
+}
+
+.stats-content.hidden {
+  display: none;
+}
+
+@keyframes statsContentFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==================== USER PANEL & STATS MODAL RESPONSIVE ==================== */
+
+@media (max-width: 768px) {
+  .user-panel {
+    height: 44px;
+    padding: 0 10px;
+    gap: 8px;
+  }
+  
+  .user-avatar {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+    border-radius: 6px;
+  }
+  
+  .user-avatar i {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .user-name {
+    font-size: 12px;
+    max-width: 70px;
+  }
+  
+  .user-actions {
+    gap: 4px;
+    margin-left: 4px;
+    padding-left: 8px;
+  }
+  
+  .user-action-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+  }
+  
+  .user-action-btn i {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .login-btn-corner {
+    height: 44px;
+    padding: 0 14px;
+    font-size: 12px;
+  }
+  
+  .corner-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+  
+  .stats-modal-content {
+    min-width: auto;
+    max-width: 90%;
+    margin: 20px;
+  }
+  
+  .stats-modal-header {
+    padding: 15px 20px;
+  }
+  
+  .stats-modal-header h3 {
+    font-size: 18px;
+  }
+  
+  .stats-modal-body {
+    padding: 20px;
+  }
+  
+  .stats-grid-modal {
+    gap: 12px;
+  }
+  
+  .stat-card-modal {
+    padding: 15px;
+  }
+  
+  .stat-value-modal {
+    font-size: 26px;
+  }
+  
+  .stat-label-modal {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-panel {
+    height: 40px;
+    padding: 0 8px;
+    gap: 6px;
+    border-width: 3px;
+    border-radius: 10px;
+  }
+  
+  .user-avatar {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+    border-radius: 5px;
+  }
+  
+  .user-avatar i {
+    width: 12px;
+    height: 12px;
+  }
+  
+  .user-name {
+    font-size: 11px;
+    max-width: 50px;
+  }
+  
+  .user-actions {
+    gap: 3px;
+    margin-left: 3px;
+    padding-left: 6px;
+  }
+  
+  .user-action-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
+  }
+  
+  .user-action-btn i {
+    width: 12px;
+    height: 12px;
+  }
+  
+  .login-btn-corner {
+    height: 40px;
+    padding: 0 12px;
+    font-size: 11px;
+    border-width: 3px;
+    border-radius: 10px;
+  }
+  
+  .corner-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    border-width: 3px;
+    border-radius: 10px;
+  }
+  
+  .stats-modal-content {
+    border-radius: 16px;
+    border-width: 3px;
+  }
+  
+  .stats-modal-header {
+    padding: 12px 16px;
+    border-bottom-width: 3px;
+  }
+  
+  .stats-modal-header h3 {
+    font-size: 16px;
+  }
+  
+  .stats-modal-close {
+    width: 34px;
+    height: 34px;
+    font-size: 24px;
+  }
+  
+  .stats-modal-body {
+    padding: 15px;
+    min-height: 150px;
+  }
+  
+  .stats-grid-modal {
+    gap: 10px;
+  }
+  
+  .stat-card-modal {
+    padding: 12px;
+    border-width: 2px;
+    border-radius: 12px;
+  }
+  
+  .stat-value-modal {
+    font-size: 22px;
+  }
+  
+  .stat-label-modal {
+    font-size: 11px;
+    margin-top: 6px;
+  }
+}
+
+/* ==================== FIN USER PANEL & STATS MODAL STYLES ==================== */
