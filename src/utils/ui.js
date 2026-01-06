@@ -979,39 +979,24 @@ export function ocultarBarraCuracion() {
 let cachedDashBox = null;
 let cachedDashCircle = null;
 let cachedDashCircleNumber = null;
-let cachedDashCircleProgress = null;
 // Cache de estado anterior para evitar actualizaciones innecesarias
-let lastDashState = { cargas: null, recargando: null, progreso: null };
-
-// Constante para el perímetro del círculo SVG (2 * PI * 15.5)
-const DASH_CIRCLE_CIRCUMFERENCE = 97.4;
+let lastDashState = { cargas: null };
 
 /**
  * Actualiza el Dash Box con el estado actual del sistema de dash
- * Requirements: 4.5, 4.6, 4.7, 4.8, 4.9
- * OPTIMIZADO: Solo actualiza si el estado cambió significativamente
+ * SIMPLIFICADO: Solo actualiza el número de cargas, sin animación de progreso SVG
  * 
  * @param {Object} estadoDash - Estado del sistema de dash
  * @param {number} estadoDash.cargasActuales - Número de cargas disponibles (0-3)
- * @param {number} estadoDash.cargasMaximas - Número máximo de cargas (default 3)
- * @param {boolean} estadoDash.estaRecargando - Si hay una carga recargándose
- * @param {number} estadoDash.progresoRecarga - Progreso de recarga (0-1)
  */
 export function actualizarDashBox(estadoDash) {
   const cargasActuales = estadoDash.cargasActuales ?? 0;
-  const estaRecargando = estadoDash.estaRecargando ?? false;
-  const progresoRecarga = estadoDash.progresoRecarga ?? 0;
   
-  // OPTIMIZACIÓN: Solo actualizar si el estado cambió significativamente
-  const progresoRedondeado = Math.round(progresoRecarga * 20) / 20; // Redondear a 5%
-  if (lastDashState.cargas === cargasActuales && 
-      lastDashState.recargando === estaRecargando && 
-      lastDashState.progreso === progresoRedondeado) {
+  // OPTIMIZACIÓN: Solo actualizar si las cargas cambiaron
+  if (lastDashState.cargas === cargasActuales) {
     return;
   }
   lastDashState.cargas = cargasActuales;
-  lastDashState.recargando = estaRecargando;
-  lastDashState.progreso = progresoRedondeado;
   
   // Cachear elementos si no están cacheados
   if (!cachedDashBox) {
@@ -1023,51 +1008,28 @@ export function actualizarDashBox(estadoDash) {
   if (!cachedDashCircleNumber) {
     cachedDashCircleNumber = cachedDashCircle?.querySelector('.dash-circle-number');
   }
-  if (!cachedDashCircleProgress) {
-    cachedDashCircleProgress = cachedDashCircle?.querySelector('.dash-circle-progress');
-  }
   
-  if (!cachedDashBox || !cachedDashCircle) return;
-  const cargasMaximas = estadoDash.cargasMaximas ?? 3;
+  if (!cachedDashCircle) return;
   
-  // Requirements: 4.5 - Actualizar número de cargas en la circunferencia
+  // Solo actualizar el número
   if (cachedDashCircleNumber) {
     cachedDashCircleNumber.textContent = cargasActuales.toString();
   }
   
-  // Determinar estado visual
-  // Requirements: 4.6 - Verde cuando hay cargas disponibles
-  // Requirements: 4.7 - Gris cuando está recargando
+  // Cambiar color según si hay cargas o no (sin animación de progreso)
   if (cargasActuales > 0) {
     cachedDashCircle.classList.remove('empty', 'recharging');
     cachedDashCircle.classList.add('available');
-    cachedDashBox.classList.remove('empty');
-    cachedDashBox.classList.add('available');
-  } else if (estaRecargando) {
-    cachedDashCircle.classList.remove('available', 'empty');
-    cachedDashCircle.classList.add('recharging');
-    cachedDashBox.classList.remove('available');
-    cachedDashBox.classList.add('empty');
+    if (cachedDashBox) {
+      cachedDashBox.classList.remove('empty');
+      cachedDashBox.classList.add('available');
+    }
   } else {
-    cachedDashCircle.classList.remove('available', 'recharging');
+    cachedDashCircle.classList.remove('available');
     cachedDashCircle.classList.add('empty');
-    cachedDashBox.classList.remove('available');
-    cachedDashBox.classList.add('empty');
-  }
-  
-  // Requirements: 4.8 - Actualizar progreso de recarga con SVG stroke-dashoffset
-  if (cachedDashCircleProgress) {
-    if (estaRecargando && cargasActuales < cargasMaximas) {
-      // Calcular el offset basado en el progreso (0 = vacío, 1 = lleno)
-      // stroke-dashoffset: 97.4 = vacío, 0 = lleno
-      const offset = DASH_CIRCLE_CIRCUMFERENCE * (1 - progresoRecarga);
-      cachedDashCircleProgress.style.strokeDashoffset = offset.toString();
-    } else if (cargasActuales >= cargasMaximas) {
-      // Círculo completo cuando todas las cargas están disponibles
-      cachedDashCircleProgress.style.strokeDashoffset = '0';
-    } else if (cargasActuales === 0 && !estaRecargando) {
-      // Círculo vacío cuando no hay cargas y no está recargando
-      cachedDashCircleProgress.style.strokeDashoffset = DASH_CIRCLE_CIRCUMFERENCE.toString();
+    if (cachedDashBox) {
+      cachedDashBox.classList.remove('available');
+      cachedDashBox.classList.add('empty');
     }
   }
 }

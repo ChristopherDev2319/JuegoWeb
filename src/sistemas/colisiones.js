@@ -35,6 +35,7 @@ function getColisionesConfig() {
 const _direccionRayo = new THREE.Vector3();
 const _posicionRayo = new THREE.Vector3();
 const _desplazamiento = new THREE.Vector3();
+const _normalMundo = new THREE.Vector3(); // Para verificación de colisiones
 
 /**
  * Inicializa el sistema de colisiones
@@ -230,6 +231,7 @@ function resolverColisionFallback(posicionActual, posicionDeseada, radio) {
 
 /**
  * Verifica si hay colisión en una posición específica (fallback)
+ * OPTIMIZADO: Usa vector reutilizable para normalMundo
  * @param {THREE.Vector3} posicion - Posición a verificar (posición de los ojos)
  * @param {number} radio - Radio del jugador
  * @param {number} margen - Margen de separación
@@ -281,13 +283,14 @@ function hayColisionEnPosicionFallback(posicion, radio, margen) {
         
         // Verificar si es una rampa caminable (no una pared)
         if (hit.face && hit.face.normal) {
-          const normalMundo = hit.face.normal.clone();
-          normalMundo.transformDirection(collisionModel.matrixWorld);
-          normalMundo.normalize();
+          // Usar vector reutilizable en lugar de clone()
+          _normalMundo.copy(hit.face.normal);
+          _normalMundo.transformDirection(collisionModel.matrixWorld);
+          _normalMundo.normalize();
           
           // Si la normal apunta hacia arriba (es suelo/rampa), ignorar
           // Una rampa tiene normal.y > cos(anguloMaxRampa)
-          if (normalMundo.y > cosAnguloMaxRampa) {
+          if (_normalMundo.y > cosAnguloMaxRampa) {
             // Es una rampa caminable, no es una pared
             continue;
           }

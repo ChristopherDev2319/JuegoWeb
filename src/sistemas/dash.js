@@ -11,6 +11,13 @@ import { CONFIG } from '../config.js';
 import { shapeCastDash, verificarPosicionValida, estaActivo as colisionesActivas, desatorarJugador, estaDentroGeometria, desatorarDespuesDash, detectarColisionYSalida } from './colisiones.js';
 import { actualizarDashBox } from '../utils/ui.js';
 
+// Vectores reutilizables para evitar garbage collection (OPTIMIZACIÓN)
+const _dashDireccion = new THREE.Vector3();
+const _dashForward = new THREE.Vector3();
+const _dashRight = new THREE.Vector3();
+const _dashQuaternion = new THREE.Quaternion();
+const _dashEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+
 /**
  * Estado del sistema de dash
  * Requirements: 1.1, 1.2
@@ -37,6 +44,7 @@ export const sistemaDash = {
 /**
  * Ejecuta un dash si hay cargas disponibles
  * Usa shape cast de Rapier para detectar colisiones durante todo el trayecto
+ * OPTIMIZADO: Usa vectores reutilizables para evitar garbage collection
  * Requirements: 4.1, 4.2, 4.3, 4.4
  * 
  * @param {Object} jugador - Estado del jugador con posicion y rotacion
@@ -49,35 +57,29 @@ export function ejecutarDash(jugador, teclas, onDashEjecutado = null) {
     return false;
   }
 
-  // Calcular dirección del dash
-  const direccionDash = new THREE.Vector3();
-  const forward = new THREE.Vector3();
-  const right = new THREE.Vector3();
+  // Calcular dirección del dash usando vectores reutilizables
+  _dashDireccion.set(0, 0, 0);
+  _dashEuler.set(0, jugador.rotacion.y, 0);
+  _dashQuaternion.setFromEuler(_dashEuler);
 
-  forward.set(0, 0, -1).applyQuaternion(
-    new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(0, jugador.rotacion.y, 0, 'YXZ')
-    )
-  );
-
-  right.set(1, 0, 0).applyQuaternion(
-    new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(0, jugador.rotacion.y, 0, 'YXZ')
-    )
-  );
+  _dashForward.set(0, 0, -1).applyQuaternion(_dashQuaternion);
+  _dashRight.set(1, 0, 0).applyQuaternion(_dashQuaternion);
 
   // Determinar dirección según teclas presionadas
-  if (teclas['KeyW']) direccionDash.add(forward);
-  if (teclas['KeyS']) direccionDash.sub(forward);
-  if (teclas['KeyA']) direccionDash.sub(right);
-  if (teclas['KeyD']) direccionDash.add(right);
+  if (teclas['KeyW']) _dashDireccion.add(_dashForward);
+  if (teclas['KeyS']) _dashDireccion.sub(_dashForward);
+  if (teclas['KeyA']) _dashDireccion.sub(_dashRight);
+  if (teclas['KeyD']) _dashDireccion.add(_dashRight);
 
   // Si no hay dirección de movimiento, dash hacia adelante
-  if (direccionDash.length() === 0) {
-    direccionDash.copy(forward);
+  if (_dashDireccion.length() === 0) {
+    _dashDireccion.copy(_dashForward);
   }
 
-  direccionDash.normalize();
+  _dashDireccion.normalize();
+  
+  // Copiar a un nuevo vector para el resto de la función (necesario para el callback)
+  const direccionDash = _dashDireccion.clone();
 
   // Consumir carga e iniciar timer de recarga (igual que servidor)
   sistemaDash.cargasActuales--;
@@ -455,35 +457,29 @@ export function ejecutarDashInterpolado(jugador, teclas, onDashEjecutado = null)
     return false;
   }
 
-  // Calcular dirección del dash
-  const direccionDash = new THREE.Vector3();
-  const forward = new THREE.Vector3();
-  const right = new THREE.Vector3();
+  // Calcular dirección del dash usando vectores reutilizables
+  _dashDireccion.set(0, 0, 0);
+  _dashEuler.set(0, jugador.rotacion.y, 0);
+  _dashQuaternion.setFromEuler(_dashEuler);
 
-  forward.set(0, 0, -1).applyQuaternion(
-    new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(0, jugador.rotacion.y, 0, 'YXZ')
-    )
-  );
-
-  right.set(1, 0, 0).applyQuaternion(
-    new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(0, jugador.rotacion.y, 0, 'YXZ')
-    )
-  );
+  _dashForward.set(0, 0, -1).applyQuaternion(_dashQuaternion);
+  _dashRight.set(1, 0, 0).applyQuaternion(_dashQuaternion);
 
   // Determinar dirección según teclas presionadas
-  if (teclas['KeyW']) direccionDash.add(forward);
-  if (teclas['KeyS']) direccionDash.sub(forward);
-  if (teclas['KeyA']) direccionDash.sub(right);
-  if (teclas['KeyD']) direccionDash.add(right);
+  if (teclas['KeyW']) _dashDireccion.add(_dashForward);
+  if (teclas['KeyS']) _dashDireccion.sub(_dashForward);
+  if (teclas['KeyA']) _dashDireccion.sub(_dashRight);
+  if (teclas['KeyD']) _dashDireccion.add(_dashRight);
 
   // Si no hay dirección de movimiento, dash hacia adelante
-  if (direccionDash.length() === 0) {
-    direccionDash.copy(forward);
+  if (_dashDireccion.length() === 0) {
+    _dashDireccion.copy(_dashForward);
   }
 
-  direccionDash.normalize();
+  _dashDireccion.normalize();
+  
+  // Copiar a un nuevo vector para el resto de la función
+  const direccionDash = _dashDireccion.clone();
 
   // Consumir carga e iniciar timer de recarga (igual que servidor)
   sistemaDash.cargasActuales--;

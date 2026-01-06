@@ -707,6 +707,8 @@ export function cambiarArma(tipoArma, weaponContainer = null) {
     }
     estadoCuracion.juiceBoxEquipado = false;
     estadoCuracion.armaPreviaACuracion = null;
+    estadoEquipamiento.itemEquipado = 'ARMA';
+    estadoEquipamiento.itemPrevioAJuiceBox = null;
     
     // Cancelar curación si estaba en progreso
     if (estadoCuracion.curacionEnProgreso) {
@@ -715,9 +717,24 @@ export function cambiarArma(tipoArma, weaponContainer = null) {
     
     console.log('🧃 JuiceBox desequipado por cambio de arma');
   }
+  
+  // Desequipar cuchillo si estaba equipado
+  if (estadoEquipamiento.itemEquipado === 'CUCHILLO') {
+    estadoEquipamiento.itemEquipado = 'ARMA';
+    estadoCuchillo.equipado = false;
+    console.log('🔪 Cuchillo desequipado por cambio de arma');
+  }
 
   arma.tipoActual = tipoArma;
   const configArma = obtenerConfigArmaActual();
+  
+  // Actualizar el arma principal en el estado de equipamiento
+  // Esto sincroniza el slot intercambiable [Q] con el arma actual
+  if (tipoArma !== 'KNIFE') {
+    estadoEquipamiento.armaPrincipal = tipoArma;
+    estadoCuchillo.armaPrincipalPrevia = tipoArma;
+    console.log(`🔫 Arma principal actualizada a: ${tipoArma}`);
+  }
   
   // Reiniciar munición al cambiar arma
   arma.municionActual = configArma.tamañoCargador;

@@ -2367,9 +2367,13 @@ function calcularDireccionDash() {
   };
 }
 
+// Vector reutilizable para verificación de impactos (optimización)
+const _hitboxWorldPos = new THREE.Vector3();
+
 /**
  * Verifica si una bala impacta algún bot de entrenamiento
  * Requirement 1.4: Registrar impacto y actualizar barra de vida del bot
+ * OPTIMIZADO: Usa vector reutilizable para evitar garbage collection
  * 
  * @param {Bala} bala - La bala a verificar
  * @param {Array<BotBase>} bots - Array de bots vivos
@@ -2387,12 +2391,11 @@ function verificarImpactoBots(bala, bots) {
     const hitbox = bot.obtenerHitbox();
     if (!hitbox) continue;
 
-    // Obtener posición mundial de la hitbox
-    const hitboxWorldPos = new THREE.Vector3();
-    hitbox.getWorldPosition(hitboxWorldPos);
+    // Obtener posición mundial de la hitbox (reutilizando vector)
+    hitbox.getWorldPosition(_hitboxWorldPos);
 
     // Calcular distancia entre bala y centro de hitbox
-    const distancia = posicionBala.distanceTo(hitboxWorldPos);
+    const distancia = posicionBala.distanceTo(_hitboxWorldPos);
 
     // Radio de colisión aproximado (diagonal de la hitbox / 2)
     const radioColision = 1.5; // Aproximación basada en hitbox 1.4 x 2.0 x 1.2
@@ -2406,8 +2409,6 @@ function verificarImpactoBots(bala, bots) {
       
       // Mostrar indicador de daño en pantalla (igual que modo online)
       mostrarDañoCausado(daño);
-      
-      console.log(`🎯 Bala impactó bot ${bot.tipo} - Daño: ${daño}`);
       
       // Crear efecto de impacto
       bala.crearEfectoImpacto(bala.mesh.position);

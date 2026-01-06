@@ -10,6 +10,15 @@ let panelEstadisticas = null;
 let indicadorZona = null;
 let timeoutZona = null;
 
+// Cache de elementos DOM para optimización
+let cachedStatEstaticos = null;
+let cachedStatMoviles = null;
+let cachedStatTiradores = null;
+let cachedStatTotal = null;
+
+// Cache de valores anteriores para evitar actualizaciones innecesarias
+let lastStats = { estaticos: -1, moviles: -1, tiradores: -1, total: -1 };
+
 /**
  * Inicializa el UI de estadísticas de entrenamiento
  * Requirement 6.1: Mostrar contador de bots eliminados
@@ -17,12 +26,17 @@ let timeoutZona = null;
 export function inicializarEntrenamientoUI() {
   crearPanelEstadisticas();
   crearIndicadorZona();
+  // Cachear elementos después de crear el panel
+  cachedStatEstaticos = document.getElementById('stat-estaticos');
+  cachedStatMoviles = document.getElementById('stat-moviles');
+  cachedStatTiradores = document.getElementById('stat-tiradores');
+  cachedStatTotal = document.getElementById('stat-total');
   console.log('✅ UI de entrenamiento inicializado');
 }
 
 /**
  * Crea el panel de estadísticas de entrenamiento
- * Usa el mismo estilo del scoreboard del modo online
+ * Diseño minimalista y compacto en esquina superior izquierda
  * Requirements: 6.1, 6.2
  */
 function crearPanelEstadisticas() {
@@ -34,27 +48,24 @@ function crearPanelEstadisticas() {
 
   panelEstadisticas = document.createElement('div');
   panelEstadisticas.id = 'training-stats-panel';
-  panelEstadisticas.className = 'scoreboard-panel'; // Usar estilo del scoreboard
-  // Posicionar en esquina superior derecha
-  panelEstadisticas.style.left = 'auto';
-  panelEstadisticas.style.right = '20px';
+  panelEstadisticas.className = 'training-stats-minimal';
   panelEstadisticas.innerHTML = `
-    <div class="scoreboard-header">ENTRENAMIENTO</div>
-    <div class="scoreboard-entry">
-      <span class="scoreboard-nombre">🔴 Estáticos</span>
-      <span class="scoreboard-kills" id="stat-estaticos">0</span>
+    <div class="training-row">
+      <span class="training-label">🔴</span>
+      <span class="training-value" id="stat-estaticos">0</span>
     </div>
-    <div class="scoreboard-entry">
-      <span class="scoreboard-nombre">🔵 Móviles</span>
-      <span class="scoreboard-kills" id="stat-moviles">0</span>
+    <div class="training-row">
+      <span class="training-label">🔵</span>
+      <span class="training-value" id="stat-moviles">0</span>
     </div>
-    <div class="scoreboard-entry">
-      <span class="scoreboard-nombre">🟠 Tiradores</span>
-      <span class="scoreboard-kills" id="stat-tiradores">0</span>
+    <div class="training-row">
+      <span class="training-label">🟠</span>
+      <span class="training-value" id="stat-tiradores">0</span>
     </div>
-    <div class="scoreboard-entry" style="border-top: 1px solid rgba(255,255,255,0.15); margin-top: 8px; padding-top: 12px;">
-      <span class="scoreboard-nombre" style="font-weight: 700;">Total</span>
-      <span class="scoreboard-kills" id="stat-total" style="color: #48bb78;">0</span>
+    <div class="training-divider"></div>
+    <div class="training-row total">
+      <span class="training-label">⚔️</span>
+      <span class="training-value" id="stat-total">0</span>
     </div>
   `;
 
@@ -86,6 +97,7 @@ function crearIndicadorZona() {
 /**
  * Actualiza las estadísticas mostradas en el panel
  * Requirement 6.2: Incrementar contador cuando se elimina un bot
+ * OPTIMIZADO: Usa cache de elementos DOM y solo actualiza si los valores cambiaron
  * 
  * @param {Object} estadisticas - Objeto con las estadísticas de entrenamiento
  */
@@ -94,23 +106,33 @@ export function actualizarEstadisticasUI(estadisticas) {
 
   const { eliminaciones, totalEliminaciones } = estadisticas;
 
-  // Actualizar contadores por tipo
-  const statEstaticos = document.getElementById('stat-estaticos');
-  const statMoviles = document.getElementById('stat-moviles');
-  const statTiradores = document.getElementById('stat-tiradores');
-  const statTotal = document.getElementById('stat-total');
-
-  if (statEstaticos) {
-    actualizarConAnimacion(statEstaticos, eliminaciones.estaticos);
+  // Solo actualizar si los valores cambiaron
+  if (eliminaciones.estaticos !== lastStats.estaticos) {
+    if (cachedStatEstaticos) {
+      actualizarConAnimacion(cachedStatEstaticos, eliminaciones.estaticos);
+    }
+    lastStats.estaticos = eliminaciones.estaticos;
   }
-  if (statMoviles) {
-    actualizarConAnimacion(statMoviles, eliminaciones.moviles);
+  
+  if (eliminaciones.moviles !== lastStats.moviles) {
+    if (cachedStatMoviles) {
+      actualizarConAnimacion(cachedStatMoviles, eliminaciones.moviles);
+    }
+    lastStats.moviles = eliminaciones.moviles;
   }
-  if (statTiradores) {
-    actualizarConAnimacion(statTiradores, eliminaciones.tiradores);
+  
+  if (eliminaciones.tiradores !== lastStats.tiradores) {
+    if (cachedStatTiradores) {
+      actualizarConAnimacion(cachedStatTiradores, eliminaciones.tiradores);
+    }
+    lastStats.tiradores = eliminaciones.tiradores;
   }
-  if (statTotal) {
-    actualizarConAnimacion(statTotal, totalEliminaciones);
+  
+  if (totalEliminaciones !== lastStats.total) {
+    if (cachedStatTotal) {
+      actualizarConAnimacion(cachedStatTotal, totalEliminaciones);
+    }
+    lastStats.total = totalEliminaciones;
   }
 }
 
@@ -230,4 +252,11 @@ export function destruirEntrenamientoUI() {
     clearTimeout(timeoutZona);
     timeoutZona = null;
   }
+  
+  // Limpiar cache
+  cachedStatEstaticos = null;
+  cachedStatMoviles = null;
+  cachedStatTiradores = null;
+  cachedStatTotal = null;
+  lastStats = { estaticos: -1, moviles: -1, tiradores: -1, total: -1 };
 }

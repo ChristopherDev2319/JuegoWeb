@@ -18,6 +18,13 @@ import {
 } from '../sistemas/colisiones.js';
 import * as Fisica from '../sistemas/fisica.js';
 
+// Vectores reutilizables para evitar garbage collection (OPTIMIZACIÓN)
+const _direccion = new THREE.Vector3();
+const _forward = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _quaternion = new THREE.Quaternion();
+const _euler = new THREE.Euler(0, 0, 0, 'YXZ');
+
 /**
  * Estado del jugador
  */
@@ -83,34 +90,28 @@ export function marcarInicioDash() {
 
 /**
  * Calcula la dirección de movimiento basada en las teclas presionadas
+ * OPTIMIZADO: Usa vectores reutilizables para evitar garbage collection
  * @param {Object} teclas - Estado de las teclas presionadas
  * @returns {{direccion: THREE.Vector3, forward: THREE.Vector3, right: THREE.Vector3}}
  */
 export function calcularDireccionMovimiento(teclas) {
-  const direccion = new THREE.Vector3();
-  const forward = new THREE.Vector3();
-  const right = new THREE.Vector3();
-
-  // Calcular vectores de dirección basados en la rotación del jugador
-  forward.set(0, 0, -1).applyQuaternion(
-    new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(0, jugador.rotacion.y, 0, 'YXZ')
-    )
-  );
+  // Resetear vectores reutilizables
+  _direccion.set(0, 0, 0);
   
-  right.set(1, 0, 0).applyQuaternion(
-    new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(0, jugador.rotacion.y, 0, 'YXZ')
-    )
-  );
+  // Calcular vectores de dirección basados en la rotación del jugador
+  _euler.set(0, jugador.rotacion.y, 0);
+  _quaternion.setFromEuler(_euler);
+  
+  _forward.set(0, 0, -1).applyQuaternion(_quaternion);
+  _right.set(1, 0, 0).applyQuaternion(_quaternion);
 
   // Aplicar movimiento según teclas
-  if (teclas['KeyW']) direccion.add(forward);
-  if (teclas['KeyS']) direccion.sub(forward);
-  if (teclas['KeyA']) direccion.sub(right);
-  if (teclas['KeyD']) direccion.add(right);
+  if (teclas['KeyW']) _direccion.add(_forward);
+  if (teclas['KeyS']) _direccion.sub(_forward);
+  if (teclas['KeyA']) _direccion.sub(_right);
+  if (teclas['KeyD']) _direccion.add(_right);
 
-  return { direccion, forward, right };
+  return { direccion: _direccion, forward: _forward, right: _right };
 }
 
 

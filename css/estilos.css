@@ -1031,24 +1031,13 @@ canvas {
 
 /* NOTE: Generic .config-item styles consolidated into #lobby-config .config-item above */
 
-/* Indicador de modo local */
+/* Indicador de modo local - Oculto (reemplazado por panel minimalista) */
 #modo-local-indicator {
-  position: fixed;
-  top: 15px;
-  left: 15px;
-  background: rgba(255, 170, 0, 0.2);
-  border: 1px solid rgba(255, 170, 0, 0.5);
-  border-radius: 8px;
-  padding: 8px 15px;
-  color: #ffaa00;
-  font-size: 13px;
-  font-weight: 600;
-  z-index: 200;
-  display: none;
+  display: none !important;
 }
 
 #modo-local-indicator.visible {
-  display: block;
+  display: none !important;
 }
 
 /* Estilos adicionales para el nuevo layout del lobby */
@@ -1886,7 +1875,7 @@ canvas {
 /* Requirements: 3.3 - Animación de deslizamiento desde la derecha */
 #kill-feed {
   position: fixed;
-  top: 280px;
+  top: 20px;
   right: 20px;
   width: 320px;
   max-height: 220px;
@@ -1900,7 +1889,7 @@ canvas {
 
 /* Kill feed cuando el chat está minimizado */
 #kill-feed.chat-minimized {
-  top: 60px;
+  top: 20px;
 }
 
 .kill-entry {
@@ -3234,25 +3223,14 @@ canvas {
 }
 
 /* ==================== MODO LOCAL INDICATOR ==================== */
-/* Requirements: 2.3 - Mostrar indicador "Modo Local" cuando corresponda */
+/* Requirements: 2.3 - Oculto (reemplazado por panel minimalista) */
 
 .modo-local-indicator {
-  position: fixed;
-  top: 15px;
-  left: 15px;
-  background: rgba(255, 170, 0, 0.2);
-  border: 1px solid rgba(255, 170, 0, 0.5);
-  border-radius: 8px;
-  padding: 8px 15px;
-  color: #ffaa00;
-  font-size: 13px;
-  font-weight: 600;
-  z-index: 200;
-  display: none;
+  display: none !important;
 }
 
 .modo-local-indicator.visible {
-  display: block;
+  display: none !important;
 }
 
 /* ==================== NUEVO LAYOUT DEL LOBBY ==================== */
@@ -5271,9 +5249,9 @@ canvas {
 /* Grid de armas en pantalla de muerte */
 .death-weapon-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  max-width: 600px;
+  max-width: 450px;
   margin: 0 auto;
 }
 
@@ -5388,6 +5366,7 @@ canvas {
   .death-weapon-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
+    max-width: 350px;
   }
   
   .death-weapon-card {
@@ -5410,7 +5389,21 @@ canvas {
 
 @media (max-width: 400px) {
   .death-weapon-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    max-width: 280px;
+  }
+  
+  .death-weapon-card {
+    padding: 10px 6px;
+  }
+  
+  .death-weapon-card .weapon-icon {
+    font-size: 20px;
+  }
+  
+  .death-weapon-card .weapon-name {
+    font-size: 10px;
   }
 }
 
@@ -5580,7 +5573,69 @@ canvas {
 /* ==================== TRAINING STATS UI STYLES ==================== */
 /* Requirements: 6.1, 6.2, 4.4 - UI de estadísticas de entrenamiento */
 
-/* Panel de estadísticas de entrenamiento */
+/* Panel minimalista de estadísticas de entrenamiento */
+.training-stats-minimal {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 8px;
+  padding: 8px 12px;
+  z-index: 500;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.training-stats-minimal .training-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.training-stats-minimal .training-label {
+  font-size: 12px;
+}
+
+.training-stats-minimal .training-value {
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 20px;
+  text-align: right;
+  transition: transform 0.15s ease;
+}
+
+.training-stats-minimal .training-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 4px 0;
+}
+
+.training-stats-minimal .training-row.total .training-value {
+  color: #48bb78;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .training-stats-minimal {
+    top: 10px;
+    left: 10px;
+    padding: 6px 10px;
+  }
+  
+  .training-stats-minimal .training-value {
+    font-size: 12px;
+  }
+  
+  .training-stats-minimal .training-row.total .training-value {
+    font-size: 14px;
+  }
+}
+
+/* Panel de estadísticas de entrenamiento (legacy) */
 .training-stats-panel {
   position: fixed;
   top: 20px;
@@ -5869,7 +5924,7 @@ canvas {
 
 .weapon-selector-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   min-width: 240px;
 }
@@ -6292,7 +6347,7 @@ canvas {
   /* Kill Feed - Reduced size */
   /* Requirements: 3.3 */
   #kill-feed {
-    top: 220px;
+    top: 15px;
     right: 8px;
     width: 260px;
     max-height: 180px;
@@ -6484,7 +6539,7 @@ canvas {
   
   /* Kill Feed - Further reduced */
   #kill-feed {
-    top: 180px;
+    top: 10px;
     width: 200px;
     max-height: 140px;
   }
