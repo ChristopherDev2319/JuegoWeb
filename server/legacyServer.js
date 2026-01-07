@@ -1,9 +1,6 @@
 /**
- * Legacy Single-Process Server
- * Original server implementation for development and fallback mode
- * 
- * This module contains the original server code that runs without clustering.
- * Used when CLUSTER_ENABLED=false or NODE_ENV=development
+ * Game Server
+ * Main server implementation for multiplayer FPS game
  * 
  * Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.3, 5.2, 5.3, 5.4, 5.5, 6.1, 6.2, 6.3, 6.5, 8.3, 10.3
  */
