@@ -67,7 +67,15 @@ async function inicializarColisionesFallback(scene, onProgress) {
     // Inicializar raycaster
     raycaster = new THREE.Raycaster();
     
+    // Timeout de seguridad para evitar que la carga se quede colgada
+    const timeoutId = setTimeout(() => {
+      console.warn('⚠️ Timeout cargando colisiones, continuando sin ellas');
+      sistemaActivo = false;
+      resolve();
+    }, 15000); // 15 segundos máximo
+    
     gltfLoader.load('public/modelos/map_coll.glb', (gltf) => {
+      clearTimeout(timeoutId);
       collisionModel = gltf.scene;
 
       // Escalar el modelo de colisiones a 5x (igual que el mapa visual)
@@ -106,6 +114,7 @@ async function inicializarColisionesFallback(scene, onProgress) {
         if (onProgress) onProgress(percent);
       }
     }, (error) => {
+      clearTimeout(timeoutId);
       console.error('❌ Error cargando geometría de colisiones:', error);
       sistemaActivo = false;
       resolve();

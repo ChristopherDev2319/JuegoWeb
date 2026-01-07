@@ -1075,6 +1075,16 @@ async function inicializarJuegoCompleto() {
     loadingScreen.classList.remove('hidden');
   }
 
+  // Helper para agregar timeout a promesas
+  const conTimeout = (promesa, ms, nombreOperacion) => {
+    return Promise.race([
+      promesa,
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error(`Timeout: ${nombreOperacion} tardó más de ${ms/1000}s`)), ms)
+      )
+    ]);
+  };
+
   actualizarCarga(5, 'Iniciando...');
 
   actualizarCarga(10, 'Creando escena...');
@@ -1091,37 +1101,47 @@ async function inicializarJuegoCompleto() {
 
   actualizarCarga(15, 'Cargando mapa...');
 
-  // Esperar a que el mapa cargue (ESENCIAL)
-  await mapaPromise;
+  // Esperar a que el mapa cargue con timeout (15 segundos máximo)
+  try {
+    await conTimeout(mapaPromise, 15000, 'Carga del mapa');
+  } catch (error) {
+    console.warn('⚠️ Timeout cargando mapa, continuando sin él:', error.message);
+  }
   
   actualizarCarga(45, 'Cargando colisiones...');
   
-  // Inicializar sistema de colisiones después del mapa visual
-  // Requirements: 2.1 - Cargar map_coll.glb como geometría de colisiones
+  // Inicializar sistema de colisiones con timeout (10 segundos)
   try {
-    await inicializarColisiones(scene, (progresoColisiones) => {
-      const progresoTotal = 45 + (progresoColisiones * 0.05);
-      actualizarCarga(progresoTotal, `Cargando colisiones: ${progresoColisiones}%`);
-    });
+    await conTimeout(
+      inicializarColisiones(scene, (progresoColisiones) => {
+        const progresoTotal = 45 + (progresoColisiones * 0.05);
+        actualizarCarga(progresoTotal, `Cargando colisiones: ${progresoColisiones}%`);
+      }),
+      10000,
+      'Carga de colisiones'
+    );
     console.log('✅ Sistema de colisiones inicializado');
   } catch (error) {
-    console.warn('⚠️ Error inicializando colisiones, usando fallback:', error);
-    // El sistema de colisiones maneja internamente el fallback
+    console.warn('⚠️ Error/timeout inicializando colisiones:', error.message);
   }
   
   actualizarCarga(50, 'Cargando arma principal...');
 
-  // Cargar SOLO el arma inicial - usar el arma seleccionada
+  // Cargar arma inicial con timeout (8 segundos)
   console.log(`🔫 armaSeleccionadaParaPartida antes de inicializarArmaInicial: ${armaSeleccionadaParaPartida}`);
-  await inicializarArmaInicial();
+  try {
+    await conTimeout(inicializarArmaInicial(), 8000, 'Carga del arma');
+  } catch (error) {
+    console.warn('⚠️ Error/timeout cargando arma:', error.message);
+  }
 
   actualizarCarga(65, 'Cargando animaciones...');
 
-  // Precargar animaciones para jugadores remotos (ESENCIAL para ver otros jugadores)
+  // Precargar animaciones con timeout (8 segundos)
   try {
-    await precargarAnimaciones();
+    await conTimeout(precargarAnimaciones(), 8000, 'Carga de animaciones');
   } catch (err) {
-    console.warn('Error precargando animaciones:', err);
+    console.warn('⚠️ Error/timeout precargando animaciones:', err.message);
   }
 
   actualizarCarga(80, 'Configurando controles...');
@@ -1206,10 +1226,10 @@ async function inicializarJuegoCompleto() {
   // Inicializar sistema de autenticación
   // Requirements: 1.4 - Session persistence on page load
   try {
-    await inicializarAuthUI();
+    await conTimeout(inicializarAuthUI(), 3000, 'Autenticación');
     console.log('✅ Sistema de autenticación inicializado');
   } catch (error) {
-    console.warn('⚠️ Error inicializando autenticación:', error);
+    console.warn('⚠️ Error/timeout inicializando autenticación:', error.message);
     // Continuar sin autenticación si hay error
   }
 
@@ -1239,7 +1259,12 @@ async function inicializarJuegoCompleto() {
   
   if (modoJuegoActual === 'online') {
     actualizarCarga(90, 'Conectando al servidor...');
-    await inicializarRed();
+    try {
+      await conTimeout(inicializarRed(), 10000, 'Conexión al servidor');
+    } catch (error) {
+      console.warn('⚠️ Error/timeout conectando al servidor:', error.message);
+      // Continuar de todas formas, el juego puede funcionar parcialmente
+    }
   } else {
     actualizarCarga(90, 'Iniciando modo local...');
     
@@ -1260,9 +1285,13 @@ async function inicializarJuegoCompleto() {
     mostrarSelectorArmasLocal();
   }
 
-  // Inicializar sistema de spawns de munición (para ambos modos)
+  // Inicializar sistema de spawns de munición (para ambos modos) con timeout
   // Requirements: 5.1, 5.2, 5.3, 5.4
-  await inicializarAmmoSpawns();
+  try {
+    await conTimeout(inicializarAmmoSpawns(), 5000, 'Spawns de munición');
+  } catch (error) {
+    console.warn('⚠️ Error/timeout inicializando spawns de munición:', error.message);
+  }
 
   actualizarCarga(100, '¡Listo!');
 

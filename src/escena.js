@@ -153,8 +153,16 @@ function cargarMapa(onProgreso = null) {
   return new Promise((resolve, reject) => {
     const gltfLoader = new THREE.GLTFLoader();
     
+    // Timeout de seguridad para evitar que la carga se quede colgada
+    const timeoutId = setTimeout(() => {
+      console.warn('⚠️ Timeout cargando mapa visual, usando fallback');
+      crearSueloFallback();
+      resolve(null);
+    }, 20000); // 20 segundos máximo
+    
     // Cargar el nuevo mapa visual (map_visual.glb)
     gltfLoader.load('public/modelos/map_visual.glb', (gltf) => {
+      clearTimeout(timeoutId);
       mapaModelo = gltf.scene;
       
       // Escalar el mapa a 5x
@@ -181,6 +189,7 @@ function cargarMapa(onProgreso = null) {
         if (onProgreso) onProgreso(percent);
       }
     }, (error) => {
+      clearTimeout(timeoutId);
       console.error('❌ Error cargando mapa visual:', error);
       // Fallback: crear suelo simple si el mapa no carga
       crearSueloFallback();

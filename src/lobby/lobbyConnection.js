@@ -118,6 +118,26 @@ export function manejarRespuestaLobby(response) {
 }
 
 /**
+ * Espera a que la conexión esté completamente lista (con playerId asignado)
+ * @param {number} maxWait - Tiempo máximo de espera en ms
+ * @param {number} interval - Intervalo de verificación en ms
+ * @returns {Promise<boolean>} - true si la conexión está lista
+ */
+async function esperarConexionLista(maxWait = 3000, interval = 50) {
+  const connection = getConnection();
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < maxWait) {
+    if (connection.isConnected() && connection.getPlayerId()) {
+      return true;
+    }
+    await new Promise(resolve => setTimeout(resolve, interval));
+  }
+  
+  return false;
+}
+
+/**
  * Envía un mensaje de lobby al servidor
  * @param {string} action - Acción a realizar
  * @param {Object} data - Datos adicionales
@@ -166,7 +186,14 @@ function configurarTimeout(action, onTimeout) {
  * @returns {Promise<{roomId: string, roomCode: string, players: number, maxPlayers: number}>}
  */
 export function solicitarMatchmaking(nombreJugador, weaponType = 'M4A1') {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
+    // Esperar a que la conexión esté completamente lista
+    const conexionLista = await esperarConexionLista();
+    if (!conexionLista) {
+      reject(new Error('No hay conexión con el servidor'));
+      return;
+    }
+    
     // Configurar callbacks temporales
     const originalSuccess = lobbyCallbacks.onMatchmakingSuccess;
     const originalError = lobbyCallbacks.onMatchmakingError;
@@ -227,7 +254,14 @@ export function solicitarMatchmaking(nombreJugador, weaponType = 'M4A1') {
  * @returns {Promise<{roomId: string, roomCode: string, players: number, maxPlayers: number}>}
  */
 export function crearPartidaPrivada(nombreJugador, password, weaponType = 'M4A1') {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
+    // Esperar a que la conexión esté completamente lista
+    const conexionLista = await esperarConexionLista();
+    if (!conexionLista) {
+      reject(new Error('No hay conexión con el servidor'));
+      return;
+    }
+    
     // Configurar callbacks temporales
     const originalSuccess = lobbyCallbacks.onCreateSuccess;
     const originalError = lobbyCallbacks.onCreateError;
@@ -286,7 +320,14 @@ export function crearPartidaPrivada(nombreJugador, password, weaponType = 'M4A1'
  * @returns {Promise<{roomId: string, roomCode: string, players: number, maxPlayers: number}>}
  */
 export function unirsePartidaPrivada(nombreJugador, codigo, password, weaponType = 'M4A1') {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
+    // Esperar a que la conexión esté completamente lista
+    const conexionLista = await esperarConexionLista();
+    if (!conexionLista) {
+      reject(new Error('No hay conexión con el servidor'));
+      return;
+    }
+    
     // Configurar callbacks temporales
     const originalSuccess = lobbyCallbacks.onJoinSuccess;
     const originalError = lobbyCallbacks.onJoinError;
@@ -341,7 +382,14 @@ export function unirsePartidaPrivada(nombreJugador, codigo, password, weaponType
  * @returns {Promise<Array<{id: string, codigo: string, jugadores: number, maxJugadores: number}>>}
  */
 export function obtenerSalasPublicas() {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
+    // Esperar a que la conexión esté completamente lista
+    const conexionLista = await esperarConexionLista();
+    if (!conexionLista) {
+      reject(new Error('No hay conexión con el servidor'));
+      return;
+    }
+    
     // Configurar callbacks temporales
     const originalListed = lobbyCallbacks.onRoomsListed;
     const originalError = lobbyCallbacks.onRoomsError;
