@@ -26,9 +26,11 @@ let authCallbacks = {
 
 /**
  * Inicializar sistema de autenticación
+ * Requirements: 1.4 - Session persistence on page load
  * @param {Object} callbacks - Callbacks para eventos
+ * @returns {Promise<void>} Promise that resolves when initialization is complete
  */
-export function inicializarAuth(callbacks = {}) {
+export async function inicializarAuth(callbacks = {}) {
     authCallbacks = { ...authCallbacks, ...callbacks };
     
     // Verificar si hay token guardado
@@ -42,14 +44,13 @@ export function inicializarAuth(callbacks = {}) {
             authState.isAuthenticated = true;
             
             // Verificar si el token sigue siendo válido
-            verificarToken();
+            // Wait for verification to complete before returning
+            await verificarToken();
         } catch (error) {
             console.warn('Error cargando datos de autenticación guardados:', error);
             limpiarAuth();
         }
     }
-    
-    console.log('✅ Sistema de autenticación inicializado');
 }
 
 /**
@@ -84,8 +85,6 @@ export async function registrarUsuario(username, email, password) {
             if (authCallbacks.onLogin) {
                 authCallbacks.onLogin(authState.user);
             }
-            
-            console.log('✅ Usuario registrado exitosamente:', data.data.user.username);
         } else {
             console.error('Error en registro:', data.message);
             if (authCallbacks.onError) {
@@ -136,8 +135,6 @@ export async function iniciarSesion(username, password) {
             if (authCallbacks.onLogin) {
                 authCallbacks.onLogin(authState.user);
             }
-            
-            console.log('✅ Sesión iniciada exitosamente:', data.data.user.username);
         } else {
             if (authCallbacks.onError) {
                 authCallbacks.onError(data.message);
@@ -167,8 +164,6 @@ export function cerrarSesion() {
     if (authCallbacks.onLogout) {
         authCallbacks.onLogout();
     }
-    
-    console.log('✅ Sesión cerrada');
 }
 
 /**

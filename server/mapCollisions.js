@@ -80,8 +80,6 @@ export function inicializarMapaServidor(mapData = null) {
     }
     
     sistemaActivo = true;
-    console.log(`✅ Colisiones del mapa inicializadas (servidor)`);
-    console.log(`   ${mapWalls.length} AABBs de paredes cargados`);
     
     return true;
   } catch (error) {
@@ -354,7 +352,6 @@ export function destruir() {
   mapWalls = [];
   mapBounds = null;
   sistemaActivo = false;
-  console.log('🧹 Sistema de colisiones del mapa destruido (servidor)');
 }
 
 // Inicializar automáticamente con datos por defecto al importar el módulo

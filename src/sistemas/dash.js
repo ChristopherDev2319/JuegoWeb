@@ -9,6 +9,14 @@
 
 import { CONFIG } from '../config.js';
 import { shapeCastDash, verificarPosicionValida, estaActivo as colisionesActivas, desatorarJugador, estaDentroGeometria, desatorarDespuesDash, detectarColisionYSalida } from './colisiones.js';
+import { actualizarDashBox } from '../utils/ui.js';
+
+// Vectores reutilizables para evitar garbage collection (OPTIMIZACIÓN)
+const _dashDireccion = new THREE.Vector3();
+const _dashForward = new THREE.Vector3();
+const _dashRight = new THREE.Vector3();
+const _dashQuaternion = new THREE.Quaternion();
+const _dashEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 
 /**
  * Estado del sistema de dash
@@ -36,6 +44,7 @@ export const sistemaDash = {
 /**
  * Ejecuta un dash si hay cargas disponibles
  * Usa shape cast de Rapier para detectar colisiones durante todo el trayecto
+ * OPTIMIZADO: Usa vectores reutilizables para evitar garbage collection
  * Requirements: 4.1, 4.2, 4.3, 4.4
  * 
  * @param {Object} jugador - Estado del jugador con posicion y rotacion
@@ -48,35 +57,29 @@ export function ejecutarDash(jugador, teclas, onDashEjecutado = null) {
     return false;
   }
 
-  // Calcular dirección del dash
-  const direccionDash = new THREE.Vector3();
-  const forward = new THREE.Vector3();
-  const right = new THREE.Vector3();
+  // Calcular dirección del dash usando vectores reutilizables
+  _dashDireccion.set(0, 0, 0);
+  _dashEuler.set(0, jugador.rotacion.y, 0);
+  _dashQuaternion.setFromEuler(_dashEuler);
 
-  forward.set(0, 0, -1).applyQuaternion(
-    new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(0, jugador.rotacion.y, 0, 'YXZ')
-    )
-  );
-
-  right.set(1, 0, 0).applyQuaternion(
-    new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(0, jugador.rotacion.y, 0, 'YXZ')
-    )
-  );
+  _dashForward.set(0, 0, -1).applyQuaternion(_dashQuaternion);
+  _dashRight.set(1, 0, 0).applyQuaternion(_dashQuaternion);
 
   // Determinar dirección según teclas presionadas
-  if (teclas['KeyW']) direccionDash.add(forward);
-  if (teclas['KeyS']) direccionDash.sub(forward);
-  if (teclas['KeyA']) direccionDash.sub(right);
-  if (teclas['KeyD']) direccionDash.add(right);
+  if (teclas['KeyW']) _dashDireccion.add(_dashForward);
+  if (teclas['KeyS']) _dashDireccion.sub(_dashForward);
+  if (teclas['KeyA']) _dashDireccion.sub(_dashRight);
+  if (teclas['KeyD']) _dashDireccion.add(_dashRight);
 
   // Si no hay dirección de movimiento, dash hacia adelante
-  if (direccionDash.length() === 0) {
-    direccionDash.copy(forward);
+  if (_dashDireccion.length() === 0) {
+    _dashDireccion.copy(_dashForward);
   }
 
-  direccionDash.normalize();
+  _dashDireccion.normalize();
+  
+  // Copiar a un nuevo vector para el resto de la función (necesario para el callback)
+  const direccionDash = _dashDireccion.clone();
 
   // Consumir carga e iniciar timer de recarga (igual que servidor)
   sistemaDash.cargasActuales--;
@@ -140,15 +143,23 @@ export function ejecutarDash(jugador, teclas, onDashEjecutado = null) {
 /**
  * Actualiza el sistema de recarga de cargas de dash
  * Funciona exactamente igual que el servidor: una carga a la vez cada 3 segundos
+ * Requirements: 4.5, 4.6, 4.7, 4.8, 4.9 - Actualiza el Dash Box UI
  */
 export function actualizarRecargaDash() {
+  const ahora = performance.now();
+  
   // Si ya tenemos todas las cargas, no hacer nada
   if (sistemaDash.cargasActuales >= CONFIG.dash.cargasMaximas) {
-    sistemaDash.ultimaRecarga = performance.now();
+    sistemaDash.ultimaRecarga = ahora;
+    // Actualizar UI con estado completo
+    actualizarDashBox({
+      cargasActuales: sistemaDash.cargasActuales,
+      cargasMaximas: CONFIG.dash.cargasMaximas,
+      estaRecargando: false,
+      progresoRecarga: 1
+    });
     return;
   }
-
-  const ahora = performance.now();
   
   // Inicializar tiempo de última recarga si no existe
   if (!sistemaDash.ultimaRecarga) {
@@ -158,11 +169,22 @@ export function actualizarRecargaDash() {
   // Verificar si pasó el tiempo de recarga (3 segundos)
   const tiempoTranscurrido = ahora - sistemaDash.ultimaRecarga;
   
+  // Calcular progreso de recarga (0-1)
+  const progresoRecarga = Math.min(tiempoTranscurrido / CONFIG.dash.tiempoRecarga, 1);
+  
   if (tiempoTranscurrido >= CONFIG.dash.tiempoRecarga) {
     // Agregar una carga
     sistemaDash.cargasActuales++;
     sistemaDash.ultimaRecarga = ahora;
   }
+  
+  // Requirements: 4.5, 4.6, 4.7, 4.8, 4.9 - Actualizar Dash Box UI
+  actualizarDashBox({
+    cargasActuales: sistemaDash.cargasActuales,
+    cargasMaximas: CONFIG.dash.cargasMaximas,
+    estaRecargando: sistemaDash.cargasActuales < CONFIG.dash.cargasMaximas,
+    progresoRecarga: progresoRecarga
+  });
 }
 
 /**
@@ -210,6 +232,7 @@ export function obtenerProgresoRecarga() {
 
 /**
  * Reinicia el sistema de dash a valores iniciales
+ * Requirements: 4.5, 4.6 - Actualiza el Dash Box UI al reiniciar
  */
 export function reiniciarDash() {
   sistemaDash.cargasActuales = CONFIG.dash.cargasMaximas;
@@ -225,10 +248,19 @@ export function reiniciarDash() {
   // Reiniciar campos de extensión automática
   sistemaDash.distanciaExtendida = 0;
   sistemaDash.atravesoEstructura = false;
+  
+  // Requirements: 4.5, 4.6 - Actualizar Dash Box UI con estado inicial
+  actualizarDashBox({
+    cargasActuales: sistemaDash.cargasActuales,
+    cargasMaximas: CONFIG.dash.cargasMaximas,
+    estaRecargando: false,
+    progresoRecarga: 1
+  });
 }
 
 /**
  * Update dash state from server (Requirement 7.5)
+ * Requirements: 4.5, 4.6, 4.7, 4.8 - Actualiza el Dash Box UI desde servidor
  * @param {Object} serverState - Player state from server containing dash info
  */
 export function actualizarDesdeServidor(serverState) {
@@ -250,6 +282,18 @@ export function actualizarDesdeServidor(serverState) {
   if (sistemaDash.cargasActuales >= CONFIG.dash.cargasMaximas) {
     sistemaDash.cargasRecargando = [false, false, false];
   }
+  
+  // Requirements: 4.5, 4.6, 4.7, 4.8 - Actualizar Dash Box UI desde servidor
+  const estaRecargando = sistemaDash.cargasActuales < CONFIG.dash.cargasMaximas;
+  const tiempoTranscurrido = performance.now() - sistemaDash.ultimaRecarga;
+  const progresoRecarga = estaRecargando ? Math.min(tiempoTranscurrido / CONFIG.dash.tiempoRecarga, 1) : 1;
+  
+  actualizarDashBox({
+    cargasActuales: sistemaDash.cargasActuales,
+    cargasMaximas: CONFIG.dash.cargasMaximas,
+    estaRecargando: estaRecargando,
+    progresoRecarga: progresoRecarga
+  });
 }
 
 /**
@@ -413,35 +457,29 @@ export function ejecutarDashInterpolado(jugador, teclas, onDashEjecutado = null)
     return false;
   }
 
-  // Calcular dirección del dash
-  const direccionDash = new THREE.Vector3();
-  const forward = new THREE.Vector3();
-  const right = new THREE.Vector3();
+  // Calcular dirección del dash usando vectores reutilizables
+  _dashDireccion.set(0, 0, 0);
+  _dashEuler.set(0, jugador.rotacion.y, 0);
+  _dashQuaternion.setFromEuler(_dashEuler);
 
-  forward.set(0, 0, -1).applyQuaternion(
-    new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(0, jugador.rotacion.y, 0, 'YXZ')
-    )
-  );
-
-  right.set(1, 0, 0).applyQuaternion(
-    new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(0, jugador.rotacion.y, 0, 'YXZ')
-    )
-  );
+  _dashForward.set(0, 0, -1).applyQuaternion(_dashQuaternion);
+  _dashRight.set(1, 0, 0).applyQuaternion(_dashQuaternion);
 
   // Determinar dirección según teclas presionadas
-  if (teclas['KeyW']) direccionDash.add(forward);
-  if (teclas['KeyS']) direccionDash.sub(forward);
-  if (teclas['KeyA']) direccionDash.sub(right);
-  if (teclas['KeyD']) direccionDash.add(right);
+  if (teclas['KeyW']) _dashDireccion.add(_dashForward);
+  if (teclas['KeyS']) _dashDireccion.sub(_dashForward);
+  if (teclas['KeyA']) _dashDireccion.sub(_dashRight);
+  if (teclas['KeyD']) _dashDireccion.add(_dashRight);
 
   // Si no hay dirección de movimiento, dash hacia adelante
-  if (direccionDash.length() === 0) {
-    direccionDash.copy(forward);
+  if (_dashDireccion.length() === 0) {
+    _dashDireccion.copy(_dashForward);
   }
 
-  direccionDash.normalize();
+  _dashDireccion.normalize();
+  
+  // Copiar a un nuevo vector para el resto de la función
+  const direccionDash = _dashDireccion.clone();
 
   // Consumir carga e iniciar timer de recarga (igual que servidor)
   sistemaDash.cargasActuales--;

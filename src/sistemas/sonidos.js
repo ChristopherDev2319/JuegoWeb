@@ -17,12 +17,12 @@ export function inicializarSonidos() {
   
   // Precargar sonidos de armas
   const sonidosArmas = {
-    'M4A1': 'sonidos/M4A1.mp3',
-    'AK47': 'sonidos/AK47.mp3',
-    'PISTOLA': 'sonidos/pistola.mp3',
-    'SNIPER': 'sonidos/SNIPER.mp3',
-    'ESCOPETA': 'sonidos/ESCOPETA.mp3',
-    'MP5': 'sonidos/MP5.mp3'
+    'M4A1': 'public/sonidos/M4A1.mp3',
+    'AK47': 'public/sonidos/AK47.mp3',
+    'PISTOLA': 'public/sonidos/pistola.mp3',
+    'SNIPER': 'public/sonidos/SNIPER.mp3',
+    'ESCOPETA': 'public/sonidos/ESCOPETA.mp3',
+    'MP5': 'public/sonidos/MP5.mp3'
   };
   
   // Crear pool de audios para cada arma
@@ -41,8 +41,6 @@ export function inicializarSonidos() {
       audioPool[arma].audios.push(audio);
     }
   }
-  
-  console.log('🔊 Sistema de sonidos inicializado con pool de audio');
 }
 
 /**

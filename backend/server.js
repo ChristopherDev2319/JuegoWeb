@@ -1,17 +1,24 @@
 // ============================================
-// SERVIDOR PRINCIPAL - EXPRESS.JS + MYSQL
+// SERVIDOR PRINCIPAL - EXPRESS.JS + POSTGRESQL
 // ============================================
 
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ 
+    path: path.resolve(__dirname, `.env.${process.env.NODE_ENV || 'development'}`) 
+});
 
 // Importar configuración y rutas
 const { testConnection } = require('./config/database');
+const { runMigrations } = require('./migrations');
 const authRoutes = require('./routes/auth');
 const progressRoutes = require('./routes/progress');
+const statsRoutes = require('./routes/stats');
+const adminRoutes = require('./routes/admin');
+const { globalErrorHandler, attachResponseHelpers } = require('./middleware/responseHandler');
 
 // Crear aplicación Express
 const app = express();
@@ -36,17 +43,23 @@ app.use(helmet({
 
 // CORS configurado
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
-    ? process.env.ALLOWED_ORIGINS.split(',')
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
     : ['http://localhost:8080', 'http://127.0.0.1:8080'];
+
+console.log('🔒 CORS - Orígenes permitidos:', allowedOrigins);
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Permitir requests sin origin (mobile apps, etc.)
+        // Permitir requests sin origin (mobile apps, Postman, etc.)
         if (!origin) return callback(null, true);
         
-        if (allowedOrigins.indexOf(origin) !== -1) {
+        // Log para debug
+        console.log('🔍 CORS - Origin recibido:', origin);
+        
+        if (allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
+            console.log('❌ CORS - Origin rechazado:', origin);
             callback(new Error('No permitido por CORS'));
         }
     },
@@ -85,6 +98,9 @@ if (process.env.NODE_ENV === 'development') {
     });
 }
 
+// Agregar helpers de respuesta estandarizada
+app.use(attachResponseHelpers);
+
 // ============================================
 // RUTAS
 // ============================================
@@ -105,6 +121,12 @@ app.use('/api/auth', authRoutes);
 // Rutas de progreso
 app.use('/api/progress', progressRoutes);
 
+// Rutas de estadísticas
+app.use('/api/stats', statsRoutes);
+
+// Rutas de administración
+app.use('/api/admin', adminRoutes);
+
 // Ruta 404 para API
 app.use('/api/*', (req, res) => {
     res.status(404).json({
@@ -117,34 +139,8 @@ app.use('/api/*', (req, res) => {
 // MANEJO DE ERRORES
 // ============================================
 
-// Middleware de manejo de errores global
-app.use((error, req, res, next) => {
-    console.error('Error no manejado:', error);
-    
-    // Error de CORS
-    if (error.message === 'No permitido por CORS') {
-        return res.status(403).json({
-            success: false,
-            message: 'Acceso no permitido desde este origen'
-        });
-    }
-    
-    // Error de JSON malformado
-    if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
-        return res.status(400).json({
-            success: false,
-            message: 'JSON malformado en la petición'
-        });
-    }
-    
-    // Error genérico
-    res.status(500).json({
-        success: false,
-        message: process.env.NODE_ENV === 'development' 
-            ? error.message 
-            : 'Error interno del servidor'
-    });
-});
+// Middleware de manejo de errores global (estandarizado)
+app.use(globalErrorHandler);
 
 // ============================================
 // INICIALIZACIÓN DEL SERVIDOR
@@ -157,14 +153,28 @@ async function startServer() {
         const dbConnected = await testConnection();
         
         if (!dbConnected) {
-            console.warn('⚠️ MySQL no disponible - Funcionando en modo fallback');
+            console.warn('⚠️ PostgreSQL no disponible - Funcionando en modo fallback');
             console.warn('⚠️ Los datos se guardarán solo en localStorage del cliente');
-            console.warn('⚠️ Para habilitar persistencia, configurar MySQL según SETUP-AUTH.md');
+            console.warn('⚠️ Para habilitar persistencia, configurar PostgreSQL según SETUP-AUTH.md');
         } else {
-            console.log('✅ Base de datos MySQL conectada');
+            console.log('✅ Base de datos PostgreSQL conectada');
+            
+            // Ejecutar migraciones pendientes
+            try {
+                console.log('🔄 Verificando migraciones...');
+                const migrationsRun = await runMigrations();
+                if (migrationsRun > 0) {
+                    console.log(`✅ ${migrationsRun} migraciones ejecutadas`);
+                } else {
+                    console.log('✅ Base de datos actualizada');
+                }
+            } catch (migrationError) {
+                console.error('❌ Error ejecutando migraciones:', migrationError.message);
+                // Continuar sin migraciones en caso de error
+            }
         }
 
-        // Iniciar servidor independientemente del estado de MySQL
+        // Iniciar servidor independientemente del estado de PostgreSQL
         app.listen(PORT, () => {
             console.log('🚀 ================================');
             console.log(`🚀 Servidor iniciado en puerto ${PORT}`);
@@ -186,6 +196,14 @@ async function startServer() {
             console.log('   GET  /api/progress/load');
             console.log('   POST /api/progress/save');
             console.log('   GET  /api/progress/stats');
+            console.log('   GET  /api/stats/me');
+            console.log('   PUT  /api/stats/update');
+            console.log('   GET  /api/stats/leaderboard');
+            console.log('   GET  /api/admin/users');
+            console.log('   GET  /api/admin/users/:id');
+            console.log('   POST /api/admin/bans');
+            console.log('   DELETE /api/admin/bans/:id');
+            console.log('   GET  /api/admin/bans');
         });
 
     } catch (error) {

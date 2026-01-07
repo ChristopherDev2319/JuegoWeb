@@ -4,6 +4,7 @@
  */
 
 import { validarNombre, generarNombreAleatorio } from './validaciones.js';
+import { getStorageJSON, setStorageJSON, getStorageInfo } from '../utils/storage.js';
 
 // Clave para localStorage
 const STORAGE_KEY = 'lobbyConfig';
@@ -78,13 +79,16 @@ export function guardarConfiguracion() {
     estadisticas: { ...lobbyState.estadisticas }
   };
   
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(datosGuardar));
-    return true;
-  } catch (error) {
-    console.error('Error al guardar configuración:', error);
-    return false;
+  console.log('💾 Storage Info:', getStorageInfo());
+  const guardado = setStorageJSON(STORAGE_KEY, datosGuardar);
+  
+  if (guardado) {
+    console.log('✅ Configuración del lobby guardada:', datosGuardar);
+  } else {
+    console.warn('⚠️ Configuración guardada en memoria temporal');
   }
+  
+  return guardado;
 }
 
 /**
@@ -94,12 +98,13 @@ export function guardarConfiguracion() {
  */
 export function cargarConfiguracion() {
   try {
-    const datos = localStorage.getItem(STORAGE_KEY);
-    if (!datos) {
+    console.log('💾 Storage Info:', getStorageInfo());
+    const config = getStorageJSON(STORAGE_KEY, null);
+    
+    if (!config) {
+      console.log('📋 No hay configuración guardada, usando valores por defecto');
       return false;
     }
-    
-    const config = JSON.parse(datos);
     
     // Restaurar nombre si existe y es válido
     if (config.nombreJugador && validarNombre(config.nombreJugador).valido) {
@@ -205,9 +210,13 @@ export function establecerSalaActual(salaId) {
  * @param {any} valor - Nuevo valor
  */
 export function actualizarConfiguracion(clave, valor) {
+  console.log(`🔧 Actualizando configuración: ${clave} = ${valor}`);
   if (clave in lobbyState.configuracion) {
     lobbyState.configuracion[clave] = valor;
-    guardarConfiguracion();
+    const guardado = guardarConfiguracion();
+    console.log(`✅ Configuración ${clave} actualizada y ${guardado ? 'guardada' : 'guardada en memoria'}`);
+  } else {
+    console.warn(`⚠️ Clave de configuración no válida: ${clave}`);
   }
 }
 

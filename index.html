@@ -4,9 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BearStrike - FPS Online</title>
-    <link rel="icon" type="image/png" href="logo de la pagina/LOGO_FINAL.png">
-    <link rel="shortcut icon" type="image/png" href="logo de la pagina/LOGO_FINAL.png">
-    <link rel="stylesheet" href="css/estilos.css" />
+    <link rel="icon" type="image/png" href="public/logo/LOGO_FINAL.png">
+    <link rel="shortcut icon" type="image/png" href="public/logo/LOGO_FINAL.png">
+    
+    <!-- Lucide Icons - Iconos modernos para gaming (carga única optimizada) -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+    
+    <link rel="stylesheet" href="public/css/estilos.css?v=20260105c" />
     
     <!-- Import map para resolver módulos de npm en el navegador -->
     <script type="importmap">
@@ -31,9 +35,9 @@
             <!-- Nickname con avatar -->
             <div class="nickname-section">
               <div class="nickname-input-group">
-                <div class="avatar-minimal"><span>👤</span></div>
+                <div class="avatar-minimal"><span><i data-lucide="user"></i></span></div>
                 <input type="text" id="nombre-jugador" placeholder="Ingresa tu nickname..." maxlength="16" class="nickname-input">
-                <button id="btn-nombre-aleatorio" class="random-btn" title="Nickname aleatorio">🎲</button>
+                <button id="btn-nombre-aleatorio" class="random-btn" title="Nickname aleatorio"><i data-lucide="dice-6"></i></button>
               </div>
               <span id="nombre-error" class="error-minimal"></span>
             </div>
@@ -41,14 +45,14 @@
             <!-- Botones de juego -->
             <div class="game-buttons">
               <button id="btn-modo-online" class="game-btn primary-btn">
-                <span class="btn-icon-game">🌐</span>
+                <span class="btn-icon-game"><i data-lucide="globe"></i></span>
                 <div class="btn-content-game">
                   <span class="btn-title-game">Jugar Online</span>
                   <span class="btn-subtitle-game">Multijugador</span>
                 </div>
               </button>
               <button id="btn-modo-local" class="game-btn secondary-btn">
-                <span class="btn-icon-game">🎮</span>
+                <span class="btn-icon-game"><i data-lucide="gamepad-2"></i></span>
                 <div class="btn-content-game">
                   <span class="btn-title-game">Modo Local</span>
                   <span class="btn-subtitle-game">Práctica</span>
@@ -59,8 +63,26 @@
           
           <!-- Opciones en la esquina superior derecha -->
           <div class="corner-options">
-            <button id="lobby-login-btn" class="login-btn-corner"><span>🔐</span> Iniciar Sesión</button>
-            <button id="btn-config-lobby" class="corner-btn"><span>⚙️</span></button>
+            <button id="lobby-login-btn" class="login-btn-corner"><span><i data-lucide="log-in"></i></span> Iniciar Sesión</button>
+            
+            <!-- Panel de usuario autenticado -->
+            <!-- Requirements: 1.3, 2.1, 3.1 - User panel with username, stats button, and logout button -->
+            <div id="user-panel" class="user-panel hidden">
+              <div class="user-info">
+                <span class="user-avatar"><i data-lucide="user"></i></span>
+                <span id="user-panel-name" class="user-name">Username</span>
+              </div>
+              <div class="user-actions">
+                <button id="btn-user-stats" class="user-action-btn" title="Ver estadísticas">
+                  <i data-lucide="bar-chart-3"></i>
+                </button>
+                <button id="btn-user-logout" class="user-action-btn logout" title="Cerrar sesión">
+                  <i data-lucide="log-out"></i>
+                </button>
+              </div>
+            </div>
+            
+            <button id="btn-config-lobby" class="corner-btn"><span><i data-lucide="settings"></i></span></button>
           </div>
         </div>
       </div>
@@ -78,14 +100,14 @@
             
             <div class="lobby-botones">
               <button id="btn-partida-publica" class="lobby-btn btn-primario">
-                <span class="btn-icono-grande">🔓</span>
+                <span class="btn-icono-grande"><i data-lucide="unlock"></i></span>
                 <span class="btn-texto">
                   <span class="btn-titulo">Partida Pública</span>
                   <span class="btn-desc">Matchmaking automático</span>
                 </span>
               </button>
               <button id="btn-partida-privada" class="lobby-btn btn-secundario">
-                <span class="btn-icono-grande">🔒</span>
+                <span class="btn-icono-grande"><i data-lucide="lock"></i></span>
                 <span class="btn-texto">
                   <span class="btn-titulo">Partida Privada</span>
                   <span class="btn-desc">Juega con amigos</span>
@@ -106,14 +128,14 @@
             
             <div class="lobby-botones">
               <button id="btn-crear-partida" class="lobby-btn btn-primario">
-                <span class="btn-icono-grande">➕</span>
+                <span class="btn-icono-grande"><i data-lucide="plus"></i></span>
                 <span class="btn-texto">
                   <span class="btn-titulo">Crear Partida</span>
                   <span class="btn-desc">Crea una sala nueva</span>
                 </span>
               </button>
               <button id="btn-unirse-partida" class="lobby-btn btn-secundario">
-                <span class="btn-icono-grande">🚪</span>
+                <span class="btn-icono-grande"><i data-lucide="door-open"></i></span>
                 <span class="btn-texto">
                   <span class="btn-titulo">Unirse a Partida</span>
                   <span class="btn-desc">Ingresa código de sala</span>
@@ -140,7 +162,7 @@
             </div>
             
             <button id="btn-confirmar-crear" class="lobby-btn btn-primario btn-full">
-              <span>🎯</span> Crear Partida
+              <span><i data-lucide="target"></i></span> Crear Partida
             </button>
             
             <span id="crear-error" class="error-mensaje centro"></span>
@@ -168,7 +190,7 @@
             </div>
             
             <button id="btn-confirmar-unirse" class="lobby-btn btn-primario btn-full">
-              <span>🚀</span> Unirse
+              <span><i data-lucide="rocket"></i></span> Unirse
             </button>
             
             <span id="unirse-error" class="error-mensaje centro"></span>
@@ -222,7 +244,7 @@
             </div>
             
             <button id="btn-iniciar-partida" class="lobby-btn btn-primario btn-full">
-              <span>▶️</span> Iniciar Partida
+              <span><i data-lucide="play"></i></span> Iniciar Partida
             </button>
           </div>
         </div>
@@ -266,7 +288,7 @@
             </div>
             
             <button id="btn-guardar-config" class="lobby-btn btn-primario btn-full">
-              <span>💾</span> Guardar Configuración
+              <span><i data-lucide="save"></i></span> Guardar Configuración
             </button>
           </div>
         </div>
@@ -310,25 +332,51 @@
       </div>
     </div>
     
-    <div id="weapon-info">
-      <!-- Slot superior: arma secundaria con indicador [Q] -->
-      <div id="weapon-slot-superior" class="weapon-slot secundario">
-        <span class="slot-nombre">Cuchillo</span>
-        <span class="slot-tecla">[Q]</span>
+    <!-- Panel superior izquierdo: Dash_Box | Heal_Box -->
+    <!-- Requirements: 4.1, 5.1 - Cuadros de acción en esquina inferior izquierda -->
+    <div id="top-left-panel">
+      <!-- Dash Box - Cuadro de dash con circunferencia SVG, icono zap y tecla E -->
+      <!-- Requirements: 4.1, 4.2, 4.3, 4.4 -->
+      <div id="dash-box" class="action-box">
+        <!-- Dash Circle - Circunferencia con número de cargas -->
+        <div id="dash-circle">
+          <svg class="dash-circle-svg" viewBox="0 0 36 36">
+            <circle class="dash-circle-bg" cx="18" cy="18" r="15.5" />
+            <circle class="dash-circle-progress" cx="18" cy="18" r="15.5" />
+          </svg>
+          <span class="dash-circle-number">3</span>
+        </div>
+        <i data-lucide="zap" class="action-icon"></i>
+        <span class="action-key">E</span>
       </div>
-      <!-- Slot inferior: arma equipada con munición -->
-      <div id="weapon-slot-inferior" class="weapon-slot principal">
-        <div id="weapon-name">M4A1</div>
-        <div id="ammo">30 / 120</div>
+      
+      <!-- Heal Box - Cuadro de curación con icono heart y tecla C -->
+      <!-- Requirements: 5.1, 5.2, 5.3 -->
+      <div id="heal-box" class="action-box">
+        <i data-lucide="heart" class="action-icon"></i>
+        <span class="action-key">C</span>
       </div>
     </div>
     
-    <div id="dash-charges">
-      <span>DASH: </span>
-      <span class="dash-icon"></span>
-      <span class="dash-icon"></span>
-      <span class="dash-icon"></span>
+    <!-- Panel inferior derecho: Weapon_Info -->
+    <!-- Requirements: 9.1, 9.2 - Información del arma en esquina inferior derecha -->
+    <div id="bottom-right-panel">
+      <!-- Weapon Info - Panel de información del arma -->
+      <!-- Requirements: 7.1, 7.2 -->
+      <div id="weapon-info">
+        <!-- Slot superior: arma secundaria con indicador [Q] -->
+        <div id="weapon-slot-superior" class="weapon-slot secundario">
+          <span class="slot-nombre">Cuchillo</span>
+          <span class="slot-tecla">[Q]</span>
+        </div>
+        <!-- Slot inferior: arma equipada con munición -->
+        <div id="weapon-slot-inferior" class="weapon-slot principal">
+          <div id="weapon-name">M4A1</div>
+          <div id="ammo">30 / 120</div>
+        </div>
+      </div>
     </div>
+    
     <div id="damage-indicator"></div>
     
     <!-- Death screen overlay with weapon selection -->
@@ -356,10 +404,19 @@
     <!-- Kill feed -->
     <div id="kill-feed"></div>
     
-    <!-- Health bar -->
-    <div id="health-bar-container">
-      <div id="health-bar"></div>
-      <div id="health-text">200 / 200</div>
+    <!-- Player Status Panel - Unified health and dash -->
+    <!-- Requirements: 2.1, 3.1 - Panel integrado de vida en esquina inferior izquierda -->
+    <div id="player-status-panel">
+      <div id="health-bar-container">
+        <div id="health-bar"></div>
+        <div id="health-text">200 / 200</div>
+      </div>
+      <!-- Old dash-charges removed - now using dash-box in bottom-right-panel -->
+    </div>
+
+    <!-- FPS Counter -->
+    <div id="fps-counter" class="hidden">
+      <span id="fps-value">60</span> FPS
     </div>
 
     <!-- Pause Menu -->
@@ -368,27 +425,27 @@
       <div class="pause-content">
         <div class="pause-buttons">
           <button id="resume-btn" class="pause-btn primary">
-            <span class="btn-icon">▶</span>
+            <span class="btn-icon"><i data-lucide="play"></i></span>
             Continuar
           </button>
           
           <button id="settings-btn" class="pause-btn">
-            <span class="btn-icon">⚙</span>
+            <span class="btn-icon"><i data-lucide="settings"></i></span>
             Configuración
           </button>
           
           <button id="controls-btn" class="pause-btn">
-            <span class="btn-icon">🎮</span>
+            <span class="btn-icon"><i data-lucide="gamepad-2"></i></span>
             Controles
           </button>
           
           <button id="stats-btn" class="pause-btn">
-            <span class="btn-icon">📊</span>
+            <span class="btn-icon"><i data-lucide="bar-chart-3"></i></span>
             Estadísticas
           </button>
           
           <button id="exit-btn" class="pause-btn danger">
-            <span class="btn-icon">🚪</span>
+            <span class="btn-icon"><i data-lucide="door-open"></i></span>
             Salir
           </button>
         </div>
@@ -457,16 +514,8 @@
               <div class="stat-label">K/D</div>
             </div>
             <div class="stat-card">
-              <div class="stat-value" id="accuracy-stat">0%</div>
-              <div class="stat-label">Precisión</div>
-            </div>
-            <div class="stat-card">
               <div class="stat-value" id="shots-fired">0</div>
               <div class="stat-label">Disparos</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value" id="playtime-stat">00:00</div>
-              <div class="stat-label">Tiempo</div>
             </div>
           </div>
         </div>
@@ -526,6 +575,47 @@
       </div>
     </div>
 
+    <!-- Modal de estadísticas del usuario -->
+    <!-- Requirements: 2.2, 2.3 - Stats modal with header, body, close button, and loading/error states -->
+    <div id="user-stats-modal" class="stats-modal hidden">
+      <div class="stats-modal-overlay"></div>
+      <div class="stats-modal-content">
+        <div class="stats-modal-header">
+          <h3>Mis Estadísticas</h3>
+          <button id="stats-modal-close" class="stats-modal-close">&times;</button>
+        </div>
+        <div id="stats-modal-body" class="stats-modal-body">
+          <!-- Loading state -->
+          <div id="stats-loading" class="stats-loading hidden">
+            <div class="stats-spinner"></div>
+            <p>Cargando estadísticas...</p>
+          </div>
+          <!-- Error state -->
+          <div id="stats-error" class="stats-error hidden">
+            <p id="stats-error-message">Error al cargar estadísticas</p>
+            <button id="stats-retry-btn" class="stats-retry-btn">Reintentar</button>
+          </div>
+          <!-- Stats content -->
+          <div id="stats-content" class="stats-content hidden">
+            <div class="stats-grid-modal">
+              <div class="stat-card-modal">
+                <div class="stat-value-modal" id="user-stats-kills">0</div>
+                <div class="stat-label-modal">Kills</div>
+              </div>
+              <div class="stat-card-modal">
+                <div class="stat-value-modal" id="user-stats-deaths">0</div>
+                <div class="stat-label-modal">Muertes</div>
+              </div>
+              <div class="stat-card-modal">
+                <div class="stat-value-modal" id="user-stats-matches">0</div>
+                <div class="stat-label-modal">Partidas</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- User Menu Overlay -->
     <div id="user-menu-overlay" class="user-menu-overlay hidden">
       <div id="user-menu-container" class="user-menu-container">
@@ -570,5 +660,43 @@
 
     <!-- Punto de entrada principal del juego -->
     <script type="module" src="src/main.js"></script>
+    
+    <!-- Inicializar iconos Lucide - Optimizado -->
+    <script>
+      // Estado del IconManager para evitar inicializaciones duplicadas
+      window.iconManager = {
+        initialized: false,
+        pendingReinit: null,
+        DEBOUNCE_DELAY: 100
+      };
+      
+      // Inicializar Lucide icons una sola vez después de que se cargue el DOM
+      document.addEventListener('DOMContentLoaded', function() {
+        if (typeof lucide !== 'undefined' && !window.iconManager.initialized) {
+          lucide.createIcons();
+          window.iconManager.initialized = true;
+          console.log('✅ Iconos Lucide inicializados');
+        } else if (typeof lucide === 'undefined') {
+          console.error('❌ Lucide no está disponible');
+        }
+      });
+      
+      // Función debounced para reinicializar iconos dinámicamente
+      // Requirement 1.3: Debounced reinitialize function with 100ms delay
+      window.reinicializarIconosDebounced = function() {
+        if (window.iconManager.pendingReinit) {
+          clearTimeout(window.iconManager.pendingReinit);
+        }
+        window.iconManager.pendingReinit = setTimeout(function() {
+          if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+          }
+          window.iconManager.pendingReinit = null;
+        }, window.iconManager.DEBOUNCE_DELAY);
+      };
+      
+      // Mantener compatibilidad con código existente que use reinicializarIconos
+      window.reinicializarIconos = window.reinicializarIconosDebounced;
+    </script>
   </body>
 </html>

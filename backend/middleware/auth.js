@@ -3,7 +3,7 @@
 // ============================================
 
 const jwt = require('jsonwebtoken');
-const { executeQuery } = require('../config/database');
+const { query, isDatabaseAvailable } = require('../config/database');
 
 // Middleware para verificar JWT
 const authenticateToken = async (req, res, next) => {
@@ -21,24 +21,38 @@ const authenticateToken = async (req, res, next) => {
         // Verificar token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         
-        // Verificar que el usuario existe y está activo
-        const user = await executeQuery(
-            'SELECT id, username, email, is_active FROM users WHERE id = ? AND is_active = TRUE',
+        // Si la base de datos no está disponible, usar datos del token
+        if (!isDatabaseAvailable()) {
+            req.user = {
+                id: decoded.userId,
+                username: decoded.username || 'unknown',
+                email: decoded.email || '',
+                role: decoded.role || 'player'
+            };
+            return next();
+        }
+        
+        // Verificar que el usuario existe y está activo (PostgreSQL syntax)
+        const result = await query(
+            'SELECT id, username, email, role, is_active FROM users WHERE id = $1 AND is_active = TRUE',
             [decoded.userId]
         );
 
-        if (user.length === 0) {
+        if (result.rows.length === 0) {
             return res.status(401).json({
                 success: false,
                 message: 'Usuario no válido o inactivo'
             });
         }
 
+        const user = result.rows[0];
+
         // Agregar información del usuario al request
         req.user = {
-            id: decoded.userId,
-            username: user[0].username,
-            email: user[0].email
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role
         };
 
         next();
@@ -71,16 +85,29 @@ const optionalAuth = async (req, res, next) => {
 
         if (token) {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            const user = await executeQuery(
-                'SELECT id, username, email FROM users WHERE id = ? AND is_active = TRUE',
+            
+            if (!isDatabaseAvailable()) {
+                req.user = {
+                    id: decoded.userId,
+                    username: decoded.username || 'unknown',
+                    email: decoded.email || '',
+                    role: decoded.role || 'player'
+                };
+                return next();
+            }
+            
+            const result = await query(
+                'SELECT id, username, email, role FROM users WHERE id = $1 AND is_active = TRUE',
                 [decoded.userId]
             );
 
-            if (user.length > 0) {
+            if (result.rows.length > 0) {
+                const user = result.rows[0];
                 req.user = {
-                    id: decoded.userId,
-                    username: user[0].username,
-                    email: user[0].email
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    role: user.role
                 };
             }
         }
@@ -92,17 +119,40 @@ const optionalAuth = async (req, res, next) => {
     }
 };
 
-// Función para generar JWT
-const generateToken = (userId) => {
+// Función para generar JWT (incluye role en el payload)
+const generateToken = (userId, username, email, role = 'player') => {
     return jwt.sign(
-        { userId },
+        { userId, username, email, role },
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 };
 
+// Middleware para verificar rol de administrador
+// Debe usarse DESPUÉS de authenticateToken
+const requireAdmin = (req, res, next) => {
+    // Verificar que el usuario está autenticado
+    if (!req.user) {
+        return res.status(401).json({
+            success: false,
+            message: 'Autenticación requerida'
+        });
+    }
+
+    // Verificar que el usuario tiene rol de admin
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({
+            success: false,
+            message: 'Acceso denegado. Se requiere rol de administrador.'
+        });
+    }
+
+    next();
+};
+
 module.exports = {
     authenticateToken,
     optionalAuth,
-    generateToken
+    generateToken,
+    requireAdmin
 };

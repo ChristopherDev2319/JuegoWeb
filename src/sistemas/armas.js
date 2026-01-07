@@ -525,19 +525,27 @@ export function estaCurando() {
 /**
  * Inicia el proceso de curación al hacer clic
  * Requirements: 3.1
- * @returns {boolean} - true si se inició la curación
+ * @param {number} vidaActual - Vida actual del jugador (opcional)
+ * @param {number} vidaMaxima - Vida máxima del jugador (opcional)
+ * @returns {Object} - { iniciada: boolean, razon: string }
  */
-export function iniciarCuracion() {
+export function iniciarCuracion(vidaActual = null, vidaMaxima = null) {
   // Verificar que JuiceBox está equipado
   if (!estadoCuracion.juiceBoxEquipado) {
     console.log('🧃 No se puede curar sin JuiceBox equipado');
-    return false;
+    return { iniciada: false, razon: 'no_equipado' };
   }
 
   // Verificar que no hay curación en progreso
   if (estadoCuracion.curacionEnProgreso) {
     console.log('🧃 Ya hay una curación en progreso');
-    return false;
+    return { iniciada: false, razon: 'en_progreso' };
+  }
+
+  // Verificar si la vida está llena
+  if (vidaActual !== null && vidaMaxima !== null && vidaActual >= vidaMaxima) {
+    console.log('🧃 No se puede curar - Vida llena');
+    return { iniciada: false, razon: 'vida_llena' };
   }
 
   // Iniciar curación
@@ -545,7 +553,7 @@ export function iniciarCuracion() {
   estadoCuracion.tiempoInicioCuracion = performance.now();
   
   console.log('🧃 Curación iniciada - 2 segundos para completar');
-  return true;
+  return { iniciada: true, razon: 'ok' };
 }
 
 /**
@@ -707,6 +715,8 @@ export function cambiarArma(tipoArma, weaponContainer = null) {
     }
     estadoCuracion.juiceBoxEquipado = false;
     estadoCuracion.armaPreviaACuracion = null;
+    estadoEquipamiento.itemEquipado = 'ARMA';
+    estadoEquipamiento.itemPrevioAJuiceBox = null;
     
     // Cancelar curación si estaba en progreso
     if (estadoCuracion.curacionEnProgreso) {
@@ -715,9 +725,24 @@ export function cambiarArma(tipoArma, weaponContainer = null) {
     
     console.log('🧃 JuiceBox desequipado por cambio de arma');
   }
+  
+  // Desequipar cuchillo si estaba equipado
+  if (estadoEquipamiento.itemEquipado === 'CUCHILLO') {
+    estadoEquipamiento.itemEquipado = 'ARMA';
+    estadoCuchillo.equipado = false;
+    console.log('🔪 Cuchillo desequipado por cambio de arma');
+  }
 
   arma.tipoActual = tipoArma;
   const configArma = obtenerConfigArmaActual();
+  
+  // Actualizar el arma principal en el estado de equipamiento
+  // Esto sincroniza el slot intercambiable [Q] con el arma actual
+  if (tipoArma !== 'KNIFE') {
+    estadoEquipamiento.armaPrincipal = tipoArma;
+    estadoCuchillo.armaPrincipalPrevia = tipoArma;
+    console.log(`🔫 Arma principal actualizada a: ${tipoArma}`);
+  }
   
   // Reiniciar munición al cambiar arma
   arma.municionActual = configArma.tamañoCargador;
@@ -1816,32 +1841,43 @@ export async function alternarCuchillo(weaponContainer = null) {
     return true;
     
   } else if (itemActual === 'JUICEBOX') {
-    // Requirements: 1.3 - JUICEBOX -> ARMA (siempre va a arma, no a cuchillo)
-    const armaPrincipal = estadoEquipamiento.armaPrincipal;
-    
-    if (!armaPrincipal || !CONFIG.armas[armaPrincipal]) {
-      console.warn('⚠️ No hay arma principal para restaurar desde JuiceBox');
-      return false;
-    }
+    // JUICEBOX -> ir al item que muestra la UI (el slot intercambiable)
+    // La UI siempre muestra el arma principal cuando tienes cuchillo/JuiceBox
+    // Por lo tanto, Q desde JuiceBox siempre va al arma principal (lo que muestra la UI)
     
     // Cancelar curación si estaba en progreso
     if (estadoCuracion.curacionEnProgreso) {
       cancelarCuracion();
     }
     
-    // Actualizar estado unificado
-    estadoEquipamiento.itemEquipado = 'ARMA';
-    estadoEquipamiento.itemPrevioAJuiceBox = null; // Limpiar memoria
+    // Limpiar memoria del JuiceBox
+    estadoEquipamiento.itemPrevioAJuiceBox = null;
     
     // Mantener compatibilidad con estados legacy
     estadoCuracion.juiceBoxEquipado = false;
     estadoCuracion.armaPreviaACuracion = null;
+    
+    // Siempre ir al arma principal (lo que muestra la UI en el slot intercambiable)
+    const armaPrincipal = estadoEquipamiento.armaPrincipal || 'M4A1';
+    
+    if (!CONFIG.armas[armaPrincipal]) {
+      console.warn(`⚠️ Arma no válida: ${armaPrincipal}, usando M4A1`);
+      estadoEquipamiento.itemEquipado = 'ARMA';
+      estadoCuchillo.equipado = false;
+      arma.tipoActual = 'M4A1';
+      
+      if (weaponContainer) {
+        await cambiarModeloArma('M4A1', weaponContainer);
+      }
+      
+      actualizarVisibilidadModelos(estadoEquipamiento.itemEquipado);
+      return true;
+    }
+    
+    estadoEquipamiento.itemEquipado = 'ARMA';
     estadoCuchillo.equipado = false;
     
-    // Restaurar arma principal
     arma.tipoActual = armaPrincipal;
-    const configArma = CONFIG.armas[armaPrincipal];
-    
     arma.estaRecargando = false;
     
     // Cargar modelo del arma
@@ -1849,10 +1885,8 @@ export async function alternarCuchillo(weaponContainer = null) {
       await cambiarModeloArma(armaPrincipal, weaponContainer);
     }
     
-    // Actualizar visibilidad de modelos
     actualizarVisibilidadModelos(estadoEquipamiento.itemEquipado);
-    
-    console.log(`🔫 Restaurado arma principal desde JuiceBox: ${configArma.nombre}`);
+    console.log(`🔫 Arma ${armaPrincipal} restaurada desde JuiceBox (Q va al slot intercambiable)`);
     return true;
   }
   

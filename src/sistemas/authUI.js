@@ -21,8 +21,9 @@ let uiState = {
 
 /**
  * Inicializar UI de autenticación
+ * Requirements: 1.4 - Session persistence on page load
  */
-export function inicializarAuthUI() {
+export async function inicializarAuthUI() {
     // Obtener referencias a elementos DOM
     obtenerElementosDOM();
     
@@ -30,7 +31,8 @@ export function inicializarAuthUI() {
     configurarEventListeners();
     
     // Inicializar sistema de autenticación
-    inicializarAuth({
+    // This will restore any existing session from localStorage
+    await inicializarAuth({
         onLogin: manejarLogin,
         onLogout: manejarLogout,
         onError: mostrarError
@@ -43,10 +45,15 @@ export function inicializarAuthUI() {
         onError: mostrarError
     });
     
-    // Verificar estado inicial
+    // Verificar estado inicial y mostrar UI correcta basada en sesión existente
+    // Requirements: 1.4 - Display correct UI based on session
     actualizarUIAuth();
     
-    console.log('✅ UI de autenticación inicializada');
+    // Si hay sesión existente, cargar progreso del usuario
+    const authState = obtenerEstadoAuth();
+    if (authState.isAuthenticated) {
+        cargarProgreso();
+    }
 }
 
 /**
@@ -79,12 +86,28 @@ function obtenerElementosDOM() {
         
         // Estados
         authError: document.getElementById('auth-error'),
-        authLoading: document.getElementById('auth-loading')
+        authLoading: document.getElementById('auth-loading'),
+        
+        // Panel de usuario (Requirements: 1.1, 1.2)
+        userPanel: document.getElementById('user-panel'),
+        userPanelName: document.getElementById('user-panel-name'),
+        btnUserStats: document.getElementById('btn-user-stats'),
+        btnUserLogout: document.getElementById('btn-user-logout'),
+        
+        // Modal de estadísticas (Requirements: 2.2, 2.3)
+        statsModal: document.getElementById('user-stats-modal'),
+        statsModalClose: document.getElementById('stats-modal-close'),
+        statsModalBody: document.getElementById('stats-modal-body'),
+        statsLoading: document.getElementById('stats-loading'),
+        statsError: document.getElementById('stats-error'),
+        statsErrorMessage: document.getElementById('stats-error-message'),
+        statsRetryBtn: document.getElementById('stats-retry-btn'),
+        statsContent: document.getElementById('stats-content'),
+        userStatsKills: document.getElementById('user-stats-kills'),
+        userStatsDeaths: document.getElementById('user-stats-deaths'),
+        userStatsMatches: document.getElementById('user-stats-matches')
     };
     
-    // Debug: verificar si los elementos existen
-    console.log('🔍 Debug elementos DOM:');
-    console.log('- authOverlay:', elementos.authOverlay);
 }
 
 /**
@@ -131,6 +154,23 @@ function configurarEventListeners() {
             ocultarAuth();
         }
     });
+    
+    // Event listeners para panel de usuario (Requirements: 2.2, 3.2)
+    // Botón de estadísticas - abre modal de estadísticas
+    elementos.btnUserStats?.addEventListener('click', mostrarEstadisticas);
+    
+    // Botón de logout - cierra sesión
+    elementos.btnUserLogout?.addEventListener('click', () => {
+        cerrarSesion();
+    });
+    
+    // Event listeners para modal de estadísticas
+    elementos.statsModalClose?.addEventListener('click', ocultarEstadisticas);
+    elementos.statsRetryBtn?.addEventListener('click', cargarEstadisticasUsuario);
+    
+    // Cerrar modal al hacer clic en el overlay
+    const statsModalOverlay = document.querySelector('.stats-modal-overlay');
+    statsModalOverlay?.addEventListener('click', ocultarEstadisticas);
 }
 
 /**
@@ -212,7 +252,6 @@ async function manejarSubmitLogin(e) {
         
         if (resultado.success) {
             // Login exitoso, el callback onLogin se encarga del resto
-            console.log('✅ Login exitoso');
         } else {
             // Mostrar error específico del servidor
             mostrarError(resultado.message || 'Error en el login');
@@ -276,7 +315,6 @@ async function manejarSubmitRegister(e) {
         
         if (resultado.success) {
             // Registro exitoso, el callback onLogin se encarga del resto
-            console.log('✅ Registro exitoso');
         } else {
             // Mostrar error específico del servidor
             mostrarError(resultado.message || 'Error en el registro');
@@ -292,11 +330,14 @@ async function manejarSubmitRegister(e) {
  * Manejar login exitoso
  */
 function manejarLogin(user) {
-    console.log('✅ Usuario logueado:', user.username);
     actualizarUIAuth();
     
     // Cargar progreso del usuario
     cargarProgreso();
+    
+    // Reinicializar iconos Lucide después de actualizar el DOM
+    // Requirements: 1.3 - Reinitialize icons after DOM updates
+    reinicializarIconos();
     
     // Mostrar notificación
     mostrarNotificacion(`¡Bienvenido, ${user.username}!`, 'success');
@@ -307,10 +348,34 @@ function manejarLogin(user) {
 
 /**
  * Manejar logout
+ * Requirements: 3.2, 3.3
+ * - Hide user panel
+ * - Show login button
+ * - Clear username from panel
  */
 function manejarLogout() {
-    console.log('✅ Usuario deslogueado');
+    // Ocultar panel de usuario (Requirements: 3.2)
+    if (elementos.userPanel) {
+        elementos.userPanel.classList.add('hidden');
+    }
+    
+    // Mostrar botón de login (Requirements: 3.2)
+    const lobbyLoginBtn = document.getElementById('lobby-login-btn');
+    if (lobbyLoginBtn) {
+        lobbyLoginBtn.classList.remove('hidden');
+    }
+    
+    // Limpiar nombre de usuario del panel (Requirements: 3.3)
+    if (elementos.userPanelName) {
+        elementos.userPanelName.textContent = '';
+    }
+    
+    // Actualizar UI completa para asegurar consistencia
     actualizarUIAuth();
+    
+    // Reinicializar iconos Lucide después de actualizar el DOM
+    // Requirements: 1.3 - Reinitialize icons after DOM updates
+    reinicializarIconos();
     
     // Mostrar notificación
     mostrarNotificacion('Sesión cerrada', 'info');
@@ -320,8 +385,6 @@ function manejarLogout() {
  * Manejar carga de progreso
  */
 function manejarProgresoCargar(progreso) {
-    console.log('✅ Progreso cargado:', progreso);
-    
     // Aplicar configuración al juego
     aplicarConfiguracionAlJuego(progreso.config);
     
@@ -333,8 +396,6 @@ function manejarProgresoCargar(progreso) {
  * Manejar guardado de progreso
  */
 function manejarProgresoGuardar(progreso) {
-    console.log('✅ Progreso guardado:', progreso);
-    
     // Actualizar UI con nueva información
     actualizarInfoUsuario(progreso);
 }
@@ -345,16 +406,14 @@ function manejarProgresoGuardar(progreso) {
 function actualizarUIAuth() {
     const authState = obtenerEstadoAuth();
     
-    console.log('🔍 Debug actualizarUIAuth:');
-    console.log('- authState:', authState);
+    // Actualizar panel de usuario
+    actualizarPanelUsuario(authState.isAuthenticated ? authState.user : null);
     
     // Botón del lobby
     const lobbyLoginBtn = document.getElementById('lobby-login-btn');
     const authHint = document.querySelector('.auth-hint');
     
     if (authState.isAuthenticated) {
-        console.log('✅ Usuario autenticado, actualizando UI');
-        
         // Ocultar botón del lobby y mostrar info del usuario
         if (lobbyLoginBtn) {
             lobbyLoginBtn.style.display = 'none';
@@ -363,14 +422,17 @@ function actualizarUIAuth() {
             // Crear botón de perfil clickeable
             authHint.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" id="user-profile-btn">
-                    <span>✅ Conectado como <strong>${authState.user.username}</strong></span>
+                    <span><i data-lucide="check-circle"></i> Conectado como <strong>${authState.user.username}</strong></span>
                     <button style="background: rgba(79, 195, 247, 0.2); border: 1px solid #4FC3F7; border-radius: 6px; padding: 4px 8px; color: #4FC3F7; font-size: 12px; cursor: pointer;">
-                        👤 Perfil
+                        <i data-lucide="user"></i> Perfil
                     </button>
                 </div>
             `;
             authHint.style.color = '#00ff00';
             authHint.style.fontSize = '14px';
+            
+            // Reinicializar iconos Lucide después de agregar el HTML
+            reinicializarIconos();
             
             // Agregar event listener al botón de perfil
             const profileBtn = document.getElementById('user-profile-btn');
@@ -386,8 +448,6 @@ function actualizarUIAuth() {
             }
         }
     } else {
-        console.log('❌ Usuario NO autenticado, mostrando botón de login solo en lobby');
-        
         // Solo mostrar botón si estamos en el lobby (no en partida)
         const lobbyScreen = document.getElementById('lobby-screen');
         const isInLobby = lobbyScreen && !lobbyScreen.classList.contains('hidden');
@@ -414,12 +474,66 @@ function actualizarUIAuth() {
                     <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
                         <span style="color: rgba(255, 255, 255, 0.6); font-size: 12px;">Modo Local</span>
                         <button style="background: rgba(79, 195, 247, 0.2); border: 1px solid #4FC3F7; border-radius: 6px; padding: 4px 8px; color: #4FC3F7; font-size: 12px; cursor: pointer;" onclick="window.abrirMenuUsuario()">
-                            👤 Mi Personaje
+                            <i data-lucide="user"></i> Mi Personaje
                         </button>
                     </div>
                 `;
+                
+                // Reinicializar iconos Lucide después de agregar el HTML
+                reinicializarIconos();
             }
         }
+    }
+}
+
+/**
+ * Actualizar panel de usuario según estado de autenticación
+ * Requirements: 1.1, 1.2, 1.3, 1.4
+ * @param {Object|null} user - Usuario autenticado o null si no está autenticado
+ */
+export function actualizarPanelUsuario(user) {
+    const lobbyLoginBtn = document.getElementById('lobby-login-btn');
+    
+    if (user) {
+        // Usuario autenticado: ocultar botón login, mostrar panel usuario
+        if (lobbyLoginBtn) {
+            lobbyLoginBtn.classList.add('hidden');
+        }
+        
+        if (elementos.userPanel) {
+            elementos.userPanel.classList.remove('hidden');
+        }
+        
+        if (elementos.userPanelName) {
+            elementos.userPanelName.textContent = user.username;
+        }
+        
+        // Reinicializar iconos Lucide después de mostrar el panel
+        reinicializarIconos();
+    } else {
+        // Usuario no autenticado: mostrar botón login, ocultar panel usuario
+        if (lobbyLoginBtn) {
+            lobbyLoginBtn.classList.remove('hidden');
+        }
+        
+        if (elementos.userPanel) {
+            elementos.userPanel.classList.add('hidden');
+        }
+        
+        if (elementos.userPanelName) {
+            elementos.userPanelName.textContent = '';
+        }
+    }
+}
+
+/**
+ * Reinicializar iconos Lucide
+ */
+function reinicializarIconos() {
+    if (typeof window.reinicializarIconos === 'function') {
+        window.reinicializarIconos();
+    } else if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        lucide.createIcons();
     }
 }
 
@@ -503,4 +617,141 @@ function mostrarLoading() {
 
 function ocultarLoading() {
     elementos.authLoading.classList.add('hidden');
+}
+
+// ============================================
+// FUNCIONES DE ESTADÍSTICAS (Requirements: 2.2, 2.3, 2.4, 2.5)
+// ============================================
+
+/**
+ * Mostrar modal de estadísticas
+ * Requirements: 2.2
+ */
+export function mostrarEstadisticas() {
+    if (elementos.statsModal) {
+        elementos.statsModal.classList.remove('hidden');
+        // Reinicializar iconos Lucide después de mostrar el modal
+        // Requirements: 1.3 - Reinitialize icons after DOM updates
+        reinicializarIconos();
+        cargarEstadisticasUsuario();
+    }
+}
+
+/**
+ * Ocultar modal de estadísticas
+ * Requirements: 2.2
+ */
+export function ocultarEstadisticas() {
+    if (elementos.statsModal) {
+        elementos.statsModal.classList.add('hidden');
+    }
+    // Limpiar estados de error
+    if (elementos.statsError) {
+        elementos.statsError.classList.add('hidden');
+    }
+}
+
+/**
+ * Cargar estadísticas del usuario desde la API
+ * Requirements: 2.2, 2.4, 2.5
+ */
+async function cargarEstadisticasUsuario() {
+    // Mostrar estado de carga
+    if (elementos.statsLoading) {
+        elementos.statsLoading.classList.remove('hidden');
+    }
+    if (elementos.statsContent) {
+        elementos.statsContent.classList.add('hidden');
+    }
+    if (elementos.statsError) {
+        elementos.statsError.classList.add('hidden');
+    }
+    
+    try {
+        const authState = obtenerEstadoAuth();
+        
+        if (!authState.isAuthenticated || !authState.token) {
+            mostrarErrorEstadisticas('Debes iniciar sesión para ver tus estadísticas');
+            return;
+        }
+        
+        const response = await fetch('http://localhost:3001/api/stats/me', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authState.token}`
+            }
+        });
+        
+        const data = await response.json();
+        
+        // Ocultar loading
+        if (elementos.statsLoading) {
+            elementos.statsLoading.classList.add('hidden');
+        }
+        
+        if (data.success) {
+            renderizarEstadisticas(data.data);
+        } else {
+            mostrarErrorEstadisticas(data.message || 'Error al cargar estadísticas');
+        }
+        
+    } catch (error) {
+        console.error('Error cargando estadísticas:', error);
+        
+        // Ocultar loading
+        if (elementos.statsLoading) {
+            elementos.statsLoading.classList.add('hidden');
+        }
+        
+        mostrarErrorEstadisticas('Error de conexión con el servidor');
+    }
+}
+
+/**
+ * Renderizar estadísticas en el modal
+ * Requirements: 2.3
+ * @param {Object} stats - Objeto con kills, deaths, matches
+ */
+function renderizarEstadisticas(stats) {
+    // Mostrar contenido de estadísticas
+    if (elementos.statsContent) {
+        elementos.statsContent.classList.remove('hidden');
+    }
+    
+    // Actualizar valores
+    if (elementos.userStatsKills) {
+        elementos.userStatsKills.textContent = stats.kills || 0;
+    }
+    
+    if (elementos.userStatsDeaths) {
+        elementos.userStatsDeaths.textContent = stats.deaths || 0;
+    }
+    
+    if (elementos.userStatsMatches) {
+        elementos.userStatsMatches.textContent = stats.matches || 0;
+    }
+}
+
+/**
+ * Mostrar error en el modal de estadísticas
+ * Requirements: 2.5
+ * @param {string} mensaje - Mensaje de error a mostrar
+ */
+function mostrarErrorEstadisticas(mensaje) {
+    // Ocultar loading y contenido
+    if (elementos.statsLoading) {
+        elementos.statsLoading.classList.add('hidden');
+    }
+    if (elementos.statsContent) {
+        elementos.statsContent.classList.add('hidden');
+    }
+    
+    // Mostrar error
+    if (elementos.statsError) {
+        elementos.statsError.classList.remove('hidden');
+    }
+    if (elementos.statsErrorMessage) {
+        elementos.statsErrorMessage.textContent = mensaje;
+    }
 }

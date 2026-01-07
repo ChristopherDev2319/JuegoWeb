@@ -88,8 +88,6 @@ export function inicializarCrosshair() {
   
   // Aplicar configuración inicial
   actualizarCrosshair();
-  
-  console.log('✅ Sistema de crosshair dinámico inicializado');
 }
 
 /**

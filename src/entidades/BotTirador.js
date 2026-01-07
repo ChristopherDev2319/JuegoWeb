@@ -123,38 +123,29 @@ export class BotTirador extends BotBase {
   }
 
   /**
-   * Crea efecto visual de flash cuando el bot dispara
+   * Crea efecto visual de flash cuando el bot dispara (optimizado)
    * Requirement 4.2: Crear proyectil visual
    * @param {THREE.Vector3} origen - Posición de origen del disparo
    * @param {THREE.Vector3} direccion - Dirección del disparo
    */
   crearEfectoDisparo(origen, direccion) {
-    // Flash en el punto de disparo
-    const geometriaFlash = new THREE.SphereGeometry(0.2, 8, 8);
+    // Flash simplificado - sin animación compleja
+    const geometriaFlash = new THREE.SphereGeometry(0.15, 4, 4);
     const materialFlash = new THREE.MeshBasicMaterial({
       color: 0xffff00,
       transparent: true,
-      opacity: 1
+      opacity: 0.8
     });
     const flash = new THREE.Mesh(geometriaFlash, materialFlash);
     flash.position.copy(origen);
     this.scene.add(flash);
 
-    // Animar y eliminar flash
-    let vida = 0;
-    const animar = () => {
-      vida += 0.016;
-      materialFlash.opacity = 1 - vida * 5;
-
-      if (vida > 0.2) {
-        this.scene.remove(flash);
-        geometriaFlash.dispose();
-        materialFlash.dispose();
-      } else {
-        requestAnimationFrame(animar);
-      }
-    };
-    animar();
+    // Remover después de 50ms sin animación
+    setTimeout(() => {
+      this.scene.remove(flash);
+      geometriaFlash.dispose();
+      materialFlash.dispose();
+    }, 50);
   }
 
   /**

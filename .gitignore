@@ -1,6 +1,15 @@
 # Dependencias
 node_modules/
 
+# Environment files
+.env
+.env.development
+.env.production
+.env.local
+backend/.env
+backend/.env.development
+backend/.env.production
+
 # Sistema operativo
 .DS_Store
 Thumbs.db

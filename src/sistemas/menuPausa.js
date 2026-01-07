@@ -5,6 +5,7 @@
 
 import { CONFIG } from '../config.js';
 import { establecerVerificadorMenu, ignorarCambiosPointerLock } from './controles.js';
+import { getStorageJSON, setStorageJSON, getStorageInfo } from '../utils/storage.js';
 
 // Estado del menú
 let menuActivo = false;
@@ -49,13 +50,15 @@ export function inicializarMenuPausa(eventCallbacks = {}) {
   // Inicializar configuración
   cargarConfiguracion();
   
+  // Cargar estadísticas desde localStorage
+  cargarEstadisticasDesdeStorage();
+  
   // Inicializar contador FPS
   inicializarContadorFPS();
   
   // Registrar verificador de menú en el sistema de controles
   establecerVerificadorMenu(estaMenuActivo);
   
-  console.log('✅ Menú de pausa inicializado');
   return true;
 }
 
@@ -253,8 +256,6 @@ function pausarJuego() {
   if (document.pointerLockElement) {
     document.exitPointerLock();
   }
-  
-  console.log('⏸️ Juego pausado');
 }
 
 /**
@@ -275,8 +276,6 @@ function reanudarConPointerLock() {
   if (callbacks.onReanudar) {
     callbacks.onReanudar();
   }
-  
-  console.log('▶️ Juego reanudado (con pointer lock)');
 }
 
 /**
@@ -298,8 +297,6 @@ function reanudarSinPointerLock() {
   if (callbacks.onReanudar) {
     callbacks.onReanudar();
   }
-  
-  console.log('▶️ Juego reanudado (click para activar controles)');
 }
 
 /**
@@ -311,8 +308,6 @@ function ocultarMenuSinPointerLock() {
   
   menuActivo = false;
   elementos.pauseMenu?.classList.add('hidden');
-  
-  console.log('🧪 PRUEBA: Menú ocultado sin pointer lock (tecla P)');
 }
 
 /**
@@ -373,11 +368,22 @@ function salirDelJuego() {
 }
 
 /**
+ * Carga las estadísticas desde localStorage
+ * NOTA: Las estadísticas del menú de pausa son solo para la partida actual
+ * Se reinician al iniciar cada partida
+ */
+function cargarEstadisticasDesdeStorage() {
+  // Las estadísticas del menú de pausa son solo para la partida actual
+  // No se cargan de localStorage - se reinician al iniciar cada partida
+  reiniciarEstadisticas();
+}
+
+/**
  * Carga la configuración guardada
  */
 function cargarConfiguracion() {
   try {
-    const config = JSON.parse(localStorage.getItem('pauseMenuConfig') || '{}');
+    const config = getStorageJSON('pauseMenuConfig', {});
     
     // Aplicar configuración guardada
     if (elementos.mouseSensitivity && config.sensibilidad !== undefined) {
@@ -406,7 +412,7 @@ function cargarConfiguracion() {
     }
     
   } catch (error) {
-    console.warn('Error cargando configuración del menú:', error);
+    console.warn('⚠️ Error cargando configuración del menú:', error);
   }
 }
 
@@ -423,9 +429,9 @@ function guardarConfiguracion() {
       crosshairDinamico: elementos.dynamicCrosshair?.checked || true
     };
     
-    localStorage.setItem('pauseMenuConfig', JSON.stringify(config));
+    setStorageJSON('pauseMenuConfig', config);
   } catch (error) {
-    console.warn('Error guardando configuración del menú:', error);
+    console.warn('⚠️ Error guardando configuración del menú:', error);
   }
 }
 
@@ -437,22 +443,33 @@ function actualizarEstadisticas() {
   estadisticasJuego.playtime = Date.now() - estadisticasJuego.startTime;
   
   // Actualizar elementos DOM
-  if (elementos.killsStat) elementos.killsStat.textContent = estadisticasJuego.kills;
-  if (elementos.deathsStat) elementos.deathsStat.textContent = estadisticasJuego.deaths;
+  if (elementos.killsStat) {
+    elementos.killsStat.textContent = estadisticasJuego.kills;
+  }
+  
+  if (elementos.deathsStat) {
+    elementos.deathsStat.textContent = estadisticasJuego.deaths;
+  }
   
   // K/D Ratio
   const kdRatio = estadisticasJuego.deaths > 0 ? 
     (estadisticasJuego.kills / estadisticasJuego.deaths).toFixed(2) : 
     estadisticasJuego.kills.toFixed(2);
-  if (elementos.kdRatio) elementos.kdRatio.textContent = kdRatio;
+  if (elementos.kdRatio) {
+    elementos.kdRatio.textContent = kdRatio;
+  }
   
   // Disparos
-  if (elementos.shotsFired) elementos.shotsFired.textContent = estadisticasJuego.shotsFired;
+  if (elementos.shotsFired) {
+    elementos.shotsFired.textContent = estadisticasJuego.shotsFired;
+  }
   
   // Precisión
   const precision = estadisticasJuego.shotsFired > 0 ? 
     Math.round((estadisticasJuego.shotsHit / estadisticasJuego.shotsFired) * 100) : 0;
-  if (elementos.accuracyStat) elementos.accuracyStat.textContent = `${precision}%`;
+  if (elementos.accuracyStat) {
+    elementos.accuracyStat.textContent = `${precision}%`;
+  }
   
   // Tiempo jugado
   const minutos = Math.floor(estadisticasJuego.playtime / 60000);
@@ -506,8 +523,6 @@ export function cerrarMenuForzado() {
   
   menuActivo = false;
   elementos.pauseMenu?.classList.add('hidden');
-  
-  console.log('⏹️ Menú cerrado forzadamente');
 }
 
 // Sistema de FPS Counter

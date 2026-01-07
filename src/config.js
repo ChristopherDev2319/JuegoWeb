@@ -21,100 +21,97 @@ export const CONFIG = {
   },
 
   armas: {
-    // M4A1: Rifle versátil, equilibrado - META para rondas completas
+    // M4A1: Rifle versátil, fácil de controlar - Similar al Phantom de Valorant / M4A4 de CS2
+    // Características: Alta cadencia, daño moderado, fácil control, buena precisión
     "M4A1": {
       nombre: "M4A1",
-      descripcion: "Rifle de asalto versátil con buen equilibrio entre daño y precisión",
+      descripcion: "Rifle de asalto versátil con alta cadencia y fácil control de retroceso",
       tipo: "rifle",
-      cadenciaDisparo: 800, // 800 RPM (sincronizado con servidor: 60000/75ms)
-      daño: 30, // Igual que servidor (200 vida / 30 daño = 7 balas para matar)
+      cadenciaDisparo: 500, // 500 RPM - Cadencia reducida
+      daño: 28, // 8 balas para matar (200/28 = 7.14)
       tamañoCargador: 30,
-      municionTotal: 210,
-      tiempoRecarga: 2.0, // 2 segundos como servidor
-      velocidadBala: 60.0,
-      modelo: "modelos/FBX/Weapons/M4A1.fbx",
-      sonidoDisparo: "sonidos/M4A1.mp3",
+      municionTotal: 120, // 4 cargadores extra
+      tiempoRecarga: 2.2, // Recarga moderada
+      velocidadBala: 65.0,
+      modelo: "public/modelos/FBX/Weapons/M4A1.fbx",
+      sonidoDisparo: "public/sonidos/M4A1.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
       rotacion: { x: 0, y: Math.PI, z: 0 },
       retroceso: {
-        cantidad: 0.06, // Retroceso moderado
-        arriba: 0.03,
-        duracion: 60
+        cantidad: 0.04, // Retroceso bajo - fácil de controlar
+        arriba: 0.025,
+        duracion: 50
       },
-      multiplicadorHeadshot: 4.0, // Headshot letal
-      dispersion: 0.02, // Preciso pero no perfecto
-      apuntado: {
-        zoom: 1.5,
-        reduccionRetroceso: 0.5,
-        tiempoTransicion: 0.25,
-        posicionArma: { x: 0, y: -0.1, z: -0.2 },
-        reduccionDispersion: 0.3
-      }
-    },
-    
-    // AK-47: Alto daño, alto retroceso - Riesgo/Recompensa
-    "AK47": {
-      nombre: "AK-47",
-      descripcion: "Rifle de asalto potente con alto retroceso pero gran daño",
-      tipo: "rifle",
-      cadenciaDisparo: 550, // 550 RPM (sincronizado con servidor: 60000/109ms)
-      daño: 45, // Igual que servidor (200 vida / 45 daño = 5 balas para matar)
-      tamañoCargador: 30,
-      municionTotal: 210,
-      tiempoRecarga: 2.5,
-      velocidadBala: 63.0,
-      modelo: "modelos/FBX/Weapons/AK47.fbx",
-      sonidoDisparo: "sonidos/AK47.mp3",
-      posicion: { x: 0.3, y: -0.3, z: -0.5 },
-      rotacion: { x: 0, y: 0, z: 0 },
-      retroceso: {
-        cantidad: 0.12, // Retroceso alto - difícil de controlar
-        arriba: 0.08,
-        duracion: 90
-      },
-      multiplicadorHeadshot: 4.0, // Headshot letal
-      dispersion: 0.035, // Menos preciso que M4A1
+      multiplicadorHeadshot: 3.5, // Headshot: 98 daño (2 headshots matan)
+      dispersion: 0.015, // Muy preciso
       apuntado: {
         zoom: 1.4,
-        reduccionRetroceso: 0.4, // Menos reducción que M4A1
-        tiempoTransicion: 0.3,
-        posicionArma: { x: 0, y: -0.12, z: -0.25 },
+        reduccionRetroceso: 0.6, // Gran reducción al apuntar
+        tiempoTransicion: 0.2, // Rápido para apuntar
+        posicionArma: { x: 0, y: -0.1, z: -0.2 },
         reduccionDispersion: 0.4
       }
     },
     
-    // Pistola: Eco rounds, precisión - Arma económica
+    // AK-47: Alto daño, difícil control - Similar al Vandal de Valorant / AK-47 de CS2
+    // Características: Daño alto, cadencia media, retroceso fuerte, recompensa skill
+    "AK47": {
+      nombre: "AK-47",
+      descripcion: "Rifle de asalto potente con alto daño pero difícil de controlar",
+      tipo: "rifle",
+      cadenciaDisparo: 450, // 450 RPM - Cadencia reducida
+      daño: 38, // 6 balas para matar (200/38 = 5.26)
+      tamañoCargador: 30,
+      municionTotal: 90, // 3 cargadores extra
+      tiempoRecarga: 2.5, // Recarga más lenta
+      velocidadBala: 60.0,
+      modelo: "public/modelos/FBX/Weapons/AK47.fbx",
+      sonidoDisparo: "public/sonidos/AK47.mp3",
+      posicion: { x: 0.3, y: -0.3, z: -0.5 },
+      rotacion: { x: 0, y: 0, z: 0 },
+      retroceso: {
+        cantidad: 0.09, // Retroceso alto - requiere control
+        arriba: 0.06,
+        duracion: 80
+      },
+      multiplicadorHeadshot: 4.0, // Headshot: 152 daño (1 headshot + 2 body = kill)
+      dispersion: 0.025, // Menos preciso que M4A1
+      apuntado: {
+        zoom: 1.35,
+        reduccionRetroceso: 0.45, // Menos reducción que M4A1
+        tiempoTransicion: 0.28, // Más lento para apuntar
+        posicionArma: { x: 0, y: -0.12, z: -0.25 },
+        reduccionDispersion: 0.35
+      }
+    },
+    
+    // Desert Eagle: Pistola de alto calibre - 3 disparos para matar
     "PISTOLA": {
-      nombre: "Colt 1911",
-      descripcion: "Pistola semiautomática precisa y confiable para combate cercano",
+      nombre: "Desert Eagle",
+      descripcion: "Pistola de alto calibre con daño devastador pero alto retroceso",
       tipo: "pistola",
-      cadenciaDisparo: 400, // 400 RPM (sincronizado con servidor: 60000/150ms)
-      daño: 20, // Igual que servidor (200 vida / 20 daño = 10 balas para matar)
+      cadenciaDisparo: 100, // 100 RPM - Cadencia reducida, más lenta
+      daño: 90, // 3 balas para matar (200/90 = 2.22 → 3 balas)
       tamañoCargador: 7,
-      municionTotal: 35,
-      tiempoRecarga: 1.5, // 1.5 segundos como servidor
-      velocidadBala: 45.0,
-      modelo: "modelos/FBX/Weapons/1911.fbx",
-      sonidoDisparo: "sonidos/pistola.mp3",
+      municionTotal: 28, // 4 cargadores extra
+      tiempoRecarga: 1.8,
+      velocidadBala: 50.0,
+      modelo: "public/modelos/FBX/Weapons/1911.fbx",
+      sonidoDisparo: "public/sonidos/pistola.mp3",
       posicion: { x: 0.2, y: -0.4, z: -0.3 },
       rotacion: { x: 0, y: 0, z: 0 },
       retroceso: {
-        cantidad: 0.08, // Retroceso notable pero manejable
-        arriba: 0.04,
-        duracion: 70
+        cantidad: 0.15, // Retroceso alto - pistola potente
+        arriba: 0.1,
+        duracion: 100
       },
-      multiplicadorHeadshot: 4.0, // Headshot letal de cerca
+      multiplicadorHeadshot: 2.5, // Headshot: 225 daño (1 shot kill)
       semiAutomatica: true,
-      dispersion: 0.015, // Muy precisa
-      falloffDaño: { // Daño disminuye con distancia
-        distanciaMinima: 10,
-        distanciaMaxima: 30,
-        dañoMinimo: 20
-      },
+      dispersion: 0.02, // Precisa pero no perfecta
       apuntado: {
-        zoom: 1.25,
-        reduccionRetroceso: 0.6,
-        tiempoTransicion: 0.15,
+        zoom: 1.3,
+        reduccionRetroceso: 0.5,
+        tiempoTransicion: 0.18,
         posicionArma: { x: 0, y: -0.25, z: -0.08 },
         reduccionDispersion: 0.5
       }
@@ -131,8 +128,8 @@ export const CONFIG = {
       municionTotal: 10, // 10 balas máximo
       tiempoRecarga: 3.7, // Recarga muy lenta
       velocidadBala: 120.0, // Actualizado: velocidad máxima de 120
-      modelo: "modelos/FBX/Weapons/AWP.fbx",
-      sonidoDisparo: "sonidos/SNIPER.mp3",
+      modelo: "public/modelos/FBX/Weapons/AWP.fbx",
+      sonidoDisparo: "public/sonidos/SNIPER.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
       rotacion: { x: 0, y: Math.PI, z: 0 },
       retroceso: {
@@ -166,8 +163,8 @@ export const CONFIG = {
       municionTotal: 24, // 24 cartuchos máximo
       tiempoRecarga: 3.0, // 3 segundos
       velocidadBala: 38.0,
-      modelo: "modelos/FBX/Weapons/Pump Shotgun.fbx",
-      sonidoDisparo: "sonidos/ESCOPETA.mp3",
+      modelo: "public/modelos/FBX/Weapons/Pump Shotgun.fbx",
+      sonidoDisparo: "public/sonidos/ESCOPETA.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
       rotacion: { x: 0, y: Math.PI, z: 0 },
       retroceso: {
@@ -176,7 +173,7 @@ export const CONFIG = {
         duracion: 200
       },
       proyectiles: 8, // 8 perdigones
-      dispersion: 0.08, // Dispersión moderada
+      dispersion: 0.4, // Dispersión extrema - perdigones muy esparcidos
       falloffDaño: { // Daño cae drásticamente con distancia
         distanciaMinima: 8,
         distanciaMaxima: 25,
@@ -198,14 +195,14 @@ export const CONFIG = {
       nombre: "MP5",
       descripcion: "Subfusil de alta cadencia ideal para combate rápido y móvil",
       tipo: "subfusil",
-      cadenciaDisparo: 850, // 850 RPM como servidor
+      cadenciaDisparo: 600, // 600 RPM - Cadencia reducida
       daño: 24, // Igual que servidor (200 vida / 24 daño = 9 balas para matar)
       tamañoCargador: 30,
       municionTotal: 240,
       tiempoRecarga: 2.0, // 2 segundos como servidor
       velocidadBala: 48.0,
-      modelo: "modelos/FBX/Weapons/MP5.fbx",
-      sonidoDisparo: "sonidos/MP5.mp3",
+      modelo: "public/modelos/FBX/Weapons/MP5.fbx",
+      sonidoDisparo: "public/sonidos/MP5.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
       rotacion: { x: 0, y: Math.PI, z: 0 },
       retroceso: {
@@ -233,16 +230,16 @@ export const CONFIG = {
     // KNIFE: Cuchillo táctico para combate cuerpo a cuerpo
     // Requirements: 4.1, 4.2, 4.5, 5.1, 5.2, 5.3
     "KNIFE": {
-      nombre: "Knife",
+      nombre: "Cuchillo",
       descripcion: "Cuchillo táctico para combate cuerpo a cuerpo",
       tipo: "melee",
       semiAutomatica: true,        // Solo un ataque por click (evita ataques múltiples)
       daño: 30,                    // 30 puntos de daño por ataque (balanceado)
       rangoAtaque: 3.0,            // 3 unidades de distancia (aumentado para mejor alcance)
       cadenciaAtaque: 350,         // ms entre ataques (más rápido)
-      modelo: "modelos/valorants_knife_low_poly.glb",
-      animacionAtaque: "modelos/animaciones/knife_attack_tps.glb",
-      animacionAtaqueTPS: "modelos/animaciones/knife_attack_tps.glb",
+      modelo: "public/modelos/valorants_knife_low_poly.glb",
+      animacionAtaque: "public/modelos/animaciones/knife_attack_tps.glb",
+      animacionAtaqueTPS: "public/modelos/animaciones/knife_attack_tps.glb",
       // Posición FPS: más alejado y a la derecha para verse bien
       posicion: { x: 0.35, y: -0.4, z: -0.5 },
       // Rotación FPS: agarre natural diagonal
@@ -291,13 +288,14 @@ export const CONFIG = {
     tiempoEspera: 5000
   },
 
-  // Configuración de límites del mapa (paredes exteriores)
+  // Configuración de límites del mapa (paredes invisibles)
+  // Unidades de malla: X=4, Z=8 (escalado 5x = X=20, Z=40 en mundo)
   // Requirements: 3.1, 3.2, 3.3
   limitesMapa: {
-    minX: -122,              // Límite mínimo en X
-    maxX: 122,               // Límite máximo en X
-    minZ: -122,              // Límite mínimo en Z
-    maxZ: 122,               // Límite máximo en Z
+    minX: -20,               // Límite mínimo en X (-4 unidades de malla * 5)
+    maxX: 20,                // Límite máximo en X (4 unidades de malla * 5)
+    minZ: -40,               // Límite mínimo en Z (-8 unidades de malla * 5)
+    maxZ: 40,                // Límite máximo en Z (8 unidades de malla * 5)
     margenSeguridad: 0.5     // Margen de separación del límite
   },
 
@@ -357,7 +355,7 @@ export const CONFIG = {
   // Configuración del sistema de curación (JuiceBox)
   // Requirements: 6.1, 6.2
   curacion: {
-    modelo: "modelos/stylized_juicebox.glb",
+    modelo: "public/modelos/stylized_juicebox.glb",
     vidaCurada: 50,              // HP restaurados al completar curación
     tiempoCuracion: 2000,        // 2 segundos en ms
     // Posición FPS (primera persona)
@@ -378,7 +376,7 @@ export const CONFIG = {
   spawnsAmmo: {
     porcentajeMunicion: 0.35,      // 35% de munición máxima del arma equipada
     tiempoRecarga: 10000,          // 10 segundos en ms para reactivar
-    modelo: "modelos/ammo_pack.glb",
+    modelo: "public/modelos/ammo_pack.glb",
     escala: 0.04,
     radioRecoleccion: 1.5,         // Distancia para recoger (unidades)
     // Posiciones estratégicas de spawns en el mapa

@@ -254,6 +254,25 @@ function actualizarInformacionArma(configArma) {
 }
 
 /**
+ * Obtiene el icono Lucide específico para cada arma
+ */
+function obtenerIconoArmaEspecifico(tipoArma) {
+    // Mapeo específico por nombre de arma
+    const iconosPorArma = {
+        'M4A1': '<i data-lucide="target"></i>',
+        'AK47': '<i data-lucide="zap"></i>',
+        'PISTOLA': '<i data-lucide="circle-dot"></i>',
+        'SNIPER': '<i data-lucide="crosshair"></i>',
+        'ESCOPETA': '<i data-lucide="flame"></i>',
+        'MP5': '<i data-lucide="bolt"></i>',
+        'KNIFE': '<i data-lucide="sword"></i>',
+        'JUICEBOX': '<i data-lucide="heart-pulse"></i>'
+    };
+    
+    return iconosPorArma[tipoArma] || '<i data-lucide="circle-dot"></i>';
+}
+
+/**
  * Crear selector de armas
  */
 function crearSelectorArmas() {
@@ -267,10 +286,13 @@ function crearSelectorArmas() {
     armasDisponibles.forEach(tipoArma => {
         const configArma = CONFIG.armas[tipoArma];
         
+        // Obtener icono específico del arma
+        const icono = obtenerIconoArmaEspecifico(tipoArma);
+        
         const botonArma = document.createElement('button');
         botonArma.className = `weapon-selector-btn ${tipoArma === armaSeleccionada ? 'active' : ''}`;
         botonArma.innerHTML = `
-            <div class="weapon-icon">🔫</div>
+            <div class="weapon-icon">${icono}</div>
             <div class="weapon-name">${configArma.nombre}</div>
         `;
         
@@ -280,6 +302,11 @@ function crearSelectorArmas() {
         
         elementos.armaSelector.appendChild(botonArma);
     });
+    
+    // Reinicializar iconos Lucide después de agregar el HTML
+    if (typeof window.reinicializarIconos === 'function') {
+        window.reinicializarIconos();
+    }
 }
 
 /**

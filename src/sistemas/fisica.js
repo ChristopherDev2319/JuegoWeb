@@ -114,7 +114,7 @@ export function getCharacterController() {
  * @param {number} escala - Factor de escala para la geometría (default: 5)
  * @returns {Promise<boolean>} true si la carga fue exitosa
  */
-export async function cargarGeometriaColisiones(modelPath = 'modelos/map_coll.glb', escala = 5) {
+export async function cargarGeometriaColisiones(modelPath = 'public/modelos/map_coll.glb', escala = 5) {
   if (!sistemaActivo || !world || !RAPIER) {
     console.error('❌ Sistema de física no inicializado. Llama a inicializarFisica() primero.');
     return false;

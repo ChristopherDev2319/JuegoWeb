@@ -67,7 +67,7 @@ export function obtenerArmasDisponibles() {
       tipo: tipo,
       nombre: config.nombre || tipo,
       descripcion: obtenerDescripcionArma(tipo, config),
-      icono: obtenerIconoArma(config.tipo),
+      icono: obtenerIconoArma(tipo), // Usar el nombre específico del arma
       stats: {
         daño: config.daño || 0,
         cadencia: config.cadenciaDisparo || 0,
@@ -281,7 +281,7 @@ function obtenerDescripcionArma(tipo, config) {
   const descripciones = {
     'M4A1': 'Rifle versátil y equilibrado',
     'AK47': 'Alto daño, alto retroceso',
-    'PISTOLA': 'Arma económica, alta precisión',
+    'PISTOLA': 'Devastadora, 3 disparos matan',
     'SNIPER': 'Un disparo, un kill',
     'ESCOPETA': 'Devastadora de cerca',
     'MP5': 'Alta cadencia, movilidad'
@@ -295,15 +295,30 @@ function obtenerDescripcionArma(tipo, config) {
  * @private
  */
 function obtenerIconoArma(tipoArma) {
-  const iconos = {
-    'rifle': '🔫',
-    'pistola': '🔫',
-    'francotirador': '🎯',
-    'escopeta': '💥',
-    'subfusil': '⚡'
+  // Mapeo específico por tipo de arma
+  const iconosPorTipo = {
+    'rifle': '<i data-lucide="target"></i>',
+    'pistola': '<i data-lucide="circle-dot"></i>',
+    'francotirador': '<i data-lucide="crosshair"></i>',
+    'escopeta': '<i data-lucide="flame"></i>',
+    'subfusil': '<i data-lucide="bolt"></i>',
+    'melee': '<i data-lucide="sword"></i>'
   };
   
-  return iconos[tipoArma] || '🔫';
+  // Mapeo específico por nombre de arma (más específico)
+  const iconosPorArma = {
+    'M4A1': '<i data-lucide="target"></i>',
+    'AK47': '<i data-lucide="zap"></i>',
+    'PISTOLA': '<i data-lucide="circle-dot"></i>',
+    'SNIPER': '<i data-lucide="crosshair"></i>',
+    'ESCOPETA': '<i data-lucide="flame"></i>',
+    'MP5': '<i data-lucide="bolt"></i>',
+    'KNIFE': '<i data-lucide="sword"></i>',
+    'JUICEBOX': '<i data-lucide="heart-pulse"></i>'
+  };
+  
+  // Primero intentar por nombre específico, luego por tipo
+  return iconosPorArma[tipoArma] || iconosPorTipo[tipoArma] || '<i data-lucide="circle-dot"></i>';
 }
 
 /**

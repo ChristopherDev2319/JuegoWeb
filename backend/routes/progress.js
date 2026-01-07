@@ -31,17 +31,7 @@ router.get('/load', authenticateToken, async (req, res) => {
                     user_id: userId,
                     kills: 0,
                     deaths: 0,
-                    shots_fired: 0,
-                    shots_hit: 0,
-                    playtime_seconds: 0,
-                    mouse_sensitivity: 0.002,
-                    volume: 0.5,
-                    fov: 75,
-                    show_fps: false,
-                    level: 1,
-                    experience: 0,
-                    unlocked_weapons: ['M4A1', 'PISTOLA'],
-                    additional_data: {},
+                    matches: 0,
                     updated_at: new Date()
                 };
                 
@@ -61,48 +51,38 @@ router.get('/load', authenticateToken, async (req, res) => {
             });
         }
 
-        // Código original para MySQL
+        // Código para PostgreSQL - usando tabla player_stats
         const progress = await executeQuery(`
-            SELECT 
-                kills, deaths, shots_fired, shots_hit, playtime_seconds,
-                mouse_sensitivity, volume, fov, show_fps,
-                level, experience, unlocked_weapons, additional_data,
-                updated_at
-            FROM user_progress 
-            WHERE user_id = ?
+            SELECT kills, deaths, matches, updated_at
+            FROM player_stats 
+            WHERE user_id = $1
         `, [userId]);
 
-        if (progress.length === 0) {
+        if (progress.rows.length === 0) {
             // Crear progreso inicial si no existe
             await executeQuery(`
-                INSERT INTO user_progress (
-                    user_id, kills, deaths, shots_fired, shots_hit, playtime_seconds,
-                    mouse_sensitivity, volume, fov, show_fps, level, experience, unlocked_weapons
-                ) VALUES (?, 0, 0, 0, 0, 0, 0.002, 0.5, 75, FALSE, 1, 0, ?)
-            `, [userId, JSON.stringify(['M4A1', 'PISTOLA'])]);
+                INSERT INTO player_stats (user_id, kills, deaths, matches)
+                VALUES ($1, 0, 0, 0)
+            `, [userId]);
 
             // Obtener el progreso recién creado
             const newProgress = await executeQuery(`
-                SELECT 
-                    kills, deaths, shots_fired, shots_hit, playtime_seconds,
-                    mouse_sensitivity, volume, fov, show_fps,
-                    level, experience, unlocked_weapons, additional_data,
-                    updated_at
-                FROM user_progress 
-                WHERE user_id = ?
+                SELECT kills, deaths, matches, updated_at
+                FROM player_stats 
+                WHERE user_id = $1
             `, [userId]);
 
             return res.json({
                 success: true,
                 message: 'Progreso inicial creado',
-                data: formatProgressData(newProgress[0])
+                data: formatProgressData(newProgress.rows[0])
             });
         }
 
         res.json({
             success: true,
             message: 'Progreso cargado exitosamente',
-            data: formatProgressData(progress[0])
+            data: formatProgressData(progress.rows[0])
         });
 
     } catch (error) {
@@ -118,7 +98,7 @@ router.get('/load', authenticateToken, async (req, res) => {
 router.post('/save', authenticateToken, validateProgress, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { stats, config, progress, additionalData } = req.body;
+        const { stats } = req.body;
 
         // Verificar si la base de datos está disponible
         if (!isDatabaseAvailable()) {
@@ -129,17 +109,7 @@ router.post('/save', authenticateToken, validateProgress, async (req, res) => {
                 user_id: userId,
                 kills: 0,
                 deaths: 0,
-                shots_fired: 0,
-                shots_hit: 0,
-                playtime_seconds: 0,
-                mouse_sensitivity: 0.002,
-                volume: 0.5,
-                fov: 75,
-                show_fps: false,
-                level: 1,
-                experience: 0,
-                unlocked_weapons: ['M4A1', 'PISTOLA'],
-                additional_data: {},
+                matches: 0,
                 updated_at: new Date()
             };
             
@@ -147,26 +117,7 @@ router.post('/save', authenticateToken, validateProgress, async (req, res) => {
             if (stats) {
                 if (stats.kills !== undefined) currentProgress.kills = stats.kills;
                 if (stats.deaths !== undefined) currentProgress.deaths = stats.deaths;
-                if (stats.shotsFired !== undefined) currentProgress.shots_fired = stats.shotsFired;
-                if (stats.shotsHit !== undefined) currentProgress.shots_hit = stats.shotsHit;
-                if (stats.playtime !== undefined) currentProgress.playtime_seconds = stats.playtime;
-            }
-            
-            if (config) {
-                if (config.mouseSensitivity !== undefined) currentProgress.mouse_sensitivity = config.mouseSensitivity;
-                if (config.volume !== undefined) currentProgress.volume = config.volume;
-                if (config.fov !== undefined) currentProgress.fov = config.fov;
-                if (config.showFPS !== undefined) currentProgress.show_fps = config.showFPS;
-            }
-            
-            if (progress) {
-                if (progress.level !== undefined) currentProgress.level = progress.level;
-                if (progress.experience !== undefined) currentProgress.experience = progress.experience;
-                if (progress.unlockedWeapons !== undefined) currentProgress.unlocked_weapons = progress.unlockedWeapons;
-            }
-            
-            if (additionalData !== undefined) {
-                currentProgress.additional_data = additionalData;
+                if (stats.matches !== undefined) currentProgress.matches = stats.matches;
             }
             
             currentProgress.updated_at = new Date();
@@ -181,74 +132,25 @@ router.post('/save', authenticateToken, validateProgress, async (req, res) => {
             });
         }
 
-        // Código original para MySQL
+        // Código para PostgreSQL - usando tabla player_stats
         const updates = [];
         const values = [];
+        let paramIndex = 1;
 
         // Estadísticas
         if (stats) {
             if (stats.kills !== undefined) {
-                updates.push('kills = ?');
+                updates.push(`kills = $${paramIndex++}`);
                 values.push(stats.kills);
             }
             if (stats.deaths !== undefined) {
-                updates.push('deaths = ?');
+                updates.push(`deaths = $${paramIndex++}`);
                 values.push(stats.deaths);
             }
-            if (stats.shotsFired !== undefined) {
-                updates.push('shots_fired = ?');
-                values.push(stats.shotsFired);
+            if (stats.matches !== undefined) {
+                updates.push(`matches = $${paramIndex++}`);
+                values.push(stats.matches);
             }
-            if (stats.shotsHit !== undefined) {
-                updates.push('shots_hit = ?');
-                values.push(stats.shotsHit);
-            }
-            if (stats.playtime !== undefined) {
-                updates.push('playtime_seconds = ?');
-                values.push(stats.playtime);
-            }
-        }
-
-        // Configuración
-        if (config) {
-            if (config.mouseSensitivity !== undefined) {
-                updates.push('mouse_sensitivity = ?');
-                values.push(config.mouseSensitivity);
-            }
-            if (config.volume !== undefined) {
-                updates.push('volume = ?');
-                values.push(config.volume);
-            }
-            if (config.fov !== undefined) {
-                updates.push('fov = ?');
-                values.push(config.fov);
-            }
-            if (config.showFPS !== undefined) {
-                updates.push('show_fps = ?');
-                values.push(config.showFPS);
-            }
-        }
-
-        // Progreso
-        if (progress) {
-            if (progress.level !== undefined) {
-                updates.push('level = ?');
-                values.push(progress.level);
-            }
-            if (progress.experience !== undefined) {
-                updates.push('experience = ?');
-                values.push(progress.experience);
-            }
-            if (progress.unlockedWeapons !== undefined) {
-                updates.push('unlocked_weapons = ?');
-                values.push(JSON.stringify(progress.unlockedWeapons));
-            }
-        }
-
-        // Datos adicionales
-        if (additionalData !== undefined) {
-            updates.push('additional_data = ?');
-            values.push(JSON.stringify(additionalData));
         }
 
         if (updates.length === 0) {
@@ -258,15 +160,14 @@ router.post('/save', authenticateToken, validateProgress, async (req, res) => {
             });
         }
 
-        // Agregar timestamp y user_id
-        updates.push('updated_at = CURRENT_TIMESTAMP');
+        // Agregar user_id al final
         values.push(userId);
 
         // Ejecutar actualización
-        const query = `UPDATE user_progress SET ${updates.join(', ')} WHERE user_id = ?`;
+        const query = `UPDATE player_stats SET ${updates.join(', ')} WHERE user_id = $${paramIndex}`;
         const result = await executeQuery(query, values);
 
-        if (result.affectedRows === 0) {
+        if (result.rowCount === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'Progreso del usuario no encontrado'
@@ -275,19 +176,15 @@ router.post('/save', authenticateToken, validateProgress, async (req, res) => {
 
         // Obtener progreso actualizado
         const updatedProgress = await executeQuery(`
-            SELECT 
-                kills, deaths, shots_fired, shots_hit, playtime_seconds,
-                mouse_sensitivity, volume, fov, show_fps,
-                level, experience, unlocked_weapons, additional_data,
-                updated_at
-            FROM user_progress 
-            WHERE user_id = ?
+            SELECT kills, deaths, matches, updated_at
+            FROM player_stats 
+            WHERE user_id = $1
         `, [userId]);
 
         res.json({
             success: true,
             message: 'Progreso guardado exitosamente',
-            data: formatProgressData(updatedProgress[0])
+            data: formatProgressData(updatedProgress.rows[0])
         });
 
     } catch (error) {
@@ -323,16 +220,10 @@ router.get('/stats', authenticateToken, async (req, res) => {
                 username: user ? user.username : 'Usuario',
                 kills: progressData.kills || 0,
                 deaths: progressData.deaths || 0,
-                shots_fired: progressData.shots_fired || 0,
-                shots_hit: progressData.shots_hit || 0,
-                playtime_seconds: progressData.playtime_seconds || 0,
-                level: progressData.level || 1,
-                experience: progressData.experience || 0,
+                matches: progressData.matches || 0,
                 kd_ratio: (progressData.deaths || 0) > 0 ? 
                     Math.round(((progressData.kills || 0) / progressData.deaths) * 100) / 100 : 
-                    (progressData.kills || 0),
-                accuracy_percentage: (progressData.shots_fired || 0) > 0 ? 
-                    Math.round(((progressData.shots_hit || 0) / progressData.shots_fired) * 100) : 0
+                    (progressData.kills || 0)
             };
             
             return res.json({
@@ -342,25 +233,21 @@ router.get('/stats', authenticateToken, async (req, res) => {
             });
         }
 
+        // Código para PostgreSQL - usando tabla player_stats
         const stats = await executeQuery(`
             SELECT 
                 u.username,
-                up.kills, up.deaths, up.shots_fired, up.shots_hit, up.playtime_seconds,
-                up.level, up.experience,
+                ps.kills, ps.deaths, ps.matches,
                 CASE 
-                    WHEN up.deaths > 0 THEN ROUND(up.kills / up.deaths, 2)
-                    ELSE up.kills
-                END as kd_ratio,
-                CASE 
-                    WHEN up.shots_fired > 0 THEN ROUND((up.shots_hit / up.shots_fired) * 100, 2)
-                    ELSE 0
-                END as accuracy_percentage
+                    WHEN ps.deaths > 0 THEN ROUND(ps.kills::numeric / ps.deaths, 2)
+                    ELSE ps.kills
+                END as kd_ratio
             FROM users u
-            JOIN user_progress up ON u.id = up.user_id
-            WHERE u.id = ?
+            JOIN player_stats ps ON u.id = ps.user_id
+            WHERE u.id = $1
         `, [userId]);
 
-        if (stats.length === 0) {
+        if (stats.rows.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'Estadísticas no encontradas'
@@ -370,7 +257,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
         res.json({
             success: true,
             message: 'Estadísticas obtenidas exitosamente',
-            data: stats[0]
+            data: stats.rows[0]
         });
 
     } catch (error) {
@@ -384,39 +271,14 @@ router.get('/stats', authenticateToken, async (req, res) => {
 
 // Función helper para formatear datos de progreso
 function formatProgressData(dbRow) {
-    // Manejar tanto formato de MySQL como formato de memoria
-    const unlocked_weapons = typeof dbRow.unlocked_weapons === 'string' 
-        ? JSON.parse(dbRow.unlocked_weapons) 
-        : dbRow.unlocked_weapons || ['M4A1', 'PISTOLA'];
-        
-    const additional_data = typeof dbRow.additional_data === 'string'
-        ? JSON.parse(dbRow.additional_data)
-        : dbRow.additional_data || {};
-    
     return {
         stats: {
             kills: dbRow.kills || 0,
             deaths: dbRow.deaths || 0,
-            shotsFired: dbRow.shots_fired || 0,
-            shotsHit: dbRow.shots_hit || 0,
-            playtime: dbRow.playtime_seconds || 0,
-            accuracy: (dbRow.shots_fired || 0) > 0 ? 
-                Math.round(((dbRow.shots_hit || 0) / dbRow.shots_fired) * 100) : 0,
+            matches: dbRow.matches || 0,
             kdRatio: (dbRow.deaths || 0) > 0 ? 
                 Math.round(((dbRow.kills || 0) / dbRow.deaths) * 100) / 100 : (dbRow.kills || 0)
         },
-        config: {
-            mouseSensitivity: parseFloat(dbRow.mouse_sensitivity || 0.002),
-            volume: parseFloat(dbRow.volume || 0.5),
-            fov: dbRow.fov || 75,
-            showFPS: dbRow.show_fps || false
-        },
-        progress: {
-            level: dbRow.level || 1,
-            experience: dbRow.experience || 0,
-            unlockedWeapons: unlocked_weapons
-        },
-        additionalData: additional_data,
         lastUpdated: dbRow.updated_at
     };
 }

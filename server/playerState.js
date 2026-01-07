@@ -37,8 +37,6 @@ export class PlayerState {
     this.reloadStartTime = null;
     this.lastFireTime = 0;
     
-    console.log(`[PLAYER] Created player ${id} with weapon: ${this.currentWeapon}, ammo: ${this.ammo}/${this.totalAmmo}`);
-    
     // Dash state (Requirement 7.2, 7.3)
     this.dashCharges = DASH_CONFIG.maxCharges;
     this.maxDashCharges = DASH_CONFIG.maxCharges;
@@ -127,7 +125,6 @@ export class PlayerState {
     this.health = Math.min(this.maxHealth, this.health + amount);
     const actualHealed = this.health - previousHealth;
     
-    console.log(`[HEAL] Player healed ${actualHealed} HP (${previousHealth} -> ${this.health})`);
     return actualHealed;
   }
 

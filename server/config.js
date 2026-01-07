@@ -54,7 +54,7 @@ export const WEAPON_CONFIG = {
   // Requisitos: 1.1 - Velocidad incrementada 50%
   default: {
     damage: 30,              // Daño por bala
-    fireRate: 75,            // Cadencia: 800 disparos por minuto (60000/75=800 RPM)
+    fireRate: 100,           // Cadencia: 600 disparos por minuto (60000/100=600 RPM)
     magazineSize: 30,        // Balas por cargador
     totalAmmo: 210,          // Munición de reserva - Actualizado
     reloadTime: 2000,        // Tiempo de recarga: 2 segundos
@@ -62,46 +62,46 @@ export const WEAPON_CONFIG = {
     headshotMultiplier: 2.0  // Daño x2 en headshot
   },
 
-  // M4A1: Rifle de asalto versátil y fácil de controlar
-  // Balas para matar: 7 (200 vida / 30 daño = 6.67 → 7 balas)
-  // Tiempo para matar: ~525ms (7 balas × 75ms)
-  // Requisitos: 1.1, 6.1 - Velocidad incrementada 50%, munición 210
+  // M4A1: Rifle versátil, fácil de controlar - Similar al Phantom/M4A4
+  // Balas para matar: 8 (200 vida / 28 daño = 7.14 → 8 balas)
+  // Tiempo para matar: ~600ms (8 balas × 86ms a 700 RPM)
+  // Características: Alta cadencia, bajo retroceso, buena precisión
   M4A1: {
-    damage: 30,              // Daño por bala
-    fireRate: 75,            // Cadencia: 800 RPM (60000/75)
+    damage: 28,              // Daño por bala - moderado
+    fireRate: 120,           // Cadencia: 500 RPM (60000/120)
     magazineSize: 30,        // Balas por cargador
-    totalAmmo: 210,          // Munición de reserva - Actualizado (Requisito 6.1)
-    reloadTime: 2000,        // Tiempo de recarga: 2 segundos
-    bulletSpeed: 60,         // Velocidad de bala - Actualizado: 35 → 60 (incremento 50%, Requisito 1.1)
-    headshotMultiplier: 2.0  // Daño x2 en headshot (60 daño)
+    totalAmmo: 120,          // 4 cargadores extra
+    reloadTime: 2200,        // Tiempo de recarga: 2.2 segundos
+    bulletSpeed: 65,         // Velocidad de bala alta
+    headshotMultiplier: 3.5  // Headshot: 98 daño (2 headshots = kill)
   },
 
-  // AK-47: Rifle de alto daño con retroceso pronunciado
-  // Balas para matar: 5 (200 vida / 45 daño = 4.44 → 5 balas)
-  // Tiempo para matar: ~545ms (5 balas × 109ms)
-  // Requisitos: 1.1, 6.1 - Velocidad incrementada 50%, munición 210
+  // AK-47: Rifle de alto daño, difícil control - Similar al Vandal/AK-47
+  // Balas para matar: 6 (200 vida / 38 daño = 5.26 → 6 balas)
+  // Tiempo para matar: ~500ms (6 balas × 100ms a 600 RPM)
+  // Características: Alto daño, retroceso fuerte, recompensa skill
   AK47: {
-    damage: 45,              // Daño por bala - alto
-    fireRate: 109,           // Cadencia: 550 RPM (60000/109)
+    damage: 38,              // Daño por bala - alto
+    fireRate: 133,           // Cadencia: 450 RPM (60000/133)
     magazineSize: 30,        // Balas por cargador
-    totalAmmo: 210,          // Munición de reserva - Actualizado (Requisito 6.1)
+    totalAmmo: 90,           // 3 cargadores extra
     reloadTime: 2500,        // Tiempo de recarga: 2.5 segundos
-    bulletSpeed: 63,         // Velocidad de bala - Actualizado: 35 → 63 (incremento 50%, Requisito 1.1)
-    headshotMultiplier: 2.0  // Daño x2 en headshot (90 daño)
+    bulletSpeed: 60,         // Velocidad de bala
+    headshotMultiplier: 4.0  // Headshot: 152 daño (1 HS + 2 body = kill)
   },
 
-  // Pistola: Arma secundaria de último recurso
-  // Balas para matar: 10 (200 vida / 20 daño = 10 balas)
-  // Tiempo para matar: ~1500ms (10 balas × 150ms)
-  // Requisitos: 1.1, 6.6 - Velocidad incrementada 50%
+  // Desert Eagle: Pistola de alto calibre - 3 disparos para matar
+  // Balas para matar: 3 (200 vida / 90 daño = 2.22 → 3 balas)
+  // Tiempo para matar: ~800ms (3 balas × 400ms a 150 RPM)
+  // Características: Daño devastador, alto retroceso, headshot letal
   PISTOLA: {
-    damage: 20,              // Daño por bala - bajo
-    fireRate: 150,           // Cadencia: 400 RPM (60000/150)
-    magazineSize: 7,         // Balas por cargador - limitado
-    totalAmmo: 35,           // Munición de reserva
-    reloadTime: 1500,        // Tiempo de recarga: 1.5 segundos - rápido
-    bulletSpeed: 45,         // Velocidad de bala - Actualizado: 25 → 45 (incremento 50%, Requisito 1.1)
-    headshotMultiplier: 2.0  // Daño x2 en headshot (40 daño)
+    damage: 90,              // Daño por bala - devastador (3 balas para matar)
+    fireRate: 400,           // Cadencia: 150 RPM (60000/400)
+    magazineSize: 7,         // Balas por cargador
+    totalAmmo: 28,           // 4 cargadores extra
+    reloadTime: 1800,        // Tiempo de recarga: 1.8 segundos
+    bulletSpeed: 50,         // Velocidad de bala
+    headshotMultiplier: 2.5  // Headshot: 225 daño (1 shot kill)
   },
 
   // Sniper (AWP): Rifle de francotirador de alto daño - ONE SHOT KILL
@@ -141,7 +141,7 @@ export const WEAPON_CONFIG = {
   // Requisitos: 1.1, 6.2 - Velocidad incrementada 50%, munición 240
   MP5: {
     damage: 24,              // Daño por bala - moderado
-    fireRate: 71,            // Cadencia: 850 RPM (60000/71) - muy rápido
+    fireRate: 100,           // Cadencia: 600 RPM (60000/100) - rápido
     magazineSize: 30,        // Balas por cargador
     totalAmmo: 240,          // Munición de reserva - Actualizado (Requisito 6.2)
     reloadTime: 2000,        // Tiempo de recarga: 2 segundos

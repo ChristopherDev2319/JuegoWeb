@@ -8,6 +8,8 @@
 // Importar módulos del juego
 import { CONFIG } from './config.js';
 
+import { getStorageJSON, setStorageJSON, getStorageInfo } from './utils/storage.js';
+
 import { 
   inicializarEscena, 
   scene, 
@@ -79,11 +81,11 @@ import {
   teclas, 
   inicializarControles, 
   estaPointerLockActivo, 
-  estaMousePresionado 
+  estaMousePresionado
 } from './sistemas/controles.js';
 
 import { crearEfectoDash } from './utils/efectos.js';
-import { mostrarIndicadorDaño, mostrarMensajeConexion, ocultarMensajeConexion, mostrarPantallaMuerte, ocultarPantallaMuerte, agregarEntradaKillFeed, actualizarBarraVida, mostrarEfectoDaño, mostrarDañoCausado, actualizarInfoArma, mostrarCambioArma, actualizarBarraCuracion, ocultarBarraCuracion } from './utils/ui.js';
+import { mostrarIndicadorDaño, mostrarMensajeConexion, ocultarMensajeConexion, mostrarPantallaMuerte, ocultarPantallaMuerte, agregarEntradaKillFeed, actualizarBarraVida, mostrarEfectoDaño, mostrarDañoCausado, actualizarInfoArma, mostrarCambioArma, actualizarBarraCuracion, ocultarBarraCuracion, actualizarHealBox, inicializarLucideIcons, inicializarCacheDOM, mostrarMensajeVidaLlena } from './utils/ui.js';
 
 // Network imports
 import { getConnection } from './network/connection.js';
@@ -101,6 +103,7 @@ import {
   registrarDeath as registrarDeathProgreso,
   registrarDisparo as registrarDisparoProgreso,
   registrarImpacto as registrarImpactoProgreso,
+  registrarPartida as registrarPartidaProgreso,
   actualizarTiempoJugado,
   actualizarConfiguracion
 } from './sistemas/progreso.js';
@@ -130,7 +133,7 @@ import {
 } from './ui/weaponSelectorLocal.js';
 
 // Sistema de menú de pausa
-import { inicializarMenuPausa, alternarMenuPausa, estaMenuActivo, cerrarMenuForzado } from './sistemas/menuPausa.js';
+import { inicializarMenuPausa, alternarMenuPausa, estaMenuActivo, cerrarMenuForzado, reiniciarEstadisticas as reiniciarEstadisticasPartida } from './sistemas/menuPausa.js';
 
 // Sistema de sonidos
 import { inicializarSonidos, reproducirSonidoDisparo } from './sistemas/sonidos.js';
@@ -255,9 +258,10 @@ window.modoJuegoActual = modoJuegoActual;
  */
 function leerConfiguracionGuardada() {
   try {
-    const configGuardada = localStorage.getItem('gameConfig');
-    if (configGuardada) {
-      const config = JSON.parse(configGuardada);
+    console.log('💾 Storage Info:', getStorageInfo());
+    const config = getStorageJSON('gameConfig', null);
+    
+    if (config) {
       CONFIG.red.habilitarMultijugador = config.multiplayerEnabled;
       
       console.log('📋 Configuración cargada:');
@@ -266,9 +270,11 @@ function leerConfiguracionGuardada() {
       if (!config.multiplayerEnabled) {
         console.log('🎯 Modo local activado');
       }
+    } else {
+      console.log('ℹ️ No hay configuración guardada');
     }
   } catch (error) {
-    console.warn('No se pudo cargar la configuración guardada:', error);
+    console.warn('⚠️ No se pudo cargar la configuración guardada:', error);
   }
 }
 
@@ -471,6 +477,12 @@ function configurarBotonReaparecer(armaActual) {
 async function iniciarJuegoConArma(tipoArma) {
   console.log(`🎮 Iniciando juego con arma: ${tipoArma}`);
   
+  // Registrar partida jugada (se guarda en base de datos)
+  registrarPartidaProgreso();
+  
+  // Reiniciar estadísticas del menú de pausa (solo para esta partida)
+  reiniciarEstadisticasPartida();
+  
   // Ocultar menú de selección
   ocultarMenuArmas();
   ocultarMenuSeleccion();
@@ -497,8 +509,13 @@ function mostrarIndicadorModoLocal() {
     indicador = document.createElement('div');
     indicador.id = 'modo-local-indicator';
     indicador.className = 'modo-local-indicator';
-    indicador.innerHTML = '🎮 Modo Local';
+    indicador.innerHTML = '<i data-lucide="gamepad-2"></i> Modo Local';
     document.body.appendChild(indicador);
+    
+    // Reinicializar iconos Lucide después de agregar el HTML
+    if (typeof window.reinicializarIconos === 'function') {
+      window.reinicializarIconos();
+    }
   }
   
   indicador.style.display = 'block';
@@ -672,7 +689,7 @@ function mostrarMensajeMunicion(cantidad) {
   // Crear elemento de mensaje
   const mensaje = document.createElement('div');
   mensaje.className = 'ammo-pickup-message';
-  mensaje.innerHTML = `+${cantidad} 🔫`;
+  mensaje.innerHTML = `+${cantidad} <i data-lucide="crosshair"></i>`;
   mensaje.style.cssText = `
     position: fixed;
     bottom: 150px;
@@ -705,6 +722,11 @@ function mostrarMensajeMunicion(cantidad) {
   }
 
   document.body.appendChild(mensaje);
+  
+  // Reinicializar iconos Lucide después de agregar el HTML
+  if (typeof window.reinicializarIconos === 'function') {
+    window.reinicializarIconos();
+  }
 
   // Remover después de la animación
   setTimeout(() => {
@@ -737,6 +759,8 @@ let botManager = null;
 // Sistema de spawns de munición
 // Requirements: 5.1, 5.2, 5.3, 5.4
 let ammoSpawns = [];
+
+
 
 // Input sending rate control (20Hz to match server tick rate)
 const INPUT_SEND_RATE = 1000 / 20; // 50ms
@@ -778,8 +802,9 @@ async function inicializar() {
   cargarConfiguracionLobby();
   
   // Inicializar sistema de autenticación (opcional)
+  // Requirements: 1.4 - Session persistence on page load
   try {
-    inicializarAuthUI();
+    await inicializarAuthUI();
     console.log('✅ Sistema de autenticación inicializado');
   } catch (error) {
     console.warn('⚠️ Error inicializando autenticación:', error);
@@ -1179,8 +1204,9 @@ async function inicializarJuegoCompleto() {
   }
 
   // Inicializar sistema de autenticación
+  // Requirements: 1.4 - Session persistence on page load
   try {
-    inicializarAuthUI();
+    await inicializarAuthUI();
     console.log('✅ Sistema de autenticación inicializado');
   } catch (error) {
     console.warn('⚠️ Error inicializando autenticación:', error);
@@ -1198,7 +1224,14 @@ async function inicializarJuegoCompleto() {
 
   // Inicializar displays de UI
   actualizarDisplayMunicion();
-  actualizarDisplayDash();
+  actualizarRecargaDash();
+  
+  // Inicializar cache de elementos DOM para optimización
+  // Requirements: 5.1 - Cache de referencias DOM
+  inicializarCacheDOM();
+  
+  // Inicializar iconos de Lucide
+  inicializarLucideIcons();
 
   // Initialize network connection (Requirement 2.1)
   // Solo conectar si es modo online
@@ -1290,8 +1323,8 @@ function volverAlLobby() {
     remotePlayerManager.clear();
   }
   
-  // Cerrar sesión y volver al login
-  cerrarSesion();
+  // NO cerrar sesión - mantener la sesión del usuario
+  // La sesión se restaurará automáticamente al recargar gracias a localStorage
   
   // Recargar la página para reiniciar completamente
   window.location.reload();
@@ -1348,7 +1381,7 @@ function actualizarStatsLocales(stat, incremento = 1) {
     const authState = obtenerEstadoAuth();
     if (authState.isAuthenticated) return; // Solo para usuarios no autenticados
     
-    const statsLocales = JSON.parse(localStorage.getItem('gameStats') || '{}');
+    const statsLocales = getStorageJSON('gameStats', {});
     statsLocales[stat] = (statsLocales[stat] || 0) + incremento;
     
     // Calcular experiencia basada en acciones
@@ -1360,9 +1393,12 @@ function actualizarStatsLocales(stat, incremento = 1) {
       statsLocales.experience = (statsLocales.experience || 0) + 5; // 5 XP por impacto
     }
     
-    localStorage.setItem('gameStats', JSON.stringify(statsLocales));
+    const guardado = setStorageJSON('gameStats', statsLocales);
+    if (!guardado) {
+      console.warn('⚠️ Estadísticas guardadas en memoria temporal');
+    }
   } catch (error) {
-    console.warn('Error actualizando estadísticas locales:', error);
+    console.warn('⚠️ Error actualizando estadísticas locales:', error);
   }
 }
 
@@ -1767,7 +1803,7 @@ function procesarEstadoJuego(gameState) {
     
     // Update UI
     actualizarDisplayMunicion();
-    actualizarDisplayDash();
+    actualizarRecargaDash();
   }
 }
 
@@ -2268,7 +2304,7 @@ function manejarDash() {
       crearEfectoDash(jugador.posicion, scene);
     });
   }
-  actualizarDisplayDash();
+  actualizarRecargaDash();
 }
 
 /**
@@ -2309,9 +2345,13 @@ function calcularDireccionDash() {
   };
 }
 
+// Vector reutilizable para verificación de impactos (optimización)
+const _hitboxWorldPos = new THREE.Vector3();
+
 /**
  * Verifica si una bala impacta algún bot de entrenamiento
  * Requirement 1.4: Registrar impacto y actualizar barra de vida del bot
+ * OPTIMIZADO: Usa vector reutilizable para evitar garbage collection
  * 
  * @param {Bala} bala - La bala a verificar
  * @param {Array<BotBase>} bots - Array de bots vivos
@@ -2329,12 +2369,11 @@ function verificarImpactoBots(bala, bots) {
     const hitbox = bot.obtenerHitbox();
     if (!hitbox) continue;
 
-    // Obtener posición mundial de la hitbox
-    const hitboxWorldPos = new THREE.Vector3();
-    hitbox.getWorldPosition(hitboxWorldPos);
+    // Obtener posición mundial de la hitbox (reutilizando vector)
+    hitbox.getWorldPosition(_hitboxWorldPos);
 
     // Calcular distancia entre bala y centro de hitbox
-    const distancia = posicionBala.distanceTo(hitboxWorldPos);
+    const distancia = posicionBala.distanceTo(_hitboxWorldPos);
 
     // Radio de colisión aproximado (diagonal de la hitbox / 2)
     const radioColision = 1.5; // Aproximación basada en hitbox 1.4 x 2.0 x 1.2
@@ -2348,8 +2387,6 @@ function verificarImpactoBots(bala, bots) {
       
       // Mostrar indicador de daño en pantalla (igual que modo online)
       mostrarDañoCausado(daño);
-      
-      console.log(`🎯 Bala impactó bot ${bot.tipo} - Daño: ${daño}`);
       
       // Crear efecto de impacto
       bala.crearEfectoImpacto(bala.mesh.position);
@@ -2373,14 +2410,14 @@ function obtenerFireRateServidor(tipoArma) {
   // Valores de fireRate del servidor (server/config.js WEAPON_CONFIG)
   // Estos valores son la ÚNICA fuente de verdad para la cadencia de disparo
   const fireRatesServidor = {
-    'M4A1': 75,      // 800 RPM (60000/75)
-    'AK47': 109,     // 550 RPM (60000/109)
-    'PISTOLA': 150,  // 400 RPM (60000/150)
+    'M4A1': 120,     // 500 RPM (60000/120)
+    'AK47': 133,     // 450 RPM (60000/133)
+    'PISTOLA': 400,  // 150 RPM (60000/400)
     'SNIPER': 1333,  // 45 RPM (60000/1333)
     'ESCOPETA': 857, // 70 RPM (60000/857)
-    'MP5': 71,       // 850 RPM (60000/71)
+    'MP5': 100,      // 600 RPM (60000/100)
     'KNIFE': 350,    // Cadencia de ataque melee
-    'default': 75    // Fallback igual a M4A1
+    'default': 100   // Fallback
   };
   
   return fireRatesServidor[tipoArma] || fireRatesServidor['default'];
@@ -2476,13 +2513,19 @@ function manejarDisparo() {
   // Requirements: 3.1 - Iniciar curación al hacer clic con JuiceBox equipado
   if (esJuiceBoxEquipado()) {
     console.log('🧃 JuiceBox equipado - Iniciando curación');
-    const curacionIniciada = iniciarCuracion();
-    if (curacionIniciada) {
+    // Pasar vida actual y máxima para validar si puede curarse
+    const resultado = iniciarCuracion(jugador.health, jugador.maxHealth);
+    
+    if (resultado.iniciada) {
       console.log('🧃 Curación iniciada correctamente');
       // Notificar al servidor del inicio de curación
       if (isMultiplayerConnected && inputSender) {
         inputSender.sendHealStart();
       }
+    } else if (resultado.razon === 'vida_llena') {
+      // Mostrar mensaje de vida llena
+      mostrarMensajeVidaLlena('Vida llena');
+      console.log('🧃 No se puede curar - Vida llena');
     }
     return;
   }
@@ -2754,29 +2797,46 @@ function actualizarDisplayMunicion() {
 }
 
 /**
- * Actualiza el display de cargas de dash en la UI
- * Exactamente igual que en modo multijugador - solo muestra cargas llenas o vacías
+ * OLD actualizarDisplayDash - DEPRECATED
+ * Now using actualizarDashBox from dash.js which is called in actualizarRecargaDash
+ * Keeping commented for reference
  */
+/*
 function actualizarDisplayDash() {
-  const icons = document.querySelectorAll('.dash-icon');
+  // Buscar el contenedor de dash
+  const dashContainer = document.getElementById('dash-charges');
+  if (!dashContainer) return;
+  
+  // Buscar iconos dentro del contenedor de dash-icons (nuevo diseño)
+  const iconsContainer = dashContainer.querySelector('.dash-icons-container');
+  const icons = iconsContainer 
+    ? iconsContainer.querySelectorAll('.dash-icon') 
+    : dashContainer.querySelectorAll('.dash-icon');
+  
   if (!icons.length) return;
 
   for (let i = 0; i < icons.length; i++) {
     const icon = icons[i];
     
+    // Remover todas las clases de estado primero
+    icon.classList.remove('recharging', 'empty');
+    
+    // Requirements: 2.8 - Indicador verde brillante cuando carga disponible
     if (i < sistemaDash.cargasActuales) {
-      // Carga disponible - verde
-      icon.className = 'dash-icon';
-      icon.style.background = '';
-      icon.style.opacity = '';
-    } else {
-      // Carga vacía - gris
-      icon.className = 'dash-icon empty';
-      icon.style.background = '';
-      icon.style.opacity = '';
+      // Carga disponible - estado base (verde brillante)
+      // No se necesita clase adicional, el estilo base es verde
+    }
+    // Requirements: 2.7 - Indicador de progreso cuando se está recargando
+    else if (sistemaDash.cargasRecargando && sistemaDash.cargasRecargando[i]) {
+      icon.classList.add('recharging');
+    }
+    // Requirements: 2.6 - Indicador vacío cuando no está disponible
+    else {
+      icon.classList.add('empty');
     }
   }
 }
+*/
 
 /**
  * Bucle principal del juego
@@ -2818,9 +2878,10 @@ function bucleJuego() {
     // Update local systems (for prediction/responsiveness)
     if (!isMultiplayerConnected) {
       // Only update dash recharge locally when not connected
+      // actualizarDashBox is now called inside actualizarRecargaDash
       actualizarRecargaDash();
     }
-    actualizarDisplayDash();
+    // OLD: actualizarDisplayDash() - now using actualizarDashBox from dash.js
     
     // Actualizar interpolación del dash si está en progreso
     // Requirements: 1.2 - Actualizar posición del jugador en cada frame durante dash
@@ -2844,9 +2905,26 @@ function bucleJuego() {
       }
       // Actualizar UI de progreso de curación
       actualizarBarraCuracion(obtenerProgresoCuracion());
+      
+      // Requirements: 5.4, 5.5, 5.6 - Actualizar Heal Box UI durante curación
+      actualizarHealBox({
+        puedeUsarse: false,
+        enCooldown: true
+      });
     } else {
       // Ocultar barra de curación si no está curando
       ocultarBarraCuracion();
+      
+      // Requirements: 5.4, 5.5 - Actualizar Heal Box UI cuando no está curando
+      // Verificar si puede curarse (vida no llena)
+      const vidaActual = jugador.health || jugador.vida || jugador.vidaActual || 0;
+      const vidaMaxima = jugador.maxHealth || jugador.vidaMaxima || 200;
+      const puedeUsarse = vidaActual < vidaMaxima;
+      
+      actualizarHealBox({
+        puedeUsarse: puedeUsarse,
+        enCooldown: false
+      });
     }
 
     // Disparo automático si el mouse está presionado (solo para armas automáticas)
@@ -2944,8 +3022,8 @@ window.abrirMenuUsuario = function() {
       };
     } else {
       // Usuario no autenticado - usar datos locales del localStorage
-      const statsLocales = JSON.parse(localStorage.getItem('gameStats') || '{}');
-      const configLocal = JSON.parse(localStorage.getItem('gameConfig') || '{}');
+      const statsLocales = getStorageJSON('gameStats', {});
+      const configLocal = getStorageJSON('gameConfig', {});
       
       // Calcular nivel basado en experiencia local
       const experiencia = statsLocales.experience || 0;

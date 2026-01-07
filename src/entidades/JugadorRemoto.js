@@ -11,7 +11,7 @@ import { AnimadorPersonaje, cargarAnimacion } from '../sistemas/animaciones.js';
 
 // Configuración del modelo del personaje
 const CHARACTER_CONFIG = {
-  modelPath: 'modelos/animaciones/idle_tps.glb', // Modelo con armas integradas
+  modelPath: 'public/modelos/animaciones/idle_tps.glb', // Modelo con armas integradas
   scale: 7.0,
   rotationOffset: Math.PI,
   heightOffset: 0,
@@ -35,7 +35,7 @@ const WEAPON_MODEL_NAMES = {
 // Configuración del cuchillo TPS
 // Requirements: 1.1, 1.2, 1.3, 1.4, 3.1, 3.2, 3.3
 const KNIFE_TPS_CONFIG = {
-  modelPath: 'modelos/valorants_knife_low_poly.glb',
+  modelPath: 'public/modelos/valorants_knife_low_poly.glb',
   scale: 0.08,  // Escala apropiada para TPS
   // Offset de posición relativo al hueso de la mano
   positionOffset: { x: 0.02, y: 0.01, z: 0.03 },
@@ -46,7 +46,7 @@ const KNIFE_TPS_CONFIG = {
   // Configuración de animación de ataque
   // Requirements: 3.1, 3.2
   animacionAtaque: {
-    ruta: 'modelos/animaciones/knife_attack_tps.glb',
+    ruta: 'public/modelos/animaciones/knife_attack_tps.glb',
     duracion: 0.5,  // Duración aproximada de la animación en segundos
     cooldown: 500   // Cooldown en milisegundos (debe coincidir con CONFIG.armas.KNIFE.cadenciaAtaque)
   }
@@ -63,7 +63,7 @@ const STRAW_MESH_CONFIG = {
 // Configuración del JuiceBox TPS para sistema de curación
 // Requirements: 5.1, 6.1, 6.2
 const JUICEBOX_TPS_CONFIG = {
-  modelPath: 'modelos/stylized_juicebox.glb',
+  modelPath: 'public/modelos/stylized_juicebox.glb',
   scale: 0.15,  // Escala apropiada para TPS
   // Offset de posición relativo al hueso de la mano
   positionOffset: { x: 0.02, y: 0.01, z: 0.03 },
@@ -74,7 +74,7 @@ const JUICEBOX_TPS_CONFIG = {
   // Configuración de animación de curación
   // Requirements: 5.2
   animacionCuracion: {
-    ruta: 'modelos/animaciones/healt_tps.glb',
+    ruta: 'public/modelos/animaciones/healt_tps.glb',
     duracion: 2.0  // Duración de la curación en segundos (debe coincidir con CONFIG.curacion.tiempoCuracion)
   }
 };
@@ -218,9 +218,14 @@ export class RemotePlayer {
       this.animacionesDelModelo = gltf.animations || [];
       
       this.characterModel.traverse((child) => {
+        // IMPORTANTE: Desactivar frustum culling para evitar que el modelo
+        // desaparezca cuando la cámara mira hacia arriba
+        child.frustumCulled = false;
+        
         if (child.isMesh) {
           child.castShadow = false;
           child.receiveShadow = false;
+          child.frustumCulled = false;
         }
         
         // Buscar y guardar referencias a las armas del modelo
@@ -589,10 +594,13 @@ export class RemotePlayer {
           this.modeloCuchilloTPS.traverse((child) => {
             // Ocultar TODOS los objetos del cuchillo inicialmente
             child.visible = false;
+            // Desactivar frustum culling
+            child.frustumCulled = false;
             
             if (child.isMesh) {
               child.castShadow = false;
               child.receiveShadow = false;
+              child.frustumCulled = false;
               this.meshesCuchillo.push(child);
               console.log(`🔪 Mesh del cuchillo encontrado: ${child.name}`);
             }
@@ -696,10 +704,13 @@ export class RemotePlayer {
           this.modeloJuiceBoxTPS.traverse((child) => {
             // Ocultar TODOS los objetos del JuiceBox inicialmente
             child.visible = false;
+            // Desactivar frustum culling
+            child.frustumCulled = false;
             
             if (child.isMesh) {
               child.castShadow = false;
               child.receiveShadow = false;
+              child.frustumCulled = false;
               this.meshesJuiceBox.push(child);
               console.log(`🧃 Mesh del JuiceBox encontrado: ${child.name}`);
             }
@@ -1208,6 +1219,7 @@ export class RemotePlayer {
     this.mesh.position.y = 1;
     this.mesh.castShadow = false;
     this.mesh.receiveShadow = false;
+    this.mesh.frustumCulled = false;
     
     this.group.add(this.mesh);
   }

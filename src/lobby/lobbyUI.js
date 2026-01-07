@@ -133,6 +133,13 @@ function cachearElementos() {
     // Elementos adicionales del nuevo layout
     onlineCount: document.querySelector('.online-count')
   };
+  
+  // Log de elementos de configuración para debugging
+  console.log('🔍 Elementos de configuración encontrados:');
+  console.log('  configSensibilidad:', !!elementos.configSensibilidad);
+  console.log('  configVolumen:', !!elementos.configVolumen);
+  console.log('  configMostrarFPS:', !!elementos.configMostrarFPS);
+  console.log('  configCrosshairDinamico:', !!elementos.configCrosshairDinamico);
 }
 
 
@@ -442,43 +449,59 @@ function configurarEventosConfiguracion() {
   // Slider de sensibilidad
   // Requirements: 7.2, 7.3 - Mostrar opciones de sensibilidad y guardar cambios
   if (elementos.configSensibilidad) {
+    console.log('🎯 Configurando event listener para sensibilidad');
     elementos.configSensibilidad.addEventListener('input', (e) => {
       const valor = parseFloat(e.target.value);
+      console.log(`🎯 Sensibilidad cambiada: ${valor}`);
       if (elementos.configSensibilidadValor) {
         elementos.configSensibilidadValor.textContent = valor.toFixed(3);
       }
       // Guardar inmediatamente al modificar (Requirement 7.3)
       actualizarConfiguracion('sensibilidad', valor);
     });
+  } else {
+    console.warn('⚠️ Elemento configSensibilidad no encontrado');
   }
   
   // Slider de volumen
   // Requirements: 7.2, 7.3 - Mostrar opciones de volumen y guardar cambios
   if (elementos.configVolumen) {
+    console.log('🔊 Configurando event listener para volumen');
     elementos.configVolumen.addEventListener('input', (e) => {
       const valor = parseFloat(e.target.value);
+      console.log(`🔊 Volumen cambiado: ${valor}`);
       if (elementos.configVolumenValor) {
         elementos.configVolumenValor.textContent = `${Math.round(valor * 100)}%`;
       }
       // Guardar inmediatamente al modificar (Requirement 7.3)
       actualizarConfiguracion('volumen', valor);
     });
+  } else {
+    console.warn('⚠️ Elemento configVolumen no encontrado');
   }
   
   // Checkbox de mostrar FPS
   // Requirements: 7.2, 7.3
   if (elementos.configMostrarFPS) {
+    console.log('📊 Configurando event listener para mostrar FPS');
     elementos.configMostrarFPS.addEventListener('change', (e) => {
+      console.log(`📊 Mostrar FPS cambiado: ${e.target.checked}`);
       actualizarConfiguracion('mostrarFPS', e.target.checked);
     });
+  } else {
+    console.warn('⚠️ Elemento configMostrarFPS no encontrado');
   }
   
   // Checkbox de crosshair dinámico
   // Requirements: 7.2, 7.3
   if (elementos.configCrosshairDinamico) {
+    console.log('🎯 Configurando event listener para crosshair dinámico');
     elementos.configCrosshairDinamico.addEventListener('change', (e) => {
+      console.log(`🎯 Crosshair dinámico cambiado: ${e.target.checked}`);
       actualizarConfiguracion('crosshairDinamico', e.target.checked);
     });
+  } else {
+    console.warn('⚠️ Elemento configCrosshairDinamico no encontrado');
   }
   
   // Botón guardar configuración
@@ -536,12 +559,14 @@ function actualizarEstadisticasUI() {
  */
 function cargarConfiguracionEnUI() {
   const config = lobbyState.configuracion;
+  console.log('🔧 Cargando configuración en UI:', config);
   
   if (elementos.configSensibilidad) {
     elementos.configSensibilidad.value = config.sensibilidad;
     if (elementos.configSensibilidadValor) {
       elementos.configSensibilidadValor.textContent = config.sensibilidad.toFixed(3);
     }
+    console.log('🎯 Sensibilidad cargada:', config.sensibilidad);
   }
   
   if (elementos.configVolumen) {
@@ -549,14 +574,17 @@ function cargarConfiguracionEnUI() {
     if (elementos.configVolumenValor) {
       elementos.configVolumenValor.textContent = `${Math.round(config.volumen * 100)}%`;
     }
+    console.log('🔊 Volumen cargado:', config.volumen);
   }
   
   if (elementos.configMostrarFPS) {
     elementos.configMostrarFPS.checked = config.mostrarFPS;
+    console.log('📊 Mostrar FPS:', config.mostrarFPS);
   }
   
   if (elementos.configCrosshairDinamico) {
     elementos.configCrosshairDinamico.checked = config.crosshairDinamico;
+    console.log('🎯 Crosshair dinámico:', config.crosshairDinamico);
   }
 }
 

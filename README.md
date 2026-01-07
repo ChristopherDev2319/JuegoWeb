@@ -31,17 +31,27 @@ Juego FPS con mecánicas de disparo, sistema de dash y enemigos con IA básica. 
 
 ```
 proyecto/
-├── index.html          # Archivo principal HTML
-├── css/
-│   └── estilos.css     # Estilos del juego
-├── src/
-│   ├── main.js         # Punto de entrada
-│   ├── config.js       # Configuración
-│   ├── escena.js       # Escena Three.js
-│   ├── entidades/      # Clases de entidades
-│   ├── sistemas/       # Sistemas del juego
-│   └── utils/          # Utilidades
-└── modelos/            # Modelos 3D
+├── index.html              # Archivo principal HTML
+├── configuracion-juego.js  # Configuración global del juego
+├── servidor-local.js       # Servidor de desarrollo local
+├── public/                 # Recursos estáticos
+│   ├── css/               # Estilos
+│   ├── logo/              # Logo del juego
+│   ├── modelos/           # Modelos 3D y animaciones
+│   ├── sonidos/           # Efectos de sonido
+│   └── pages/             # Páginas secundarias (admin, config)
+├── src/                    # Código fuente del cliente
+│   ├── main.js            # Punto de entrada
+│   ├── config.js          # Configuración del juego
+│   ├── escena.js          # Escena Three.js
+│   ├── entidades/         # Clases de entidades (jugador, bots, etc.)
+│   ├── sistemas/          # Sistemas del juego (armas, colisiones, etc.)
+│   ├── lobby/             # Sistema de lobby
+│   ├── network/           # Comunicación con servidor
+│   ├── ui/                # Componentes de interfaz
+│   └── utils/             # Utilidades
+├── server/                 # Servidor de juego (WebSocket)
+└── backend/                # API REST (autenticación, stats)
 ```
 
 ## Requisitos
