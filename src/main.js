@@ -7,15 +7,12 @@
 // Importar módulos del juego
 import { CONFIG } from './config.js';
 
-import { getStorageJSON, setStorageJSON, getStorageInfo } from './utils/storage.js';
-
-import { 
-  inicializarEscena, 
-  scene, 
-  camera, 
-  weaponContainer, 
-  renderizar,
-  obtenerPromesaMapa
+import {
+  inicializarEscena,
+  scene,
+  camera,
+  weaponContainer,
+  renderizar
 } from './escena.js';
 
 import { 
@@ -30,34 +27,27 @@ import {
   marcarInicioDash
 } from './entidades/Jugador.js';
 
-import { 
-  arma, 
-  disparar,
-  recargar, 
+import {
+  arma,
+  recargar,
   cambiarModeloArma,
   cargarModeloArma,
   animarRetroceso,
   actualizarDesdeServidor as actualizarArmaDesdeServidor,
   cambiarArma,
   agregarArma,
-  siguienteArma,
-  armaAnterior,
   obtenerEstado,
   establecerCamara,
   alternarApuntado,
-  estaApuntando,
   obtenerDispersionRetroceso,
   actualizarRetroceso,
   establecerArmaUnica,
   alternarCuchillo,
   esCuchilloEquipado,
-  obtenerArmaPrincipalPrevia,
   atacarConCuchillo,
-  actualizarAnimacionesCuchillo,
   alternarJuiceBox,
   esJuiceBoxEquipado,
   iniciarCuracion,
-  cancelarCuracion,
   estaCurando,
   actualizarCuracion,
   obtenerProgresoCuracion,
@@ -66,11 +56,10 @@ import {
 
 import { Bala } from './entidades/Bala.js';
 
-import { 
-  sistemaDash, 
+import {
+  sistemaDash,
   actualizarRecargaDash,
   actualizarDesdeServidor as actualizarDashDesdeServidor,
-  ejecutarDash,
   ejecutarDashInterpolado,
   actualizarDashInterpolacion,
   calcularPosicionFinalDash
@@ -93,27 +82,19 @@ import { precargarAnimaciones } from './sistemas/animaciones.js';
 import { getInputSender } from './network/inputSender.js';
 import { initializeRemotePlayerManager } from './network/remotePlayers.js';
 
-// Sistema de autenticación (NUEVO)
+// Sistema de autenticación
 import { inicializarAuthUI } from './sistemas/authUI.js';
-import { obtenerEstadoAuth, cerrarSesion } from './sistemas/auth.js';
-import { 
+import {
   registrarKill as registrarKillProgreso,
   registrarDeath as registrarDeathProgreso,
   registrarDisparo as registrarDisparoProgreso,
-  registrarPartida as registrarPartidaProgreso,
-  actualizarTiempoJugado,
-  actualizarConfiguracion
+  registrarPartida as registrarPartidaProgreso
 } from './sistemas/progreso.js';
 
 // Sistema de crosshair dinámico
 import {
   inicializarCrosshair,
   establecerTipoArma,
-  establecerApuntando,
-  establecerMovimiento,
-  establecerRetroceso,
-  animarDisparo,
-  animarRetroceso as animarRetrocesoCrosshair,
   habilitarCrosshairDinamico
 } from './sistemas/crosshair.js';
 
@@ -122,8 +103,7 @@ import {
   inicializarSelectorArmasLocal,
   mostrarSelectorArmasLocal,
   ocultarSelectorArmasLocal,
-  actualizarSelectorArmaActiva,
-  actualizarEstadoConexionSelector
+  actualizarSelectorArmaActiva
 } from './ui/weaponSelectorLocal.js';
 
 // Sistema de menú de pausa
@@ -149,19 +129,11 @@ import {
 } from './ui/entrenamientoUI.js';
 
 // Sistema de selección de armas
-import { 
-  estadoSeleccion,
-  seleccionarArma as seleccionarArmaEstado,
-  obtenerArmaSeleccionada,
+import {
   iniciarPartida as iniciarPartidaSeleccion,
   mostrarMenuSeleccion,
   ocultarMenuSeleccion,
   marcarMuerte,
-  habilitarReaparecer,
-  puedeReaparecer,
-  obtenerArmaPrevia,
-  reaparecer as reaparecerConArma,
-  estaEnPantallaMuerte,
   cambioArmaPermitido
 } from './sistemas/seleccionArmas.js';
 
@@ -180,13 +152,12 @@ import { actualizarScoreboard } from './ui/scoreboardUI.js';
 
 // Importar módulos del lobby
 // Requirements: 1.1, 2.1, 2.2, 2.3
-import { 
-  inicializarLobbyUI, 
-  ocultarLobby, 
+import {
+  inicializarLobbyUI,
+  ocultarLobby,
   mostrarLobby,
   mostrarPantalla,
   mostrarError,
-  mostrarCargando,
   actualizarEstadoMatchmaking,
   mostrarSalaCreada,
   mostrarErrorCrear,
@@ -194,10 +165,8 @@ import {
   actualizarListaJugadores
 } from './lobby/lobbyUI.js';
 
-import { 
-  lobbyState,
+import {
   obtenerNombre,
-  guardarConfiguracion,
   cargarConfiguracion as cargarConfiguracionLobby,
   actualizarEstadisticas as actualizarEstadisticasLobby,
   establecerModoJuego,
@@ -205,7 +174,6 @@ import {
 } from './lobby/lobbyState.js';
 
 import {
-  configurarCallbacksLobby,
   manejarRespuestaLobby,
   solicitarMatchmaking,
   crearPartidaPrivada,
@@ -224,10 +192,6 @@ let modeloArma = null;
 
 // Control de tiempo
 let ultimoTiempo = performance.now();
-
-// Control de tiempo de juego para progreso
-let ultimoTiempoProgreso = performance.now();
-let tiempoJuegoAcumulado = 0;
 
 // Estado del menú (declarado ANTES del bucle de juego)
 let menuActivo = false;
@@ -2597,10 +2561,10 @@ function manejarAtaqueCuchillo() {
     }
     
     if (botManager && impacto.enemigo) {
-      botManager.registrarImpacto();
+      botManager.registrarAcierto();
       
       if (impacto.enemigo.datos && impacto.enemigo.datos.vidaActual <= 0) {
-        botManager.registrarEliminacion(impacto.enemigo);
+        botManager.registrarEliminacion(impacto.enemigo.datos?.tipo || 'estatico');
       }
     }
   });
@@ -2689,20 +2653,6 @@ function bucleJuego() {
   const tiempoActual = performance.now();
   const deltaTime = (tiempoActual - ultimoTiempo) / 1000;
   ultimoTiempo = tiempoActual;
-
-  // Actualizar tiempo de juego para progreso (solo cuando el juego está activo)
-  if (juegoIniciado && !menuActivo) {
-    tiempoJuegoAcumulado += deltaTime;
-    
-    // Actualizar progreso cada 10 segundos
-    if (tiempoActual - ultimoTiempoProgreso > 10000) {
-      const tiempoSegundos = Math.floor(tiempoJuegoAcumulado);
-      actualizarTiempoJugado(tiempoSegundos);
-      
-      tiempoJuegoAcumulado = 0;
-      ultimoTiempoProgreso = tiempoActual;
-    }
-  }
 
   // No actualizar el juego si el menú de pausa está activo
   try {

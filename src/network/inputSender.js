@@ -2,7 +2,6 @@
  * Input Sender Module
  * Handles sending player inputs to the server
  * 
- * Requirements: 3.3, 4.1, 5.1, 6.1, 7.1
  * 
  * Mejoras implementadas:
  * - Sequence numbers (inputId) para ordenamiento y reconciliación
@@ -195,7 +194,6 @@ export class InputSender {
 
   /**
    * Send respawn request to server
-   * Requirements: 4.1, 4.2 - Reaparecer con arma seleccionada
    * @param {string} weaponType - Type of weapon to spawn with
    */
   sendRespawn(weaponType = 'M4A1') {
@@ -256,7 +254,6 @@ export class InputSender {
 
   /**
    * Send heal cancel event to server
-   * Requirements: 5.1 - Notify server when player cancels healing
    */
   sendHealCancel() {
     if (!this.connection.isConnected()) {
