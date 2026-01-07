@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://bearstrike.com/sitemap.xml
+
+# Bloquear archivos técnicos
+Disallow: /node_modules/
+Disallow: /server/
+Disallow: /backend/
+Disallow: /.git/
+Disallow: /.vscode/
