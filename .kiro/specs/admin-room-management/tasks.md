@@ -1,0 +1,84 @@
+# Implementation Plan
+
+- [x] 1. Create backend API endpoints for room management
+  - [x] 1.1 Export RoomManager and connections from legacyServer for API access
+    - Modify `server/legacyServer.js` to export `roomManager` and `connections` instances
+    - Create a shared module to access game server state from backend
+    - _Requirements: 1.1, 2.1_
+  - [x] 1.2 Implement GET /api/admin/rooms endpoint
+    - Add route to `backend/routes/admin.js`
+    - Query RoomManager for all active rooms
+    - Return room list with id, codigo, tipo, estado, jugadores count, maxJugadores, creadaEn
+    - _Requirements: 1.1, 1.2, 1.3, 1.4_
+  - [ ]* 1.3 Write property test for room list completeness
+    - **Property 1: Room list completeness**
+    - **Validates: Requirements 1.1, 1.2, 1.3**
+  - [x] 1.4 Implement GET /api/admin/rooms/:id endpoint
+    - Add route to `backend/routes/admin.js`
+    - Return room details with full player list (id, nombre, listo)
+    - Include room metadata: tipo, creadaEn
+    - Handle 404 for non-existent rooms
+    - _Requirements: 2.1, 2.2, 2.3, 2.4_
+  - [ ]* 1.5 Write property test for room detail accuracy
+    - **Property 2: Room detail accuracy**
+    - **Validates: Requirements 2.1, 2.2, 2.3, 2.4**
+  - [x] 1.6 Implement POST /api/admin/rooms/:id/kick endpoint
+    - Add route to `backend/routes/admin.js`
+    - Validate room and player exist
+    - Send 'kicked' message to player's WebSocket connection
+    - Close WebSocket connection with appropriate code
+    - Remove player from room via GameRoom.removerJugador()
+    - _Requirements: 3.2, 3.3_
+  - [ ]* 1.7 Write property test for kick removes player
+    - **Property 3: Kick removes player from room**
+    - **Validates: Requirements 3.2**
+  - [ ]* 1.8 Write property test for kick notifies player
+    - **Property 4: Kick notifies player**
+    - **Validates: Requirements 3.3**
+
+- [x] 2. Checkpoint - Ensure all backend tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 3. Extend admin panel frontend for rooms management
+  - [x] 3.1 Add rooms navigation and view structure
+    - Add "Partidas" button to admin navigation in `public/pages/admin.html`
+    - Add `view-rooms` section to main content area
+    - Add rooms state to adminPanel.js state object
+    - _Requirements: 1.1_
+  - [x] 3.2 Implement loadRooms() and renderRoomsView() functions
+    - Fetch rooms from GET /api/admin/rooms
+    - Render table with columns: ID, Código, Tipo, Estado, Jugadores, Creada, Acciones
+    - Show empty state message when no rooms exist
+    - Add "Ver" button for each room
+    - _Requirements: 1.1, 1.2, 1.3, 1.4_
+  - [x] 3.3 Implement room detail modal
+    - Create viewRoomDetail(roomId) function
+    - Fetch room details from GET /api/admin/rooms/:id
+    - Display player list with name and ID
+    - Show room metadata (tipo, fecha creación)
+    - Add "Kick" button for each player
+    - _Requirements: 2.1, 2.2, 2.3, 2.4_
+  - [x] 3.4 Implement kick functionality with confirmation
+    - Create kickPlayer(roomId, playerId, playerName) function
+    - Show confirmation dialog before executing kick
+    - Call POST /api/admin/rooms/:id/kick
+    - Show success/error toast notification
+    - Refresh room detail after successful kick
+    - _Requirements: 3.1, 3.2, 3.4, 3.5_
+  - [x] 3.5 Implement automatic polling for room updates
+    - Create startRoomsPolling() and stopRoomsPolling() functions
+    - Poll every 5 seconds when rooms view is active
+    - Stop polling when switching to other views
+    - Handle connection errors gracefully
+    - _Requirements: 4.1, 4.2, 4.3, 4.4_
+
+- [x] 4. Add CSS styles for rooms management section
+  - [x] 4.1 Add styles to admin.css for rooms view
+    - Style room table consistent with existing users/bans tables
+    - Style room detail modal
+    - Style player list within room detail
+    - Add status badges for room states (esperando, jugando)
+    - _Requirements: 1.1, 2.1_
+
+- [x] 5. Final Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
