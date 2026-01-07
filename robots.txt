@@ -1,12 +1,27 @@
+# BearStrike - Juego FPS Multijugador Online
+# https://bearstrike.com.mx
+
 User-agent: *
 Allow: /
+Allow: /public/logo/
 
 # Sitemap
 Sitemap: https://bearstrike.com.mx/sitemap.xml
 
-# Bloquear archivos técnicos
+# Bloquear archivos técnicos y directorios privados
 Disallow: /node_modules/
 Disallow: /server/
 Disallow: /backend/
 Disallow: /.git/
 Disallow: /.vscode/
+Disallow: /src/
+Disallow: /*.js$
+Disallow: /configuracion-juego.js
+
+# Permitir CSS y assets públicos para renderizado
+Allow: /public/css/
+Allow: /public/modelos/
+Allow: /public/sonidos/
+
+# Crawl-delay para ser amigable con el servidor
+Crawl-delay: 1
