@@ -2,7 +2,7 @@ User-agent: *
 Allow: /
 
 # Sitemap
-Sitemap: https://bearstrike.com/sitemap.xml
+Sitemap: https://bearstrike.com.mx/sitemap.xml
 
 # Bloquear archivos técnicos
 Disallow: /node_modules/
