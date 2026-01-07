@@ -100,14 +100,10 @@ import {
   registrarKill as registrarKillProgreso,
   registrarDeath as registrarDeathProgreso,
   registrarDisparo as registrarDisparoProgreso,
-  registrarImpacto as registrarImpactoProgreso,
   registrarPartida as registrarPartidaProgreso,
   actualizarTiempoJugado,
   actualizarConfiguracion
 } from './sistemas/progreso.js';
-
-// Sistema de menú de usuario - COMENTADO TEMPORALMENTE
-// import { inicializarMenuUsuario, mostrarMenuUsuario } from './sistemas/menuUsuario.js';
 
 // Sistema de crosshair dinámico
 import {
@@ -247,32 +243,6 @@ let juegoIniciado = false;
 window.modoJuegoActual = modoJuegoActual;
 
 /**
- * Lee la configuración guardada del juego
- * @deprecated Usar cargarConfiguracionLobby() del módulo lobbyState
- */
-function leerConfiguracionGuardada() {
-  try {
-    console.log('💾 Storage Info:', getStorageInfo());
-    const config = getStorageJSON('gameConfig', null);
-    
-    if (config) {
-      CONFIG.red.habilitarMultijugador = config.multiplayerEnabled;
-      
-      console.log('📋 Configuración cargada:');
-      console.log(`   Multijugador: ${config.multiplayerEnabled ? 'Habilitado' : 'Deshabilitado'}`);
-      
-      if (!config.multiplayerEnabled) {
-        console.log('🎯 Modo local activado');
-      }
-    } else {
-      console.log('ℹ️ No hay configuración guardada');
-    }
-  } catch (error) {
-    console.warn('⚠️ No se pudo cargar la configuración guardada:', error);
-  }
-}
-
-/**
  * Callback cuando el jugador inicia el juego desde el lobby
  * Requirements: 1.1, 2.1, 2.2, 2.3
  * @param {'local' | 'online'} modo - Modo de juego seleccionado
@@ -309,22 +279,21 @@ async function onIniciarJuego(modo, salaId = null, nombreJugador = '') {
   // En modo online: iniciar juego completo y luego mostrar menú de selección
   if (modo === 'local') {
     console.log('🎮 Modo local: Iniciando con todas las armas disponibles');
-    await inicializarJuegoCompleto();
+    await inicializarModoLocal();
   } else {
     // Modo online: iniciar el juego completo primero para que la escena esté lista
     // El menú de selección de armas se mostrará después de la inicialización
     console.log('🌐 Modo online: Iniciando juego y mostrando selección de armas');
-    await inicializarJuegoCompletoOnline();
+    await inicializarModoOnline();
   }
 }
 
 /**
- * Inicializa el juego completo para modo online
+ * Inicializa el juego para modo online
  * Primero carga la escena y recursos, luego muestra el menú de selección de armas
- * Requirements: 1.1, 2.1, 2.2
  */
-async function inicializarJuegoCompletoOnline() {
-  console.log('🌐 Iniciando inicializarJuegoCompletoOnline...');
+async function inicializarModoOnline() {
+  console.log('🌐 Iniciando inicializarModoOnline...');
   
   // Obtener referencias a elementos de carga
   loadingScreen = document.getElementById('loading-screen');
@@ -439,7 +408,7 @@ async function inicializarJuegoCompletoOnline() {
     mostrarMenuSeleccionArmasOnline();
     
   } catch (error) {
-    console.error('❌ Error crítico en inicializarJuegoCompletoOnline:', error);
+    console.error('❌ Error crítico en inicializarModoOnline:', error);
     
     // Intentar recuperar - al menos mostrar algo
     ocultarPantallaCarga();
@@ -528,8 +497,6 @@ async function finalizarInicializacionOnline(tipoArma) {
     onDisparar: manejarDisparo,
     onSaltar: manejarSalto,
     onMovimientoMouse: manejarMovimientoMouse,
-    onSiguienteArma: manejarSiguienteArmaRueda,
-    onArmaAnterior: manejarArmaAnterior,
     onSeleccionarArma: manejarSeleccionarArma,
     onApuntar: manejarApuntado,
     onPausar: manejarPausar,
@@ -592,37 +559,7 @@ async function finalizarInicializacionOnline(tipoArma) {
 }
 
 /**
- * Muestra el menú de selección de armas antes de iniciar la partida
- * Requirements: 1.1, 1.2, 1.3, 1.4
- */
-function mostrarMenuSeleccionArmas() {
-  console.log('🔫 Mostrando menú de selección de armas...');
-  
-  // Inicializar UI de selección de armas con callback
-  inicializarSeleccionArmasUI({
-    onJugar: (tipoArma) => {
-      console.log(`🎮 Arma seleccionada para jugar: ${tipoArma}`);
-      iniciarJuegoConArma(tipoArma);
-    },
-    onSeleccionar: (tipoArma) => {
-      console.log(`🔫 Arma preseleccionada: ${tipoArma}`);
-    }
-  });
-  
-  // Mostrar el menú
-  mostrarMenuArmas({
-    esMuerte: false,
-    armaPrevia: null,
-    textoBoton: 'Jugar'
-  });
-  
-  // Actualizar estado
-  mostrarMenuSeleccion(false);
-}
-
-/**
  * Muestra la pantalla de muerte con el menú de selección de armas integrado
- * Requirements: 3.1, 3.2, 3.4 - Pantalla de muerte con menú de selección de armas
  * @param {string} killerId - ID del jugador que eliminó al jugador local
  * @param {string} armaActual - Arma que tenía equipada al morir
  */
@@ -658,8 +595,6 @@ function mostrarPantallaMuerteConSeleccion(killerId, armaActual) {
   });
   
   // Generar grid de armas en la pantalla de muerte
-  // Requirements: 3.1 - Mostrar menú de selección de armas en pantalla de muerte
-  // Requirements: 4.3 - Mantener arma previa como selección por defecto
   generarGridArmasMuerte(armaActual, (tipoArma) => {
     console.log(`🔫 Arma seleccionada en muerte: ${tipoArma}`);
     armaSeleccionadaParaPartida = tipoArma;
@@ -671,7 +606,6 @@ function mostrarPantallaMuerteConSeleccion(killerId, armaActual) {
 
 /**
  * Configura el botón de reaparecer en la pantalla de muerte
- * Requirements: 4.1, 4.2 - Reaparecer con arma seleccionada
  * @param {string} armaActual - Arma por defecto para reaparecer
  */
 function configurarBotonReaparecer(armaActual) {
@@ -737,71 +671,12 @@ function configurarBotonReaparecer(armaActual) {
   }, 100);
 }
 
-/**
- * Inicia el juego con el arma seleccionada
- * Requirements: 2.1, 2.2
- * @param {string} tipoArma - Tipo de arma seleccionada
- */
-async function iniciarJuegoConArma(tipoArma) {
-  console.log(`🎮 Iniciando juego con arma: ${tipoArma}`);
-  
-  // Registrar partida jugada (se guarda en base de datos)
-  registrarPartidaProgreso();
-  
-  // Reiniciar estadísticas del menú de pausa (solo para esta partida)
-  reiniciarEstadisticasPartida();
-  
-  // Ocultar menú de selección
-  ocultarMenuArmas();
-  ocultarMenuSeleccion();
-  
-  // Guardar el arma seleccionada para usarla después de cargar
-  armaSeleccionadaParaPartida = tipoArma;
-  
-  // Iniciar el juego completo
-  await inicializarJuegoCompleto();
-}
 
 // Variable para almacenar el arma seleccionada antes de iniciar
 let armaSeleccionadaParaPartida = 'M4A1';
 
 /**
- * Muestra el indicador de modo local en la UI
- * Requirements: 2.3
- */
-function mostrarIndicadorModoLocal() {
-  // Verificar si ya existe el indicador
-  let indicador = document.getElementById('modo-local-indicator');
-  
-  if (!indicador) {
-    indicador = document.createElement('div');
-    indicador.id = 'modo-local-indicator';
-    indicador.className = 'modo-local-indicator';
-    indicador.innerHTML = '<i data-lucide="gamepad-2"></i> Modo Local';
-    document.body.appendChild(indicador);
-    
-    // Reinicializar iconos Lucide después de agregar el HTML
-    if (typeof window.reinicializarIconos === 'function') {
-      window.reinicializarIconos();
-    }
-  }
-  
-  indicador.style.display = 'block';
-}
-
-/**
- * Oculta el indicador de modo local
- */
-function ocultarIndicadorModoLocal() {
-  const indicador = document.getElementById('modo-local-indicator');
-  if (indicador) {
-    indicador.style.display = 'none';
-  }
-}
-
-/**
  * Inicializa el sistema de bots de entrenamiento para modo local
- * Requirements: 1.1, 2.1, 3.1, 4.4, 6.1, 6.2
  */
 function inicializarBotManager() {
   if (botManager) {
@@ -812,11 +687,9 @@ function inicializarBotManager() {
   console.log('🤖 Inicializando sistema de bots de entrenamiento...');
 
   // Inicializar UI de entrenamiento
-  // Requirements: 6.1, 6.2
   inicializarEntrenamientoUI();
 
   // Crear instancia del BotManager con callbacks de UI
-  // Requirements: 6.1, 6.2, 6.3 - Sin sistema de zonas
   botManager = new BotManager(scene, {
     onDisparoBot: (infoDisparo) => {
       // Callback cuando un bot tirador dispara al jugador
@@ -842,12 +715,10 @@ function inicializarBotManager() {
         }
       }
     },
-    // Requirement 6.2: Actualizar UI cuando se elimina un bot
     onEliminacion: (tipoBot, estadisticas) => {
       console.log(`📊 Bot ${tipoBot} eliminado - Actualizando UI`);
       actualizarEstadisticasUI(estadisticas);
     },
-    // Actualizar estadísticas en UI
     onEstadisticasActualizadas: (estadisticas) => {
       actualizarEstadisticasUI(estadisticas);
     }
@@ -904,7 +775,6 @@ async function inicializarAmmoSpawns() {
 
 /**
  * Actualiza los spawns de munición y verifica recolección
- * Requirements: 5.1, 5.2, 5.3
  * @param {number} deltaTime - Tiempo desde el último frame
  */
 function actualizarAmmoSpawns(deltaTime) {
@@ -1021,11 +891,9 @@ let isMultiplayerConnected = false;
 let localPlayerId = null;
 
 // Bot Manager para modo local
-// Requirements: 1.1, 2.1, 3.1, 4.4
 let botManager = null;
 
 // Sistema de spawns de munición
-// Requirements: 5.1, 5.2, 5.3, 5.4
 let ammoSpawns = [];
 
 
@@ -1060,10 +928,9 @@ function ocultarPantallaCarga() {
 }
 
 /**
- * Inicializa el lobby y espera la selección del jugador
- * Requirements: 1.1 - Mostrar lobby en lugar de iniciar juego directamente
+ * Punto de entrada principal - Inicializa auth y lobby
  */
-async function inicializar() {
+async function inicializarAplicacion() {
   console.log('🎮 Inicializando sistema de lobby...');
   
   // Cargar configuración del lobby
@@ -1078,14 +945,14 @@ async function inicializar() {
     console.warn('⚠️ Error inicializando autenticación:', error);
   }
   
-  // Inicializar lobby normal (sin requerir autenticación)
-  inicializarLobbyNormal();
+  // Configurar UI del lobby con callbacks
+  configurarLobbyCallbacks();
 }
 
 /**
- * Inicializa el lobby normal
+ * Configura los callbacks de la UI del lobby
  */
-function inicializarLobbyNormal() {
+function configurarLobbyCallbacks() {
   // Inicializar UI del lobby con callbacks
   inicializarLobbyUI({
     onModoLocal: (nombre) => {
@@ -1126,7 +993,6 @@ function inicializarLobbyNormal() {
 
 /**
  * Maneja el proceso de matchmaking
- * Requirement 6.4: Show errors in the correct screen
  * @param {string} nombre - Nombre del jugador
  */
 async function manejarMatchmaking(nombre) {
@@ -1145,7 +1011,6 @@ async function manejarMatchmaking(nombre) {
     salaActualId = resultado.roomId;
     nombreJugadorActual = nombre;
     
-    // Inicializar lista de jugadores con los jugadores existentes (Requirement 5.3, 5.4)
     jugadoresEnSala = (resultado.playerList || []).map((jugador, index) => ({
       id: jugador.id,
       nombre: jugador.nombre,
@@ -1192,7 +1057,7 @@ async function manejarCrearPartida(nombre, password) {
     salaActualId = resultado.roomId;
     nombreJugadorActual = nombre;
     
-    // Inicializar lista de jugadores con el creador (Requirement 5.4)
+    // Inicializar lista de jugadores con el creador 
     jugadoresEnSala = [{
       id: connection.getPlayerId(),
       nombre: nombre,
@@ -1269,7 +1134,7 @@ async function conectarServidorParaLobby() {
     manejarRespuestaLobby(response);
   });
   
-  // Configurar callbacks para eventos de jugadores en el lobby (Requirement 5.4)
+  // Configurar callbacks para eventos de jugadores en el lobby
   connection.onPlayerJoined((player) => {
     console.log(`[LOBBY] Jugador unido: ${player.nombre}`);
     // Actualizar lista de jugadores en la UI si estamos en la sala de espera
@@ -1329,9 +1194,9 @@ function manejarJugadorSalio(playerId) {
 }
 
 /**
- * Inicializa el juego completo después de la selección del lobby
+ * Inicializa el juego para modo local (entrenamiento)
  */
-async function inicializarJuegoCompleto() {
+async function inicializarModoLocal() {
   // Obtener referencias a elementos de carga
   loadingScreen = document.getElementById('loading-screen');
   loadingBar = document.getElementById('loading-bar');
@@ -1421,8 +1286,6 @@ async function inicializarJuegoCompleto() {
     onDisparar: manejarDisparo,
     onSaltar: manejarSalto,
     onMovimientoMouse: manejarMovimientoMouse,
-    onSiguienteArma: manejarSiguienteArmaRueda,
-    onArmaAnterior: manejarArmaAnterior,
     onSeleccionarArma: manejarSeleccionarArma,
     onApuntar: manejarApuntado,
     onPausar: manejarPausar,
@@ -1501,21 +1364,11 @@ async function inicializarJuegoCompleto() {
     // Continuar sin autenticación si hay error
   }
 
-  // Inicializar sistema de menú de usuario - COMENTADO TEMPORALMENTE
-  // try {
-  //   inicializarMenuUsuario();
-  //   console.log('✅ Sistema de menú de usuario inicializado');
-  // } catch (error) {
-  //   console.warn('⚠️ Error inicializando menú de usuario:', error);
-  //   // Continuar sin menú de usuario si hay error
-  // }
-
   // Inicializar displays de UI
   actualizarDisplayMunicion();
   actualizarRecargaDash();
   
   // Inicializar cache de elementos DOM para optimización
-  // Requirements: 5.1 - Cache de referencias DOM
   inicializarCacheDOM();
   
   // Inicializar iconos de Lucide
@@ -1536,8 +1389,6 @@ async function inicializarJuegoCompleto() {
   } else {
     actualizarCarga(90, 'Iniciando modo local...');
     
-    // Modo local - mostrar indicador
-    mostrarIndicadorModoLocal();
     console.log('🎮 Modo local iniciado - Sin conexión al servidor');
     
     // Reposicionar jugador para modo local (Z=5, mirando hacia +Z)
@@ -1603,9 +1454,6 @@ function volverAlLobby() {
   modoJuegoActual = null;
   salaActualId = null;
   
-  // Ocultar indicador de modo local
-  ocultarIndicadorModoLocal();
-  
   // Ocultar selector de armas local
   ocultarSelectorArmasLocal();
   
@@ -1616,7 +1464,6 @@ function volverAlLobby() {
   }
   
   // Destruir sistema de spawns de munición
-  // Requirements: 5.1, 5.2, 5.3, 5.4
   destruirAmmoSpawns();
   
   // Destruir UI de entrenamiento
@@ -1636,7 +1483,6 @@ function volverAlLobby() {
 
 /**
  * Registra un kill para las estadísticas
- * Requirements: 8.1, 8.2
  */
 function registrarKill() {
   actualizarEstadisticasLobby(1, 0);
@@ -1644,15 +1490,11 @@ function registrarKill() {
   // Registrar en sistema de progreso
   registrarKillProgreso();
   
-  // Actualizar estadísticas locales para usuarios no autenticados
-  actualizarStatsLocales('kills', 1);
-  
   console.log('📊 Kill registrado');
 }
 
 /**
  * Registra una muerte para las estadísticas
- * Requirements: 8.1, 8.2
  */
 function registrarDeath() {
   actualizarEstadisticasLobby(0, 1);
@@ -1660,55 +1502,11 @@ function registrarDeath() {
   // Registrar en sistema de progreso
   registrarDeathProgreso();
   
-  // Actualizar estadísticas locales para usuarios no autenticados
-  actualizarStatsLocales('deaths', 1);
-  
   console.log('📊 Muerte registrada');
 }
 
 /**
- * Registra un impacto recibido (para estadísticas futuras)
- */
-function registrarImpacto() {
-  // Registrar en sistema de progreso
-  registrarImpactoProgreso();
-  
-  // Por ahora solo log, se puede expandir para estadísticas de daño
-  console.log('📊 Impacto recibido');
-}
-
-/**
- * Actualizar estadísticas locales para usuarios no autenticados
- */
-function actualizarStatsLocales(stat, incremento = 1) {
-  try {
-    const authState = obtenerEstadoAuth();
-    if (authState.isAuthenticated) return; // Solo para usuarios no autenticados
-    
-    const statsLocales = getStorageJSON('gameStats', {});
-    statsLocales[stat] = (statsLocales[stat] || 0) + incremento;
-    
-    // Calcular experiencia basada en acciones
-    if (stat === 'kills') {
-      statsLocales.experience = (statsLocales.experience || 0) + 100; // 100 XP por kill
-    } else if (stat === 'shotsFired') {
-      statsLocales.experience = (statsLocales.experience || 0) + 1; // 1 XP por disparo
-    } else if (stat === 'shotsHit') {
-      statsLocales.experience = (statsLocales.experience || 0) + 5; // 5 XP por impacto
-    }
-    
-    const guardado = setStorageJSON('gameStats', statsLocales);
-    if (!guardado) {
-      console.warn('⚠️ Estadísticas guardadas en memoria temporal');
-    }
-  } catch (error) {
-    console.warn('⚠️ Error actualizando estadísticas locales:', error);
-  }
-}
-
-/**
  * Initialize network connection and set up callbacks
- * Requirements: 2.1, 2.2
  */
 async function inicializarRed() {
   // Verificar si el multijugador está habilitado
@@ -1767,7 +1565,6 @@ async function inicializarRed() {
     }
     
     // Enviar nombre del jugador al servidor
-    // Requirements: 1.1 - Pasar nombre del jugador al servidor al conectar
     connection.send('playerInfo', {
       playerName: nombreJugadorActual,
       roomId: salaActualId
@@ -1790,7 +1587,6 @@ async function inicializarRed() {
       console.log('✅ Conectado al servidor exitosamente');
       
       // Enviar nombre del jugador al servidor después de conectar
-      // Requirements: 1.1 - Pasar nombre del jugador al servidor al conectar
       connection.send('playerInfo', {
         playerName: nombreJugadorActual,
         roomId: salaActualId
@@ -1805,8 +1601,6 @@ async function inicializarRed() {
         console.log('🎮 Cambiando a modo local (sin multijugador)');
         mostrarMensajeConexion('Modo local - Sin conexión al servidor', false);
         
-        // Mostrar indicador de modo local
-        mostrarIndicadorModoLocal();
         modoJuegoActual = 'local';
         
         // Ocultar mensaje después de 3 segundos
@@ -1842,10 +1636,9 @@ function obtenerUrlServidor() {
 
 /**
  * Configure network event callbacks
- * Requirements: 2.2, 2.3
  */
 function configurarCallbacksRed() {
-  // Welcome message - receive player ID and initial state (Requirement 2.2)
+  // Welcome message - receive player ID and initial state
   connection.onWelcome((data) => {
     localPlayerId = data.playerId;
     isMultiplayerConnected = true;
@@ -1895,13 +1688,11 @@ function configurarCallbacksRed() {
   connection.onHit((data) => {
     mostrarEfectoDaño();
     actualizarBarraVida(data.health, 200);
-    // Registrar impacto para estadísticas
-    registrarImpacto();
   });
   
-  // Death notification (Requirement 3.5, 5.4)
-  // Requirements: 3.1, 3.2, 3.4 - Mostrar pantalla de muerte con menú de selección de armas
-  // Requirements: 4.1, 4.2, 4.3, 5.2 - Usar nombres de lobby y actualizar scoreboard
+  // Death notification
+  // Mostrar pantalla de muerte con menú de selección de armas
+  // Usar nombres de lobby y actualizar scoreboard
   connection.onDeath((data) => {
     // Extraer nombres de lobby y scoreboard del mensaje
     const killerName = data.killerName || data.killerId;
@@ -1957,12 +1748,12 @@ function configurarCallbacksRed() {
     }
     
     // Usar nombres de lobby en el kill feed
-    // Requirements: 4.1, 4.3 - Usar nombres de lobby en kill feed
+    //  Usar nombres de lobby en kill feed
     agregarEntradaKillFeed(killerName, victimName, nombreJugadorActual);
   });
   
-  // Respawn notification (Requirement 5.5)
-  // Requirements: 4.1, 4.2 - Reaparecer con arma seleccionada
+  // Respawn notification
+  // Reaparecer con arma seleccionada
   connection.onRespawn((data) => {
     if (data.playerId === localPlayerId) {
       ocultarPantallaMuerte();
@@ -1991,23 +1782,17 @@ function configurarCallbacksRed() {
   });
   
   // Bullet created by another player - trigger shoot animation
-  // Requirements: 3.1 - Reproducir animación de ataque TPS para cuchillo
   connection.onBulletCreated((bullet) => {
     if (bullet && bullet.ownerId && bullet.ownerId !== localPlayerId) {
       const remotePlayer = remotePlayerManager.getPlayer(bullet.ownerId);
-      if (remotePlayer) {
-        // Si es un ataque de cuchillo, usar animación específica
-        if (bullet.weaponType === 'KNIFE' && remotePlayer.procesarAtaqueCuchillo) {
-          remotePlayer.procesarAtaqueCuchillo();
-        } else if (remotePlayer.dispararAnimacion) {
-          remotePlayer.dispararAnimacion(0.25);
-        }
+      if (remotePlayer && remotePlayer.dispararAnimacion) {
+        remotePlayer.dispararAnimacion(0.25);
       }
     }
   });
   
   // Melee attack from another player - trigger knife attack animation TPS
-  // Requirements: 3.1, 3.2, 3.4 - Reproducir animación de ataque de cuchillo TPS
+  // Reproducir animación de ataque de cuchillo TPS
   connection.onMeleeAttack((data) => {
     console.log(`🔪 [main.js] Evento meleeAttack recibido:`, data);
     
@@ -2042,7 +1827,6 @@ function configurarCallbacksRed() {
   });
   
   // Player healing notification (when another player heals)
-  // Requirements: 5.1, 5.2 - Show JuiceBox and healing animation on remote players
   connection.onPlayerHealing((data) => {
     console.log(`🧃 [main.js] Evento playerHealing recibido:`, data);
     
@@ -2064,12 +1848,11 @@ function configurarCallbacksRed() {
     }
     
     // Llamar a procesarCuracion en el jugador remoto
-    // Requirements: 5.1, 5.2, 5.3 - Mostrar JuiceBox y animación healt
     remotePlayer.procesarCuracion(data.healing);
     console.log(`🧃 [main.js] Curación ${data.healing ? 'iniciada' : 'terminada'} para jugador ${data.playerId}`);
   });
   
-  // Connection error (Requirement 2.3)
+  // Connection erro
   connection.onError((error) => {
     console.error('Connection error:', error);
     mostrarMensajeConexion('Error de conexión', true);
@@ -2104,8 +1887,7 @@ function procesarEstadoJuego(gameState) {
   // Update remote players
   remotePlayerManager.updatePlayers(gameState);
   
-  // Actualizar scoreboard si viene en el estado
-  // Requirements: 5.1, 5.2 - Procesar scoreboard al recibir estado
+  // Procesar scoreboard al recibir estado
   if (gameState.scoreboard && Array.isArray(gameState.scoreboard)) {
     actualizarScoreboard(gameState.scoreboard);
   }
@@ -2223,7 +2005,6 @@ async function inicializarTodasLasArmasLocal() {
   agregarArma('SNIPER');
   agregarArma('ESCOPETA');
   agregarArma('MP5');
-  // MA41 removida - solo 6 armas ahora
   
   // Cambiar al arma inicial (M4A1) usando cambiarArma para configurar munición correctamente
   try {
@@ -2288,39 +2069,7 @@ async function cargarArmasEnBackground() {
 }
 
 /**
- * Inicializa el sistema de armas con armas adicionales
- * @deprecated Usar inicializarArmaInicial + cargarArmasEnBackground
- */
-async function inicializarSistemaArmas() {
-  console.log('🔫 Inicializando sistema de armas...');
-  
-  // Agregar armas al inventario (el jugador empieza con M4A1)
-  agregarArma('PISTOLA');
-  agregarArma('AK47');
-  agregarArma('SNIPER');
-  agregarArma('ESCOPETA');
-  agregarArma('MP5');
-  agregarArma('SCAR');
-  
-  // Cargar modelo inicial (M4A1) - usar cambiarModeloArma para que se agregue al contenedor
-  try {
-    await cambiarModeloArma('M4A1', weaponContainer);
-    console.log('✅ Modelo inicial cargado');
-  } catch (error) {
-    console.error('❌ Error cargando modelo inicial:', error);
-  }
-  
-  // Actualizar UI inicial
-  const estadoInicial = obtenerEstado();
-  actualizarInfoArma(estadoInicial);
-  
-  console.log('🎮 Armas disponibles:', estadoInicial.armasDisponibles);
-  console.log('🔫 Arma actual:', estadoInicial.nombre);
-}
-
-/**
  * Maneja el intercambio de cuchillo con tecla Q
- * Requirements: 2.1, 2.2 - Intercambio rápido con tecla Q
  */
 async function manejarAlternarCuchillo() {
   // No permitir cambio durante recarga
@@ -2350,7 +2099,7 @@ async function manejarAlternarCuchillo() {
     // Notificar al servidor del cambio de arma
     if (isMultiplayerConnected) {
       // If healing was cancelled by weapon change, notify server
-      // Requirements: 5.1 - Notify server when healing is cancelled
+      // Notify server when healing is cancelled
       if (wasHealing) {
         inputSender.sendHealCancel();
       }
@@ -2362,7 +2111,6 @@ async function manejarAlternarCuchillo() {
 
 /**
  * Maneja el equipamiento del JuiceBox con tecla C
- * Requirements: 1.1 - Equipar JuiceBox presionando tecla C
  */
 async function manejarAlternarJuiceBox() {
   // No permitir cambio durante recarga
@@ -2400,7 +2148,6 @@ async function manejarAlternarJuiceBox() {
     // Notificar al servidor del cambio de equipamiento
     if (isMultiplayerConnected) {
       // If healing was cancelled by toggling JuiceBox off, notify server
-      // Requirements: 5.1 - Notify server when healing is cancelled
       if (wasHealing && !esJuiceBoxEquipado()) {
         inputSender.sendHealCancel();
       }
@@ -2408,83 +2155,6 @@ async function manejarAlternarJuiceBox() {
     }
     console.log(`🔄 Cambiado a: ${esJuiceBoxEquipado() ? 'Botiquín' : estado.nombre}`);
   }
-}
-
-/**
- * Maneja el cambio a la siguiente arma con rueda del mouse
- */
-function manejarSiguienteArmaRueda() {
-  // Verificar si el cambio de arma está permitido
-  if (!cambioArmaPermitido()) {
-    console.log('🔫 Cambio de arma no permitido en modo online durante partida');
-    return;
-  }
-  
-  // Check if healing was in progress before weapon change
-  const wasHealing = estaCurando();
-  
-  siguienteArma(weaponContainer);
-  const estado = obtenerEstado();
-  mostrarCambioArma(estado.nombre);
-  actualizarInfoArma(estado);
-  actualizarDisplayMunicion();
-  
-  // Actualizar selector de armas local
-  actualizarSelectorArmaActiva();
-  
-  // Actualizar crosshair dinámico
-  const configArma = CONFIG.armas[estado.tipoActual];
-  if (configArma) {
-    establecerTipoArma(configArma.tipo);
-  }
-  
-  // Notificar al servidor del cambio de arma
-  if (isMultiplayerConnected) {
-    // If healing was cancelled by weapon change, notify server
-    // Requirements: 5.1 - Notify server when healing is cancelled
-    if (wasHealing) {
-      inputSender.sendHealCancel();
-    }
-    inputSender.sendWeaponChange(estado.tipoActual);
-  }
-  console.log(`🔄 Cambiado a: ${estado.nombre}`);
-}
-
-/**
- * Maneja el cambio a la arma anterior
- */
-function manejarArmaAnterior() {
-  // Verificar si el cambio de arma está permitido
-  if (!cambioArmaPermitido()) {
-    console.log('🔫 Cambio de arma no permitido en modo online durante partida');
-    return;
-  }
-  
-  // Check if healing was in progress before weapon change
-  const wasHealing = estaCurando();
-  
-  armaAnterior(weaponContainer);
-  const estado = obtenerEstado();
-  mostrarCambioArma(estado.nombre);
-  actualizarInfoArma(estado);
-  actualizarDisplayMunicion();
-  
-  // Actualizar selector de armas local
-  actualizarSelectorArmaActiva();
-  
-  // Actualizar crosshair dinámico
-  establecerTipoArma(CONFIG.armas[estado.tipoActual].tipo);
-  
-  // Notificar al servidor del cambio de arma
-  if (isMultiplayerConnected) {
-    // If healing was cancelled by weapon change, notify server
-    // Requirements: 5.1 - Notify server when healing is cancelled
-    if (wasHealing) {
-      inputSender.sendHealCancel();
-    }
-    inputSender.sendWeaponChange(estado.tipoActual);
-  }
-  console.log(`🔄 Cambiado a: ${estado.nombre}`);
 }
 
 /**
@@ -2505,6 +2175,11 @@ function manejarSeleccionarArma(indice) {
   if (indice < estado.armasDisponibles.length) {
     const tipoArma = estado.armasDisponibles[indice];
     if (cambiarArma(tipoArma, weaponContainer)) {
+      // Invalidar cache de estado de arma
+      if (inputSender) {
+        inputSender.markWeaponStateDirty();
+      }
+      
       const nuevoEstado = obtenerEstado();
       mostrarCambioArma(nuevoEstado.nombre);
       actualizarInfoArma(nuevoEstado);
@@ -2533,6 +2208,12 @@ function manejarSeleccionarArma(indice) {
  */
 function manejarApuntado(apuntar) {
   alternarApuntado(apuntar);
+  
+  // Invalidar cache de estado de arma
+  if (inputSender) {
+    inputSender.markWeaponStateDirty();
+  }
+  
   const estado = obtenerEstado();
   actualizarInfoArma(estado);
   
@@ -2576,8 +2257,8 @@ function manejarRecarga() {
 
 /**
  * Maneja el evento de dash
- * Requirement 7.1: Send dash input to server
- * Requirements: 1.1, 1.4, 5.1 - Dash interpolado con envío de posición final
+ *Send dash input to server
+ * Dash interpolado con envío de posición final
  */
 function manejarDash() {
   if (isMultiplayerConnected) {
@@ -2597,7 +2278,6 @@ function manejarDash() {
     };
     
     // Calcular posición final usando el sistema de dash interpolado
-    // Requirements: 2.1, 2.2, 3.1 - Ignorar colisiones internas, respetar límites
     const distanciaDash = CONFIG.dash.poder;
     const posicionFinal = calcularPosicionFinalDash(
       jugador.posicion,
@@ -2606,64 +2286,60 @@ function manejarDash() {
     );
     
     // Ejecutar dash interpolado localmente para predicción suave
-    // Requirements: 1.1, 1.4 - Interpolación suave del dash
-    ejecutarDashInterpolado(jugador, teclas, (dir, posFin) => {
-    });
+    ejecutarDashInterpolado(jugador, teclas);
     
     // Marcar inicio de dash para evitar reconciliación brusca
     marcarInicioDash();
     
     // Send dash input to server con posiciones
-    // Requirements: 5.1 - Enviar posición final calculada al servidor
     inputSender.sendDash(direccion, posicionInicial, {
       x: posicionFinal.x,
       y: posicionFinal.y,
       z: posicionFinal.z
     });
+    
+    actualizarRecargaDash();
   } else {
     // Modo local - usar dash interpolado
-    // Requirements: 1.1, 1.4 - Interpolación suave del dash
-    ejecutarDashInterpolado(jugador, teclas, (direccion, posFin) => {
-    });
+    if (ejecutarDashInterpolado(jugador, teclas)) {
+      actualizarRecargaDash();
+    }
   }
-  actualizarRecargaDash();
 }
 
 /**
  * Calculate dash direction based on current keys and rotation
  */
+// Vectores reutilizables para calcularDireccionDash (optimización GC)
+const _dashDir = new THREE.Vector3();
+const _dashFwd = new THREE.Vector3();
+const _dashRgt = new THREE.Vector3();
+const _dashQuat = new THREE.Quaternion();
+const _dashEul = new THREE.Euler();
+
 function calcularDireccionDash() {
-  const direccion = new THREE.Vector3();
-  const forward = new THREE.Vector3();
-  const right = new THREE.Vector3();
+  _dashDir.set(0, 0, 0);
+  _dashEul.set(0, jugador.rotacion.y, 0, 'YXZ');
+  _dashQuat.setFromEuler(_dashEul);
 
-  forward.set(0, 0, -1).applyQuaternion(
-    new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(0, jugador.rotacion.y, 0, 'YXZ')
-    )
-  );
+  _dashFwd.set(0, 0, -1).applyQuaternion(_dashQuat);
+  _dashRgt.set(1, 0, 0).applyQuaternion(_dashQuat);
 
-  right.set(1, 0, 0).applyQuaternion(
-    new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(0, jugador.rotacion.y, 0, 'YXZ')
-    )
-  );
+  if (teclas['KeyW']) _dashDir.add(_dashFwd);
+  if (teclas['KeyS']) _dashDir.sub(_dashFwd);
+  if (teclas['KeyA']) _dashDir.sub(_dashRgt);
+  if (teclas['KeyD']) _dashDir.add(_dashRgt);
 
-  if (teclas['KeyW']) direccion.add(forward);
-  if (teclas['KeyS']) direccion.sub(forward);
-  if (teclas['KeyA']) direccion.sub(right);
-  if (teclas['KeyD']) direccion.add(right);
-
-  if (direccion.length() === 0) {
-    direccion.copy(forward);
+  if (_dashDir.length() === 0) {
+    _dashDir.copy(_dashFwd);
   }
 
-  direccion.normalize();
+  _dashDir.normalize();
   
   return {
-    x: direccion.x,
-    y: direccion.y,
-    z: direccion.z
+    x: _dashDir.x,
+    y: _dashDir.y,
+    z: _dashDir.z
   };
 }
 
@@ -2672,7 +2348,6 @@ const _hitboxWorldPos = new THREE.Vector3();
 
 /**
  * Verifica si una bala impacta algún bot de entrenamiento
- * Requirement 1.4: Registrar impacto y actualizar barra de vida del bot
  * OPTIMIZADO: Usa vector reutilizable para evitar garbage collection
  * 
  * @param {Bala} bala - La bala a verificar
@@ -2745,39 +2420,113 @@ function obtenerFireRateServidor(tipoArma) {
   return fireRatesServidor[tipoArma] || fireRatesServidor['default'];
 }
 
+// Vectores reutilizables para disparos (optimización GC)
+const _balaOffset = new THREE.Vector3();
+const _balaDireccion = new THREE.Vector3();
+const _camaraRight = new THREE.Vector3();
+const _camaraUp = new THREE.Vector3();
+
 /**
- * Procesa un disparo en modo local
- * Usa la misma lógica que el modo online para garantizar comportamiento idéntico
- * 
- * @param {THREE.Camera} camera - Cámara del jugador
- * @param {Array} balas - Array de balas activas
- * @param {THREE.Scene} scene - Escena de Three.js
- * @param {Object} configArma - Configuración del arma actual
- * @returns {boolean} - true si se disparó exitosamente
+ * Maneja el evento de disparo
  */
-function dispararLocal(camera, balas, scene, configArma) {
-  // Verificar munición
-  if (arma.municionActual <= 0) {
-    return false;
+function manejarDisparo() {
+  // No disparar si hay overlay de conexión visible
+  const connectionOverlay = document.getElementById('connection-overlay');
+  if (connectionOverlay && connectionOverlay.style.display !== 'none') {
+    return;
+  }
+
+  // Verificar si el JuiceBox está equipado - iniciar curación
+  if (esJuiceBoxEquipado()) {
+    const resultado = iniciarCuracion(jugador.health, jugador.maxHealth);
+    
+    if (resultado.iniciada) {
+      if (isMultiplayerConnected && inputSender) {
+        inputSender.sendHealStart();
+      }
+    } else if (resultado.razon === 'vida_llena') {
+      mostrarMensajeVidaLlena('Vida llena');
+    }
+    return;
+  }
+
+  // Verificar si el cuchillo está equipado - usar ataque melee
+  if (esCuchilloEquipado()) {
+    manejarAtaqueCuchillo();
+    return;
+  }
+
+  // Verificaciones comunes
+  if (arma.estaRecargando || arma.municionActual <= 0) {
+    return;
   }
   
-  // Decrementar munición
-  arma.municionActual--;
-  
-  // Calcular posición inicial de la bala
-  const posicionBala = camera.position.clone();
-  const offsetAdelante = new THREE.Vector3(0, 0, -1);
-  offsetAdelante.applyQuaternion(camera.quaternion);
-  posicionBala.add(offsetAdelante);
-  
-  // Obtener estado de apuntado
   const estadoArma = obtenerEstado();
+  const configArma = CONFIG.armas[estadoArma.tipoActual];
   
-  // Para escopetas, disparar múltiples proyectiles
+  // Verificar cadencia de disparo (misma fórmula para ambos modos)
+  const ahora = performance.now();
+  const fireRateMs = obtenerFireRateServidor(estadoArma.tipoActual);
+  if (ahora - arma.ultimoDisparo < fireRateMs) {
+    return;
+  }
+  arma.ultimoDisparo = ahora;
+
+  if (isMultiplayerConnected) {
+    // Calcular posición y dirección base
+    _balaOffset.set(0, 0, -1).applyQuaternion(camera.quaternion);
+    const posicionBala = camera.position.clone().add(_balaOffset);
+
+    _balaDireccion.set(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
+    
+    // Enviar input de disparo al servidor
+    inputSender.sendShoot(
+      { x: posicionBala.x, y: posicionBala.y, z: posicionBala.z },
+      { x: _balaDireccion.x, y: _balaDireccion.y, z: _balaDireccion.z },
+      estadoArma.tipoActual,
+      estadoArma.estaApuntando
+    );
+    
+    // Crear balas visuales (predicción del cliente)
+    crearBalasVisuales(posicionBala, configArma, estadoArma);
+    
+    // Feedback
+    animarRetroceso();
+    registrarDisparoProgreso();
+    reproducirSonidoDisparo(estadoArma.tipoActual, configArma);
+    actualizarDisplayMunicion();
+  } else {
+    // Modo entrenamiento - decrementar munición localmente
+    arma.municionActual--;
+    
+    // Calcular posición base
+    _balaOffset.set(0, 0, -1).applyQuaternion(camera.quaternion);
+    const posicionBala = camera.position.clone().add(_balaOffset);
+    
+    // Crear balas visuales
+    crearBalasVisuales(posicionBala, configArma, estadoArma);
+    
+    // Feedback
+    animarRetroceso();
+    registrarDisparoProgreso();
+    reproducirSonidoDisparo(estadoArma.tipoActual, configArma);
+    actualizarDisplayMunicion();
+    
+    if (botManager) {
+      botManager.registrarDisparo();
+    }
+  }
+}
+
+/**
+ * Crea balas visuales con dispersión correcta en local space
+ * Usado tanto en modo online como entrenamiento
+ */
+function crearBalasVisuales(posicionBase, configArma, estadoArma) {
   const numProyectiles = configArma.proyectiles || 1;
   let dispersionArma = configArma.dispersion || 0;
   
-  // Aplicar dispersión sin mira para francotiradores (sniper)
+  // Aplicar dispersión sin mira para francotiradores
   if (!estadoArma.estaApuntando && configArma.dispersionSinMira) {
     dispersionArma = configArma.dispersionSinMira;
   }
@@ -2786,206 +2535,31 @@ function dispararLocal(camera, balas, scene, configArma) {
     dispersionArma *= configArma.apuntado.reduccionDispersion;
   }
   
-  // Obtener dispersión por retroceso acumulado
   const dispersionRetroceso = obtenerDispersionRetroceso();
+  const dispersionTotal = dispersionArma + dispersionRetroceso;
+  
+  // Calcular vectores de la cámara para dispersión en local space
+  _camaraRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+  _camaraUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
   
   for (let i = 0; i < numProyectiles; i++) {
-    // Calcular dirección de la bala con dispersión
-    const direccion = new THREE.Vector3(0, 0, -1);
-    direccion.applyQuaternion(camera.quaternion);
+    _balaDireccion.set(0, 0, -1).applyQuaternion(camera.quaternion);
     
-    // Aplicar dispersión del arma + dispersión por retroceso
-    const dispersionTotal = dispersionArma + dispersionRetroceso;
+    // Aplicar dispersión en local space de la cámara
     if (dispersionTotal > 0) {
-      direccion.x += (Math.random() - 0.5) * dispersionTotal;
-      direccion.y += (Math.random() - 0.5) * dispersionTotal;
+      const dx = (Math.random() - 0.5) * dispersionTotal;
+      const dy = (Math.random() - 0.5) * dispersionTotal;
+      _balaDireccion.addScaledVector(_camaraRight, dx);
+      _balaDireccion.addScaledVector(_camaraUp, dy);
     }
     
-    direccion.normalize();
+    _balaDireccion.normalize();
     
-    // Crear la bala con la configuración del arma actual
-    const bala = new Bala(scene, posicionBala.clone(), direccion, null, {
+    const bala = new Bala(scene, posicionBase.clone(), _balaDireccion.clone(), null, {
       velocidad: configArma.velocidadBala,
       daño: configArma.daño
     });
     balas.push(bala);
-  }
-  
-  // Animar retroceso del arma
-  animarRetroceso();
-  
-  return true;
-}
-
-/**
- * Maneja el evento de disparo
- * Requirement 5.1: Send shoot input to server
- * Requirement 3.1: Si JuiceBox equipado, iniciar curación en lugar de disparar
- */
-function manejarDisparo() {
-  console.log('🔫 manejarDisparo llamado');
-  
-  // No disparar si hay overlay de conexión visible
-  const connectionOverlay = document.getElementById('connection-overlay');
-  if (connectionOverlay && connectionOverlay.style.display !== 'none') {
-    return;
-  }
-
-  // Verificar si el JuiceBox está equipado - iniciar curación
-  // Requirements: 3.1 - Iniciar curación al hacer clic con JuiceBox equipado
-  if (esJuiceBoxEquipado()) {
-    console.log('🧃 JuiceBox equipado - Iniciando curación');
-    // Pasar vida actual y máxima para validar si puede curarse
-    const resultado = iniciarCuracion(jugador.health, jugador.maxHealth);
-    
-    if (resultado.iniciada) {
-      console.log('🧃 Curación iniciada correctamente');
-      // Notificar al servidor del inicio de curación
-      if (isMultiplayerConnected && inputSender) {
-        inputSender.sendHealStart();
-      }
-    } else if (resultado.razon === 'vida_llena') {
-      // Mostrar mensaje de vida llena
-      mostrarMensajeVidaLlena('Vida llena');
-      console.log('🧃 No se puede curar - Vida llena');
-    }
-    return;
-  }
-
-  // Verificar si el cuchillo está equipado - usar ataque melee
-  const cuchilloEquipado = esCuchilloEquipado();
-  console.log(`🔫 ¿Cuchillo equipado? ${cuchilloEquipado}`);
-  
-  if (cuchilloEquipado) {
-    console.log('🔪 Redirigiendo a manejarAtaqueCuchillo');
-    manejarAtaqueCuchillo();
-    return;
-  }
-
-  if (isMultiplayerConnected) {
-    // Verificar si podemos disparar localmente (para responsividad)
-    if (arma.estaRecargando || arma.municionActual <= 0) {
-      return;
-    }
-    
-    // Obtener configuración del arma actual
-    const estadoArma = obtenerEstado();
-    const configArma = CONFIG.armas[estadoArma.tipoActual];
-    
-    // Verificar cadencia de disparo
-    const ahora = performance.now();
-    const tiempoEntreDisparos = (60 / configArma.cadenciaDisparo) * 1000;
-    if (ahora - arma.ultimoDisparo < tiempoEntreDisparos) {
-      return;
-    }
-    arma.ultimoDisparo = ahora;
-    
-    // Calcular posición y dirección de la bala
-    const posicionBala = camera.position.clone();
-    const offsetAdelante = new THREE.Vector3(0, 0, -1);
-    offsetAdelante.applyQuaternion(camera.quaternion);
-    posicionBala.add(offsetAdelante);
-
-    const direccion = new THREE.Vector3(0, 0, -1);
-    direccion.applyQuaternion(camera.quaternion);
-    direccion.normalize();
-    
-    // Obtener dispersión por retroceso acumulado
-    const dispersionRetroceso = obtenerDispersionRetroceso();
-    
-    // Enviar input de disparo al servidor con el tipo de arma y estado de apuntado
-    inputSender.sendShoot(
-      { x: posicionBala.x, y: posicionBala.y, z: posicionBala.z },
-      { x: direccion.x, y: direccion.y, z: direccion.z },
-      estadoArma.tipoActual,
-      estadoArma.estaApuntando
-    );
-    
-    // Registrar disparo para progreso
-    registrarDisparoProgreso();
-    
-    // Actualizar estadísticas locales
-    actualizarStatsLocales('shotsFired', 1);
-    
-    // Para escopetas, crear múltiples balas visuales
-    const numProyectiles = configArma.proyectiles || 1;
-    let dispersionArma = configArma.dispersion || 0;
-    
-    // Aplicar dispersión sin mira para francotiradores (sniper)
-    // Si no está apuntando y tiene dispersionSinMira, usarla
-    if (!estadoArma.estaApuntando && configArma.dispersionSinMira) {
-      dispersionArma = configArma.dispersionSinMira;
-    }
-    // Si está apuntando y tiene reduccionDispersion, aplicarla
-    else if (estadoArma.estaApuntando && configArma.apuntado && configArma.apuntado.reduccionDispersion) {
-      dispersionArma *= configArma.apuntado.reduccionDispersion;
-    }
-    
-    for (let i = 0; i < numProyectiles; i++) {
-      const direccionBala = direccion.clone();
-      
-      // Aplicar dispersión del arma + dispersión por retroceso
-      const dispersionTotal = dispersionArma + dispersionRetroceso;
-      if (dispersionTotal > 0) {
-        direccionBala.x += (Math.random() - 0.5) * dispersionTotal;
-        direccionBala.y += (Math.random() - 0.5) * dispersionTotal;
-        direccionBala.normalize();
-      }
-      
-      // Crear bala visual local (predicción del cliente)
-      const bala = new Bala(scene, posicionBala.clone(), direccionBala, null, {
-        velocidad: configArma.velocidadBala,
-        daño: configArma.daño
-      });
-      balas.push(bala);
-    }
-    
-    // Animar retroceso del arma
-    animarRetroceso();
-    
-    // Reproducir sonido de disparo usando el sistema de sonidos
-    reproducirSonidoDisparo(estadoArma.tipoActual, configArma);
-    
-    // Actualizar UI de munición
-    actualizarDisplayMunicion();
-  } else {
-    // Modo local - usar misma lógica de cadencia que modo online
-    // para que el comportamiento sea idéntico
-    if (arma.estaRecargando || arma.municionActual <= 0) {
-      return;
-    }
-    
-    const estadoArma = obtenerEstado();
-    const configArma = CONFIG.armas[estadoArma.tipoActual];
-    
-    // Verificar cadencia de disparo usando fireRate del servidor (en ms)
-    // Esto asegura que la cadencia sea idéntica al modo online
-    const ahora = performance.now();
-    // Usar los valores de fireRate del servidor directamente
-    const fireRateMs = obtenerFireRateServidor(estadoArma.tipoActual);
-    if (ahora - arma.ultimoDisparo < fireRateMs) {
-      return;
-    }
-    arma.ultimoDisparo = ahora;
-    
-    // Procesar disparo local
-    const disparo = dispararLocal(camera, balas, scene, configArma);
-    
-    if (disparo) {
-      // Registrar disparo para progreso
-      registrarDisparoProgreso();
-      
-      // Actualizar estadísticas locales
-      actualizarStatsLocales('shotsFired', 1);
-      
-      reproducirSonidoDisparo(estadoArma.tipoActual, configArma);
-      actualizarDisplayMunicion();
-      
-      // Registrar disparo para estadísticas de entrenamiento
-      if (botManager) {
-        botManager.registrarDisparo();
-      }
-    }
   }
 }
 
@@ -2994,11 +2568,8 @@ function manejarDisparo() {
  * Detecta enemigos en rango y aplica daño
  */
 function manejarAtaqueCuchillo() {
-  console.log('🔪 === INICIANDO ATAQUE CON CUCHILLO ===');
-  
-  // En modo multijugador, enviar ataque al servidor primero
+  // En modo multijugador, solo enviar al servidor (él es autoritativo)
   if (isMultiplayerConnected && inputSender) {
-    console.log('🔪 Enviando ataque al servidor (multijugador)');
     inputSender.sendMeleeAttack({
       posicion: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
       direccion: { 
@@ -3007,48 +2578,32 @@ function manejarAtaqueCuchillo() {
         z: -Math.cos(jugador.rotacionY) 
       }
     });
+    
+    // Solo ejecutar animación visual, sin detección de impactos
+    atacarConCuchillo(camera, [], scene, null);
+    return;
   }
 
-  // Obtener lista de enemigos (bots en modo local, jugadores remotos en multijugador)
+  // Modo local: obtener bots y aplicar daño
   let enemigos = [];
-  
-  if (isMultiplayerConnected && remotePlayerManager) {
-    // Modo multijugador: obtener jugadores remotos
-    const playersMap = remotePlayerManager.getAllPlayers();
-    if (playersMap && playersMap.size > 0) {
-      enemigos = Array.from(playersMap.values());
-    }
-    console.log(`🔪 Modo multijugador - Jugadores remotos: ${enemigos.length}`);
-  } else if (botManager) {
-    // Modo local: obtener bots
+  if (botManager) {
     enemigos = botManager.obtenerBots ? botManager.obtenerBots() : [];
-    console.log(`🔪 Modo local - Bots disponibles: ${enemigos.length}`);
-  } else {
-    console.log('🔪 No hay botManager ni remotePlayerManager');
   }
   
-  // Ejecutar ataque con cuchillo (en modo local aplica daño, en multijugador es solo visual)
-  const resultado = atacarConCuchillo(camera, enemigos, scene, (impacto) => {
-    // Callback cuando el cuchillo impacta
-    console.log(`🔪 ¡IMPACTO DE CUCHILLO!:`, impacto);
-    
-    // Mostrar indicador de daño causado
+  // Ejecutar ataque con detección de impactos
+  atacarConCuchillo(camera, enemigos, scene, (impacto) => {
     if (impacto.daño) {
       mostrarDañoCausado(impacto.daño);
     }
     
-    // Registrar impacto para estadísticas (solo modo local)
-    if (!isMultiplayerConnected && botManager && impacto.enemigo) {
+    if (botManager && impacto.enemigo) {
       botManager.registrarImpacto();
       
-      // Si el bot murió, registrar eliminación
       if (impacto.enemigo.datos && impacto.enemigo.datos.vidaActual <= 0) {
         botManager.registrarEliminacion(impacto.enemigo);
       }
     }
   });
-  
-  console.log(`🔪 Resultado ataque - Impactos: ${resultado.enemigosGolpeados.length}`);
 }
 
 /**
@@ -3069,7 +2624,11 @@ function manejarMovimientoMouse(movimientoX, movimientoY) {
 
 /**
  * Send movement input to server
- * Requirement 4.1: Send movement input to server
+ * 
+ * Mejoras implementadas:
+ * - Posición solo se envía periódicamente (controlado por inputSender)
+ * - Estado de arma cacheado para evitar llamadas costosas cada tick
+ * - Sequence numbers para reconciliación (manejado por inputSender)
  */
 function enviarInputMovimiento() {
   if (!isMultiplayerConnected) return;
@@ -3096,18 +2655,20 @@ function enviarInputMovimiento() {
     y: jugador.rotacion.y
   };
   
-  // Incluir posición del jugador para sincronización
+  // Posición para reconciliación (inputSender decide cuándo enviarla)
   const position = {
     x: jugador.posicion.x,
     y: jugador.posicion.y,
     z: jugador.posicion.z
   };
   
-  // Obtener estado de apuntado
-  const estadoArma = obtenerEstado();
-  const apuntando = estadoArma.estaApuntando || false;
+  // Usar estado de arma cacheado para evitar llamadas costosas cada tick
+  const estadoArma = inputSender.getCachedWeaponState(obtenerEstado);
+  const apuntando = estadoArma?.estaApuntando || false;
   
-  inputSender.sendMovement(keys, rotation, position, apuntando);
+  // Nueva firma: (keys, rotation, isAiming, position)
+  // La posición se envía solo periódicamente para reconciliación
+  inputSender.sendMovement(keys, rotation, apuntando, position);
 }
 
 /**
@@ -3117,48 +2678,6 @@ function actualizarDisplayMunicion() {
   const estado = obtenerEstado();
   actualizarInfoArma(estado);
 }
-
-/**
- * OLD actualizarDisplayDash - DEPRECATED
- * Now using actualizarDashBox from dash.js which is called in actualizarRecargaDash
- * Keeping commented for reference
- */
-/*
-function actualizarDisplayDash() {
-  // Buscar el contenedor de dash
-  const dashContainer = document.getElementById('dash-charges');
-  if (!dashContainer) return;
-  
-  // Buscar iconos dentro del contenedor de dash-icons (nuevo diseño)
-  const iconsContainer = dashContainer.querySelector('.dash-icons-container');
-  const icons = iconsContainer 
-    ? iconsContainer.querySelectorAll('.dash-icon') 
-    : dashContainer.querySelectorAll('.dash-icon');
-  
-  if (!icons.length) return;
-
-  for (let i = 0; i < icons.length; i++) {
-    const icon = icons[i];
-    
-    // Remover todas las clases de estado primero
-    icon.classList.remove('recharging', 'empty');
-    
-    // Requirements: 2.8 - Indicador verde brillante cuando carga disponible
-    if (i < sistemaDash.cargasActuales) {
-      // Carga disponible - estado base (verde brillante)
-      // No se necesita clase adicional, el estilo base es verde
-    }
-    // Requirements: 2.7 - Indicador de progreso cuando se está recargando
-    else if (sistemaDash.cargasRecargando && sistemaDash.cargasRecargando[i]) {
-      icon.classList.add('recharging');
-    }
-    // Requirements: 2.6 - Indicador vacío cuando no está disponible
-    else {
-      icon.classList.add('empty');
-    }
-  }
-}
-*/
 
 /**
  * Bucle principal del juego
@@ -3179,9 +2698,6 @@ function bucleJuego() {
     if (tiempoActual - ultimoTiempoProgreso > 10000) {
       const tiempoSegundos = Math.floor(tiempoJuegoAcumulado);
       actualizarTiempoJugado(tiempoSegundos);
-      
-      // Actualizar tiempo local para usuarios no autenticados
-      actualizarStatsLocales('playtime', tiempoSegundos);
       
       tiempoJuegoAcumulado = 0;
       ultimoTiempoProgreso = tiempoActual;
@@ -3206,14 +2722,12 @@ function bucleJuego() {
     // OLD: actualizarDisplayDash() - now using actualizarDashBox from dash.js
     
     // Actualizar interpolación del dash si está en progreso
-    // Requirements: 1.2 - Actualizar posición del jugador en cada frame durante dash
     actualizarDashInterpolacion(jugador, deltaTime * 1000);
     
     // Actualizar retroceso acumulado (se reduce con el tiempo)
     actualizarRetroceso();
 
     // Actualizar sistema de curación
-    // Requirements: 3.2 - Actualizar curación cada frame y aplicar cuando se complete
     if (estaCurando()) {
       const resultadoCuracion = actualizarCuracion(jugador);
       if (resultadoCuracion.completada) {
@@ -3228,7 +2742,6 @@ function bucleJuego() {
       // Actualizar UI de progreso de curación
       actualizarBarraCuracion(obtenerProgresoCuracion());
       
-      // Requirements: 5.4, 5.5, 5.6 - Actualizar Heal Box UI durante curación
       actualizarHealBox({
         puedeUsarse: false,
         enCooldown: true
@@ -3237,7 +2750,6 @@ function bucleJuego() {
       // Ocultar barra de curación si no está curando
       ocultarBarraCuracion();
       
-      // Requirements: 5.4, 5.5 - Actualizar Heal Box UI cuando no está curando
       // Verificar si puede curarse (vida no llena)
       const vidaActual = jugador.health || jugador.vida || jugador.vidaActual || 0;
       const vidaMaxima = jugador.maxHealth || jugador.vidaMaxima || 200;
@@ -3251,11 +2763,12 @@ function bucleJuego() {
 
     // Disparo automático si el mouse está presionado (solo para armas automáticas)
     if (estaMousePresionado() && estaPointerLockActivo()) {
-      const estadoArma = obtenerEstado();
-      const configArma = CONFIG.armas[estadoArma.tipoActual];
+      // Usar cache de estado de arma para evitar llamadas costosas cada frame
+      const estadoArma = inputSender ? inputSender.getCachedWeaponState(obtenerEstado) : obtenerEstado();
+      const configArma = CONFIG.armas[estadoArma?.tipoActual];
       
       // Solo disparar automáticamente si el arma NO es semiautomática
-      if (!configArma.semiAutomatica) {
+      if (configArma && !configArma.semiAutomatica) {
         manejarDisparo();
       }
     }
@@ -3279,7 +2792,6 @@ function bucleJuego() {
       const bala = balas[i];
       
       // Verificar colisión con bots de entrenamiento (solo en modo local)
-      // Requirement 1.4: Registrar impacto y actualizar barra de vida del bot
       if (botManager && modoJuegoActual === 'local' && !bala.haImpactado) {
         const botsVivos = botManager.obtenerBotsVivos();
         const botImpactado = verificarImpactoBots(bala, botsVivos);
@@ -3305,13 +2817,11 @@ function bucleJuego() {
     }
 
     // Actualizar sistema de bots de entrenamiento (solo en modo local)
-    // Requirements: 1.1, 2.1, 3.1, 4.4
     if (botManager && modoJuegoActual === 'local') {
       botManager.actualizar(deltaTime * 1000, jugador.posicion);
     }
 
     // Actualizar sistema de spawns de munición
-    // Requirements: 5.1, 5.2, 5.3
     actualizarAmmoSpawns(deltaTime);
 
     // Sincronizar cámara con jugador
@@ -3323,57 +2833,4 @@ function bucleJuego() {
 }
 
 // Iniciar el juego cuando el DOM esté listo
-inicializar();
-
-/**
- * Función global para mostrar el menú de usuario
- * Puede ser llamada desde cualquier parte del juego
- */
-window.abrirMenuUsuario = function() {
-  try {
-    const authState = obtenerEstadoAuth();
-    let datosUsuario = {};
-    
-    if (authState.isAuthenticated) {
-      // Usuario autenticado - usar datos del servidor
-      const progreso = obtenerProgreso();
-      datosUsuario = {
-        username: authState.user.username,
-        level: progreso?.progress?.level || 1,
-        stats: progreso?.stats || {}
-      };
-    } else {
-      // Usuario no autenticado - usar datos locales del localStorage
-      const statsLocales = getStorageJSON('gameStats', {});
-      const configLocal = getStorageJSON('gameConfig', {});
-      
-      // Calcular nivel basado en experiencia local
-      const experiencia = statsLocales.experience || 0;
-      const nivel = Math.floor(experiencia / 1000) + 1; // 1000 XP por nivel
-      
-      datosUsuario = {
-        username: configLocal.playerName || 'Jugador Local',
-        level: nivel,
-        stats: {
-          kills: statsLocales.kills || 0,
-          deaths: statsLocales.deaths || 0,
-          shotsFired: statsLocales.shotsFired || 0,
-          shotsHit: statsLocales.shotsHit || 0,
-          playtime: statsLocales.playtime || 0,
-          experience: experiencia
-        }
-      };
-    }
-    
-    mostrarMenuUsuario(datosUsuario);
-  } catch (error) {
-    console.error('Error abriendo menú de usuario:', error);
-    
-    // Fallback con datos mínimos
-    mostrarMenuUsuario({
-      username: 'Jugador',
-      level: 1,
-      stats: {}
-    });
-  }
-};
+inicializarAplicacion();

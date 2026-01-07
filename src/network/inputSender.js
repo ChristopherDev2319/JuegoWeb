@@ -3,6 +3,11 @@
  * Handles sending player inputs to the server
  * 
  * Requirements: 3.3, 4.1, 5.1, 6.1, 7.1
+ * 
+ * Mejoras implementadas:
+ * - Sequence numbers (inputId) para ordenamiento y reconciliación
+ * - Timestamps para lag compensation
+ * - Cache de estado de arma para evitar llamadas costosas cada tick
  */
 
 import { getConnection } from './connection.js';
@@ -13,21 +18,58 @@ import { getConnection } from './connection.js';
 export class InputSender {
   constructor(connection = null) {
     this.connection = connection || getConnection();
+    
+    // Sequence number para ordenamiento de inputs
+    this.inputSequence = 0;
+    
+    // Cache del último estado de arma para evitar llamadas costosas
+    this._cachedWeaponState = null;
+    this._weaponStateDirty = true;
+  }
+
+  /**
+   * Marca el estado del arma como modificado (llamar cuando cambie)
+   */
+  markWeaponStateDirty() {
+    this._weaponStateDirty = true;
+  }
+
+  /**
+   * Obtiene el estado del arma cacheado
+   * @param {Function} obtenerEstadoFn - Función para obtener estado si cache está dirty
+   * @returns {Object} Estado del arma
+   */
+  getCachedWeaponState(obtenerEstadoFn) {
+    if (this._weaponStateDirty && obtenerEstadoFn) {
+      this._cachedWeaponState = obtenerEstadoFn();
+      this._weaponStateDirty = false;
+    }
+    return this._cachedWeaponState;
   }
 
   /**
    * Send movement input to server (Requirement 4.1)
+   * 
+   * Mejoras:
+   * - Incluye inputId y timestamp para reconciliación/lag compensation
+   * - Keys incluidas para futura validación server-side
+   * 
    * @param {Object} keys - Key states { w, a, s, d, space }
    * @param {Object} rotation - Player rotation { x, y }
-   * @param {Object} position - Player position { x, y, z }
    * @param {boolean} isAiming - Whether player is aiming
+   * @param {Object} position - Player position
    */
-  sendMovement(keys, rotation, position = null, isAiming = false) {
+  sendMovement(keys, rotation, isAiming = false, position = null) {
     if (!this.connection.isConnected()) {
       return;
     }
     
+    // Incrementar sequence number
+    const inputId = ++this.inputSequence;
+    
     const data = {
+      inputId: inputId,
+      time: performance.now(),
       keys: {
         w: !!keys.w,
         a: !!keys.a,
@@ -42,7 +84,7 @@ export class InputSender {
       isAiming: isAiming
     };
     
-    // Incluir posición si se proporciona
+    // Incluir posición siempre (el servidor la necesita actualmente)
     if (position) {
       data.position = {
         x: position.x || 0,
@@ -52,6 +94,8 @@ export class InputSender {
     }
     
     this.connection.send('input', data);
+    
+    return inputId; // Retornar para client-side prediction
   }
 
   /**
