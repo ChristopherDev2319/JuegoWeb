@@ -13,7 +13,7 @@ import { CONFIG } from '../config.js';
 // Configuración del modelo del bot
 // Requirements: 1.1, 1.2
 const BOT_MODEL_CONFIG = {
-  modelPath: 'modelos/cubed_bear.glb',
+  modelPath: 'public/modelos/cubed_bear.glb',
   scale: 7.0,
   rotationOffset: Math.PI,
   heightOffset: 0

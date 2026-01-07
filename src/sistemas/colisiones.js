@@ -67,7 +67,7 @@ async function inicializarColisionesFallback(scene, onProgress) {
     // Inicializar raycaster
     raycaster = new THREE.Raycaster();
     
-    gltfLoader.load('modelos/map_coll.glb', (gltf) => {
+    gltfLoader.load('public/modelos/map_coll.glb', (gltf) => {
       collisionModel = gltf.scene;
 
       // Escalar el modelo de colisiones a 5x (igual que el mapa visual)

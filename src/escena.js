@@ -154,7 +154,7 @@ function cargarMapa(onProgreso = null) {
     const gltfLoader = new THREE.GLTFLoader();
     
     // Cargar el nuevo mapa visual (map_visual.glb)
-    gltfLoader.load('modelos/map_visual.glb', (gltf) => {
+    gltfLoader.load('public/modelos/map_visual.glb', (gltf) => {
       mapaModelo = gltf.scene;
       
       // Escalar el mapa a 5x

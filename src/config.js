@@ -33,8 +33,8 @@ export const CONFIG = {
       municionTotal: 120, // 4 cargadores extra
       tiempoRecarga: 2.2, // Recarga moderada
       velocidadBala: 65.0,
-      modelo: "modelos/FBX/Weapons/M4A1.fbx",
-      sonidoDisparo: "sonidos/M4A1.mp3",
+      modelo: "public/modelos/FBX/Weapons/M4A1.fbx",
+      sonidoDisparo: "public/sonidos/M4A1.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
       rotacion: { x: 0, y: Math.PI, z: 0 },
       retroceso: {
@@ -65,8 +65,8 @@ export const CONFIG = {
       municionTotal: 90, // 3 cargadores extra
       tiempoRecarga: 2.5, // Recarga más lenta
       velocidadBala: 60.0,
-      modelo: "modelos/FBX/Weapons/AK47.fbx",
-      sonidoDisparo: "sonidos/AK47.mp3",
+      modelo: "public/modelos/FBX/Weapons/AK47.fbx",
+      sonidoDisparo: "public/sonidos/AK47.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
       rotacion: { x: 0, y: 0, z: 0 },
       retroceso: {
@@ -96,8 +96,8 @@ export const CONFIG = {
       municionTotal: 28, // 4 cargadores extra
       tiempoRecarga: 1.8,
       velocidadBala: 50.0,
-      modelo: "modelos/FBX/Weapons/1911.fbx",
-      sonidoDisparo: "sonidos/pistola.mp3",
+      modelo: "public/modelos/FBX/Weapons/1911.fbx",
+      sonidoDisparo: "public/sonidos/pistola.mp3",
       posicion: { x: 0.2, y: -0.4, z: -0.3 },
       rotacion: { x: 0, y: 0, z: 0 },
       retroceso: {
@@ -128,8 +128,8 @@ export const CONFIG = {
       municionTotal: 10, // 10 balas máximo
       tiempoRecarga: 3.7, // Recarga muy lenta
       velocidadBala: 120.0, // Actualizado: velocidad máxima de 120
-      modelo: "modelos/FBX/Weapons/AWP.fbx",
-      sonidoDisparo: "sonidos/SNIPER.mp3",
+      modelo: "public/modelos/FBX/Weapons/AWP.fbx",
+      sonidoDisparo: "public/sonidos/SNIPER.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
       rotacion: { x: 0, y: Math.PI, z: 0 },
       retroceso: {
@@ -163,8 +163,8 @@ export const CONFIG = {
       municionTotal: 24, // 24 cartuchos máximo
       tiempoRecarga: 3.0, // 3 segundos
       velocidadBala: 38.0,
-      modelo: "modelos/FBX/Weapons/Pump Shotgun.fbx",
-      sonidoDisparo: "sonidos/ESCOPETA.mp3",
+      modelo: "public/modelos/FBX/Weapons/Pump Shotgun.fbx",
+      sonidoDisparo: "public/sonidos/ESCOPETA.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
       rotacion: { x: 0, y: Math.PI, z: 0 },
       retroceso: {
@@ -201,8 +201,8 @@ export const CONFIG = {
       municionTotal: 240,
       tiempoRecarga: 2.0, // 2 segundos como servidor
       velocidadBala: 48.0,
-      modelo: "modelos/FBX/Weapons/MP5.fbx",
-      sonidoDisparo: "sonidos/MP5.mp3",
+      modelo: "public/modelos/FBX/Weapons/MP5.fbx",
+      sonidoDisparo: "public/sonidos/MP5.mp3",
       posicion: { x: 0.3, y: -0.3, z: -0.5 },
       rotacion: { x: 0, y: Math.PI, z: 0 },
       retroceso: {
@@ -237,9 +237,9 @@ export const CONFIG = {
       daño: 30,                    // 30 puntos de daño por ataque (balanceado)
       rangoAtaque: 3.0,            // 3 unidades de distancia (aumentado para mejor alcance)
       cadenciaAtaque: 350,         // ms entre ataques (más rápido)
-      modelo: "modelos/valorants_knife_low_poly.glb",
-      animacionAtaque: "modelos/animaciones/knife_attack_tps.glb",
-      animacionAtaqueTPS: "modelos/animaciones/knife_attack_tps.glb",
+      modelo: "public/modelos/valorants_knife_low_poly.glb",
+      animacionAtaque: "public/modelos/animaciones/knife_attack_tps.glb",
+      animacionAtaqueTPS: "public/modelos/animaciones/knife_attack_tps.glb",
       // Posición FPS: más alejado y a la derecha para verse bien
       posicion: { x: 0.35, y: -0.4, z: -0.5 },
       // Rotación FPS: agarre natural diagonal
@@ -355,7 +355,7 @@ export const CONFIG = {
   // Configuración del sistema de curación (JuiceBox)
   // Requirements: 6.1, 6.2
   curacion: {
-    modelo: "modelos/stylized_juicebox.glb",
+    modelo: "public/modelos/stylized_juicebox.glb",
     vidaCurada: 50,              // HP restaurados al completar curación
     tiempoCuracion: 2000,        // 2 segundos en ms
     // Posición FPS (primera persona)
@@ -376,7 +376,7 @@ export const CONFIG = {
   spawnsAmmo: {
     porcentajeMunicion: 0.35,      // 35% de munición máxima del arma equipada
     tiempoRecarga: 10000,          // 10 segundos en ms para reactivar
-    modelo: "modelos/ammo_pack.glb",
+    modelo: "public/modelos/ammo_pack.glb",
     escala: 0.04,
     radioRecoleccion: 1.5,         // Distancia para recoger (unidades)
     // Posiciones estratégicas de spawns en el mapa
