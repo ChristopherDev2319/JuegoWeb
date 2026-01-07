@@ -246,6 +246,17 @@ function pausarJuego() {
   // Mostrar menú
   elementos.pauseMenu?.classList.remove('hidden');
   
+  // Ocultar botón de estadísticas en modo local
+  if (window.modoJuegoActual === 'local') {
+    if (elementos.statsBtn) {
+      elementos.statsBtn.style.display = 'none';
+    }
+  } else {
+    if (elementos.statsBtn) {
+      elementos.statsBtn.style.display = '';
+    }
+  }
+  
   // Ocultar todos los paneles excepto el principal
   mostrarPanel('main');
   
