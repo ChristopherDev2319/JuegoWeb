@@ -94,6 +94,7 @@ async function handleConnection(ws, req) {
   connections.set(playerId, ws);
   ws.playerId = playerId;
   ws.inLobby = true;
+  ws.isAlive = true;
   
   // Store token mapping for stats updates
   if (token && ws.userId) {
@@ -113,6 +114,9 @@ async function handleConnection(ws, req) {
   ws.on('close', () => handleDisconnection(ws));
   ws.on('error', (error) => {
     console.error(`WebSocket error for ${playerId}:`, error.message);
+  });
+  ws.on('pong', () => {
+    ws.isAlive = true;
   });
 }
 
@@ -713,6 +717,19 @@ export function startLegacyServer() {
       console.log(`[CLEANUP] Removed ${cleaned} empty room(s)`);
     }
   }, 60 * 1000);
+  
+  // Set up heartbeat to detect dead connections
+  const heartbeatInterval = setInterval(() => {
+    for (const [playerId, ws] of connections) {
+      if (ws.isAlive === false) {
+        console.log(`[HEARTBEAT] Terminating dead connection: ${playerId}`);
+        ws.terminate();
+        continue;
+      }
+      ws.isAlive = false;
+      ws.ping();
+    }
+  }, 30000); // Check every 30 seconds
   
   // Get port
   const PORT = process.env.PORT || SERVER_CONFIG.port;

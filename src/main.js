@@ -1272,6 +1272,13 @@ async function inicializarJuegoCompleto() {
   // Marcar juego como iniciado
   juegoIniciado = true;
 
+  // Agregar manejador para cerrar conexión al cerrar pestaña
+  window.addEventListener('beforeunload', () => {
+    if (connection && isMultiplayerConnected) {
+      connection.disconnect();
+    }
+  });
+
   // Iniciar bucle del juego ANTES de ocultar la pantalla
   // Esto asegura que el canvas ya esté renderizando cuando se quite la pantalla de carga
   bucleJuego();
