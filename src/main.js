@@ -2,7 +2,6 @@
  * Punto de entrada principal del juego FPS Three.js Multijugador
  * Importa todos los módulos y crea el bucle principal del juego
  * 
- * Requisitos: 1.1, 2.1, 2.2, 2.3, 3.3, 4.1
  */
 
 // Importar módulos del juego
@@ -84,7 +83,6 @@ import {
   estaMousePresionado
 } from './sistemas/controles.js';
 
-import { crearEfectoDash } from './utils/efectos.js';
 import { mostrarIndicadorDaño, mostrarMensajeConexion, ocultarMensajeConexion, mostrarPantallaMuerte, ocultarPantallaMuerte, agregarEntradaKillFeed, actualizarBarraVida, mostrarEfectoDaño, mostrarDañoCausado, actualizarInfoArma, mostrarCambioArma, actualizarBarraCuracion, ocultarBarraCuracion, actualizarHealBox, inicializarLucideIcons, inicializarCacheDOM, mostrarMensajeVidaLlena } from './utils/ui.js';
 
 // Network imports
@@ -142,15 +140,12 @@ import { inicializarSonidos, reproducirSonidoDisparo } from './sistemas/sonidos.
 import { inicializarColisiones, toggleDebugVisual } from './sistemas/colisiones.js';
 
 // Sistema de bots de entrenamiento
-// Requirements: 1.1, 2.1, 3.1, 4.4
 import { BotManager } from './sistemas/botManager.js';
 
 // Sistema de spawns de munición
-// Requirements: 5.1, 5.2, 5.3, 5.4
 import { AmmoSpawn } from './entidades/AmmoSpawn.js';
 
 // UI de estadísticas de entrenamiento
-// Requirements: 6.1, 6.2
 import {
   inicializarEntrenamientoUI,
   actualizarEstadisticasUI,
@@ -158,7 +153,6 @@ import {
 } from './ui/entrenamientoUI.js';
 
 // Sistema de selección de armas
-// Requirements: 1.1, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2, 4.3
 import { 
   estadoSeleccion,
   seleccionarArma as seleccionarArmaEstado,
@@ -312,15 +306,289 @@ async function onIniciarJuego(modo, salaId = null, nombreJugador = '') {
   ocultarLobby();
   
   // En modo local: iniciar directamente con todas las armas
-  // En modo online: mostrar menú de selección de armas
+  // En modo online: iniciar juego completo y luego mostrar menú de selección
   if (modo === 'local') {
     console.log('🎮 Modo local: Iniciando con todas las armas disponibles');
     await inicializarJuegoCompleto();
   } else {
-    // Mostrar menú de selección de armas en lugar de iniciar directamente
-    // Requirements: 1.1 - Mostrar menú de selección de armas al entrar a partida
-    mostrarMenuSeleccionArmas();
+    // Modo online: iniciar el juego completo primero para que la escena esté lista
+    // El menú de selección de armas se mostrará después de la inicialización
+    console.log('🌐 Modo online: Iniciando juego y mostrando selección de armas');
+    await inicializarJuegoCompletoOnline();
   }
+}
+
+/**
+ * Inicializa el juego completo para modo online
+ * Primero carga la escena y recursos, luego muestra el menú de selección de armas
+ * Requirements: 1.1, 2.1, 2.2
+ */
+async function inicializarJuegoCompletoOnline() {
+  console.log('🌐 Iniciando inicializarJuegoCompletoOnline...');
+  
+  // Obtener referencias a elementos de carga
+  loadingScreen = document.getElementById('loading-screen');
+  loadingBar = document.getElementById('loading-bar');
+  loadingText = document.getElementById('loading-text');
+  
+  // Mostrar pantalla de carga
+  if (loadingScreen) {
+    loadingScreen.style.display = 'flex';
+    loadingScreen.classList.remove('hidden');
+  }
+
+  // Helper para agregar timeout a promesas
+  const conTimeout = (promesa, ms, nombreOperacion) => {
+    return Promise.race([
+      promesa,
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error(`Timeout: ${nombreOperacion} tardó más de ${ms/1000}s`)), ms)
+      )
+    ]);
+  };
+
+  try {
+    actualizarCarga(5, 'Iniciando...');
+    actualizarCarga(10, 'Creando escena...');
+
+    // Inicializar escena de Three.js (inicia carga del mapa)
+    let mapaPromise;
+    try {
+      mapaPromise = inicializarEscena((progresoMapa) => {
+        const progresoTotal = 10 + (progresoMapa * 0.4);
+        actualizarCarga(progresoTotal, `Cargando mapa: ${progresoMapa}%`);
+      });
+    } catch (error) {
+      console.error('❌ Error crítico inicializando escena:', error);
+      // Intentar crear escena básica de fallback
+      mapaPromise = Promise.resolve(null);
+    }
+
+    // Inicializar jugador
+    inicializarJugador();
+
+    actualizarCarga(15, 'Cargando mapa...');
+
+    // Esperar a que el mapa cargue
+    try {
+      await conTimeout(mapaPromise, 15000, 'Carga del mapa');
+      console.log('✅ Mapa cargado correctamente');
+    } catch (error) {
+      console.warn('⚠️ Timeout cargando mapa, continuando sin él:', error.message);
+    }
+    
+    actualizarCarga(45, 'Cargando colisiones...');
+    
+    // Inicializar sistema de colisiones
+    try {
+      await conTimeout(
+        inicializarColisiones(scene, (progresoColisiones) => {
+          const progresoTotal = 45 + (progresoColisiones * 0.05);
+          actualizarCarga(progresoTotal, `Cargando colisiones: ${progresoColisiones}%`);
+        }),
+        10000,
+        'Carga de colisiones'
+      );
+      console.log('✅ Colisiones cargadas');
+    } catch (error) {
+      console.warn('⚠️ Error/timeout inicializando colisiones:', error.message);
+    }
+
+    actualizarCarga(60, 'Cargando animaciones...');
+
+    // Precargar animaciones
+    try {
+      await conTimeout(precargarAnimaciones(), 8000, 'Carga de animaciones');
+      console.log('✅ Animaciones cargadas');
+    } catch (err) {
+      console.warn('⚠️ Error/timeout precargando animaciones:', err.message);
+    }
+
+    actualizarCarga(80, 'Configurando conexión...');
+
+    // Configurar red - la conexión ya debería existir del matchmaking
+    try {
+      await conTimeout(inicializarRed(), 10000, 'Conexión al servidor');
+      console.log('✅ Red configurada');
+    } catch (error) {
+      console.warn('⚠️ Error/timeout conectando al servidor:', error.message);
+      // Continuar de todas formas - el juego puede funcionar parcialmente
+    }
+
+    actualizarCarga(90, 'Preparando...');
+
+    // Inicializar cache de elementos DOM
+    inicializarCacheDOM();
+    
+    // Inicializar iconos de Lucide
+    inicializarLucideIcons();
+
+    // IMPORTANTE: Iniciar bucle del juego ANTES de ocultar la pantalla de carga
+    // Esto asegura que la escena se renderice y no quede en negro
+    console.log('🎮 Iniciando bucle del juego...');
+    juegoIniciado = true;
+    bucleJuego();
+
+    actualizarCarga(100, '¡Listo!');
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Ocultar pantalla de carga
+    ocultarPantallaCarga();
+
+    // Ahora mostrar el menú de selección de armas sobre la escena renderizada
+    mostrarMenuSeleccionArmasOnline();
+    
+  } catch (error) {
+    console.error('❌ Error crítico en inicializarJuegoCompletoOnline:', error);
+    
+    // Intentar recuperar - al menos mostrar algo
+    ocultarPantallaCarga();
+    
+    // Si la escena existe, iniciar el bucle de todas formas
+    if (scene && camera) {
+      console.log('🔄 Intentando recuperar - iniciando bucle del juego...');
+      juegoIniciado = true;
+      bucleJuego();
+      mostrarMenuSeleccionArmasOnline();
+    } else {
+      // Error fatal - volver al lobby
+      console.error('💀 Error fatal - volviendo al lobby');
+      mostrarMensajeConexion('Error al cargar el juego. Click para reintentar.', true);
+    }
+  }
+}
+
+/**
+ * Muestra el menú de selección de armas para modo online
+ * Se muestra después de que la escena ya está renderizando
+ */
+function mostrarMenuSeleccionArmasOnline() {
+  console.log('🔫 Mostrando menú de selección de armas (online)...');
+  
+  // Inicializar UI de selección de armas con callback
+  inicializarSeleccionArmasUI({
+    onJugar: async (tipoArma) => {
+      console.log(`🎮 Arma seleccionada para jugar: ${tipoArma}`);
+      await finalizarInicializacionOnline(tipoArma);
+    },
+    onSeleccionar: (tipoArma) => {
+      console.log(`🔫 Arma preseleccionada: ${tipoArma}`);
+    }
+  });
+  
+  // Mostrar el menú
+  mostrarMenuArmas({
+    esMuerte: false,
+    armaPrevia: null,
+    textoBoton: 'Jugar'
+  });
+  
+  // Actualizar estado
+  mostrarMenuSeleccion(false);
+}
+
+/**
+ * Finaliza la inicialización del modo online después de seleccionar arma
+ * @param {string} tipoArma - Tipo de arma seleccionada
+ */
+async function finalizarInicializacionOnline(tipoArma) {
+  console.log(`🎮 Finalizando inicialización online con arma: ${tipoArma}`);
+  
+  // Registrar partida jugada
+  registrarPartidaProgreso();
+  
+  // Reiniciar estadísticas del menú de pausa
+  reiniciarEstadisticasPartida();
+  
+  // Ocultar menú de selección
+  ocultarMenuArmas();
+  ocultarMenuSeleccion();
+  
+  // Guardar el arma seleccionada
+  armaSeleccionadaParaPartida = tipoArma;
+  
+  // Cargar arma seleccionada
+  try {
+    establecerArmaUnica(tipoArma, weaponContainer);
+    console.log(`✅ Arma ${tipoArma} equipada`);
+    
+    // Sincronizar con el servidor
+    if (isMultiplayerConnected && inputSender) {
+      inputSender.sendWeaponChange(tipoArma);
+    }
+  } catch (error) {
+    console.error('❌ Error equipando arma:', error);
+    establecerArmaUnica('M4A1', weaponContainer);
+  }
+  
+  // Inicializar controles
+  inicializarControles({
+    onRecargar: manejarRecarga,
+    onDash: manejarDash,
+    onDisparar: manejarDisparo,
+    onSaltar: manejarSalto,
+    onMovimientoMouse: manejarMovimientoMouse,
+    onSiguienteArma: manejarSiguienteArmaRueda,
+    onArmaAnterior: manejarArmaAnterior,
+    onSeleccionarArma: manejarSeleccionarArma,
+    onApuntar: manejarApuntado,
+    onPausar: manejarPausar,
+    onAlternarCuchillo: manejarAlternarCuchillo,
+    onAlternarJuiceBox: manejarAlternarJuiceBox
+  });
+
+  // Establecer referencia de cámara
+  establecerCamara(camera);
+
+  // Inicializar menú de pausa
+  try {
+    inicializarMenuPausa({
+      onReanudar: () => console.log('🎮 Juego reanudado'),
+      onDesconectar: () => {
+        if (connection && isMultiplayerConnected) connection.disconnect();
+      },
+      onSalir: () => volverAlLobby(),
+      onConfiguracionCambiada: (tipo, valor) => {
+        if (tipo === 'fov' && camera) {
+          camera.fov = valor;
+          camera.updateProjectionMatrix();
+        } else if (tipo === 'crosshairDinamico') {
+          habilitarCrosshairDinamico(valor);
+        }
+      }
+    });
+  } catch (error) {
+    console.warn('⚠️ Error inicializando menú de pausa:', error);
+  }
+
+  // Inicializar sistemas adicionales
+  try { inicializarSonidos(); } catch (e) { console.warn('⚠️ Error sonidos:', e); }
+  try { inicializarCrosshair(); } catch (e) { console.warn('⚠️ Error crosshair:', e); }
+  try { inicializarSelectorArmasLocal(weaponContainer, isMultiplayerConnected, inputSender); } catch (e) { console.warn('⚠️ Error selector:', e); }
+
+  // Inicializar displays de UI
+  actualizarDisplayMunicion();
+  actualizarRecargaDash();
+  
+  // Marcar partida iniciada
+  iniciarPartidaSeleccion();
+  
+  // Actualizar UI inicial
+  const estadoInicial = obtenerEstado();
+  actualizarInfoArma(estadoInicial);
+  establecerTipoArma(CONFIG.armas[tipoArma].tipo);
+
+  // Inicializar spawns de munición
+  try {
+    await inicializarAmmoSpawns();
+  } catch (error) {
+    console.warn('⚠️ Error inicializando spawns:', error.message);
+  }
+
+  // Cargar armas en background
+  cargarArmasEnBackground();
+  
+  console.log('✅ Inicialización online completada');
 }
 
 /**
@@ -1456,15 +1724,20 @@ async function inicializarRed() {
     connection = getConnection();
   }
   
-  inputSender = getInputSender();
+  // Obtener inputSender (singleton)
+  if (!inputSender) {
+    inputSender = getInputSender();
+  }
   
-  // Initialize remote player manager
-  remotePlayerManager = initializeRemotePlayerManager(scene);
+  // Initialize remote player manager solo si no existe
+  if (!remotePlayerManager) {
+    remotePlayerManager = initializeRemotePlayerManager(scene);
+  }
   
   // Set up event callbacks before connecting
   configurarCallbacksRed();
   
-  // Si ya está conectado (desde el lobby), solo configurar callbacks
+  // Si ya está conectado (desde el lobby/matchmaking), solo configurar callbacks
   if (connection.isConnected()) {
     console.log('✅ Reutilizando conexión existente del lobby');
     
@@ -1473,9 +1746,24 @@ async function inicializarRed() {
     const existingPlayerId = connection.getPlayerId();
     if (existingPlayerId) {
       localPlayerId = existingPlayerId;
-      remotePlayerManager.setLocalPlayerId(existingPlayerId);
+      if (remotePlayerManager) {
+        remotePlayerManager.setLocalPlayerId(existingPlayerId);
+      }
       isMultiplayerConnected = true;
       console.log(`✅ LocalPlayerId configurado: ${existingPlayerId}`);
+    } else {
+      console.warn('⚠️ Conexión existe pero no hay playerId - esperando...');
+      // Esperar un poco por si el playerId llega después
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const delayedPlayerId = connection.getPlayerId();
+      if (delayedPlayerId) {
+        localPlayerId = delayedPlayerId;
+        if (remotePlayerManager) {
+          remotePlayerManager.setLocalPlayerId(delayedPlayerId);
+        }
+        isMultiplayerConnected = true;
+        console.log(`✅ LocalPlayerId configurado (delayed): ${delayedPlayerId}`);
+      }
     }
     
     // Enviar nombre del jugador al servidor
@@ -2320,7 +2608,6 @@ function manejarDash() {
     // Ejecutar dash interpolado localmente para predicción suave
     // Requirements: 1.1, 1.4 - Interpolación suave del dash
     ejecutarDashInterpolado(jugador, teclas, (dir, posFin) => {
-      crearEfectoDash(jugador.posicion, scene);
     });
     
     // Marcar inicio de dash para evitar reconciliación brusca
@@ -2337,7 +2624,6 @@ function manejarDash() {
     // Modo local - usar dash interpolado
     // Requirements: 1.1, 1.4 - Interpolación suave del dash
     ejecutarDashInterpolado(jugador, teclas, (direccion, posFin) => {
-      crearEfectoDash(jugador.posicion, scene);
     });
   }
   actualizarRecargaDash();

@@ -9,8 +9,10 @@ import { obtenerHeadersAuth, estaAutenticado } from './auth.js';
  * Maneja guardado y carga de progreso del jugador
  */
 
-// Configuración de la API
-const API_BASE_URL = 'http://localhost:3001/api';
+// Configuración de la API - detectar entorno automáticamente
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3001/api'
+    : `${window.location.protocol}//${window.location.hostname}/api`;
 
 // Estado del progreso local
 let progresoLocal = {

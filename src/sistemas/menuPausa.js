@@ -539,11 +539,20 @@ export function cerrarMenuForzado() {
 // Sistema de FPS Counter
 let fpsHistory = [];
 let lastFpsUpdate = 0;
+let fpsContadorActivo = false;
 
 /**
  * Inicializa el contador de FPS
  */
 function inicializarContadorFPS() {
+  // Evitar inicializar múltiples veces
+  if (fpsContadorActivo) return;
+  fpsContadorActivo = true;
+  
+  // Resetear estado
+  fpsHistory = [];
+  lastFpsUpdate = 0;
+  
   actualizarFPS();
 }
 
@@ -555,20 +564,33 @@ function actualizarFPS() {
   
   // Calcular FPS basado en el tiempo entre frames
   if (lastFpsUpdate > 0) {
-    const fps = 1000 / (ahora - lastFpsUpdate);
-    fpsHistory.push(fps);
+    const deltaTime = ahora - lastFpsUpdate;
     
-    // Mantener solo los últimos 60 valores (1 segundo a 60fps)
-    if (fpsHistory.length > 60) {
-      fpsHistory.shift();
-    }
-    
-    // Calcular promedio
-    const avgFps = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
-    
-    // Actualizar display cada 10 frames
-    if (fpsHistory.length % 10 === 0 && elementos.fpsValue) {
-      elementos.fpsValue.textContent = Math.round(avgFps);
+    // Evitar división por cero o valores muy pequeños que dan Infinity
+    if (deltaTime > 1) {
+      const fps = 1000 / deltaTime;
+      
+      // Filtrar valores inválidos (NaN, Infinity, negativos)
+      if (isFinite(fps) && fps > 0 && fps < 1000) {
+        fpsHistory.push(fps);
+        
+        // Mantener solo los últimos 60 valores (1 segundo a 60fps)
+        if (fpsHistory.length > 60) {
+          fpsHistory.shift();
+        }
+        
+        // Calcular promedio
+        const avgFps = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
+        
+        // Actualizar display cada 10 frames
+        if (fpsHistory.length % 10 === 0 && elementos.fpsValue) {
+          const fpsRedondeado = Math.round(avgFps);
+          // Solo mostrar valores válidos
+          if (isFinite(fpsRedondeado) && fpsRedondeado > 0) {
+            elementos.fpsValue.textContent = fpsRedondeado;
+          }
+        }
+      }
     }
   }
   
