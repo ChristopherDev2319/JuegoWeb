@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BearStrike - Panel de Administración</title>
-    <link rel="icon" type="image/png" href="logo de la pagina/LOGO_FINAL.png">
-    <link rel="shortcut icon" type="image/png" href="logo de la pagina/LOGO_FINAL.png">
-    <link rel="stylesheet" href="css/admin.css">
+    <link rel="icon" type="image/png" href="../logo/LOGO_FINAL.png">
+    <link rel="shortcut icon" type="image/png" href="../logo/LOGO_FINAL.png">
+    <link rel="stylesheet" href="../css/admin.css">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
 </head>
 <body>
@@ -22,7 +22,7 @@
             <i data-lucide="shield-x" class="denied-icon"></i>
             <h2>Acceso Denegado</h2>
             <p id="denied-message">No tienes permisos para acceder al panel de administración.</p>
-            <a href="index.html" class="btn-back-game">
+            <a href="/" class="btn-back-game">
                 <i data-lucide="arrow-left"></i>
                 Volver al Juego
             </a>
@@ -34,7 +34,7 @@
         <!-- Header -->
         <header class="admin-header">
             <div class="admin-logo">
-                <img src="logo de la pagina/LOGO_FINAL.png" alt="BearStrike">
+                <img src="../logo/LOGO_FINAL.png" alt="BearStrike">
                 <h1>BEARSTRIKE</h1>
                 <span>Admin Panel</span>
             </div>
@@ -60,7 +60,7 @@
                 <i data-lucide="ban"></i>
                 Baneos
             </button>
-            <a href="index.html" class="nav-btn nav-link">
+            <a href="/" class="nav-btn nav-link">
                 <i data-lucide="gamepad-2"></i>
                 Volver al Juego
             </a>
@@ -99,6 +99,6 @@
     <!-- Toast Container -->
     <div id="toast-container"></div>
 
-    <script type="module" src="src/admin/adminPanel.js"></script>
+    <script type="module" src="../../src/admin/adminPanel.js"></script>
 </body>
 </html>

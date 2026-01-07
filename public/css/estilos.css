@@ -1887,10 +1887,6 @@ canvas {
   transition: top 0.3s ease;
 }
 
-/* Kill feed cuando el chat está minimizado */
-#kill-feed.chat-minimized {
-  top: 20px;
-}
 
 .kill-entry {
   background: rgba(0, 0, 0, 0.75);
@@ -6220,33 +6216,6 @@ canvas {
 /* Requirements: 6.2 - Reduce element sizes for smaller resolutions */
 
 @media (max-width: 768px) {
-  /* Chat System - Reduced size */
-  /* Requirements: 1.1 */
-  #chat-container {
-    width: 260px !important;
-    max-height: 200px !important;
-    font-size: 12px !important;
-  }
-  
-  #chat-container .chat-header {
-    padding: 6px 10px !important;
-    font-size: 11px !important;
-  }
-  
-  #chat-container .chat-messages {
-    max-height: 120px !important;
-    padding: 6px !important;
-  }
-  
-  #chat-container .chat-input-container {
-    padding: 6px !important;
-  }
-  
-  #chat-container .chat-input {
-    padding: 6px 10px !important;
-    font-size: 12px !important;
-  }
-  
   /* Player Status Panel - Reduced size */
   /* Requirements: 2.1 */
   #player-status-panel {
@@ -6438,17 +6407,6 @@ canvas {
 /* ==================== VERY SMALL SCREENS (< 480px) ==================== */
 
 @media (max-width: 480px) {
-  /* Chat System - Further reduced */
-  #chat-container {
-    width: 220px !important;
-    max-height: 160px !important;
-    font-size: 11px !important;
-  }
-  
-  #chat-container .chat-messages {
-    max-height: 90px !important;
-  }
-  
   /* Bottom Right Panel - Further reduced */
   #bottom-right-panel {
     bottom: 10px;
@@ -6602,11 +6560,6 @@ canvas {
 /* Requirements: 6.3 - Set max-width limits for large resolutions */
 
 @media (min-width: 1921px) {
-  /* Chat System - Max width limit */
-  #chat-container {
-    max-width: 380px !important;
-  }
-  
   /* Player Status Panel - Max width limit */
   #player-status-panel {
     max-width: 280px;
@@ -6657,11 +6610,6 @@ canvas {
 
 @media (min-width: 2561px) {
   /* Maintain reasonable margins on ultra-wide screens */
-  #chat-container {
-    left: 30px !important;
-    top: 30px !important;
-  }
-  
   #player-status-panel {
     bottom: 30px;
     left: 30px;
