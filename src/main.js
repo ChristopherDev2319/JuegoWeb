@@ -87,7 +87,6 @@ import { inicializarAuthUI } from './sistemas/authUI.js';
 import {
   registrarKill as registrarKillProgreso,
   registrarDeath as registrarDeathProgreso,
-  registrarDisparo as registrarDisparoProgreso,
   registrarPartida as registrarPartidaProgreso
 } from './sistemas/progreso.js';
 
@@ -114,6 +113,14 @@ import { inicializarSonidos, reproducirSonidoDisparo } from './sistemas/sonidos.
 
 // Sistema de colisiones
 import { inicializarColisiones, toggleDebugVisual } from './sistemas/colisiones.js';
+
+// Sistema de cámara debug
+import {
+  alternarCamaraDebug,
+  actualizarCamaraDebug,
+  rotarCamaraDebug,
+  estaModoDebugActivo
+} from './sistemas/debugCamera.js';
 
 // Sistema de bots de entrenamiento
 import { BotManager } from './sistemas/botManager.js';
@@ -465,7 +472,8 @@ async function finalizarInicializacionOnline(tipoArma) {
     onApuntar: manejarApuntado,
     onPausar: manejarPausar,
     onAlternarCuchillo: manejarAlternarCuchillo,
-    onAlternarJuiceBox: manejarAlternarJuiceBox
+    onAlternarJuiceBox: manejarAlternarJuiceBox,
+    onAlternarCamaraDebug: manejarAlternarCamaraDebug
   });
 
   // Establecer referencia de cámara
@@ -1254,7 +1262,8 @@ async function inicializarModoLocal() {
     onApuntar: manejarApuntado,
     onPausar: manejarPausar,
     onAlternarCuchillo: manejarAlternarCuchillo,
-    onAlternarJuiceBox: manejarAlternarJuiceBox
+    onAlternarJuiceBox: manejarAlternarJuiceBox,
+    onAlternarCamaraDebug: manejarAlternarCamaraDebug
   });
 
   // Establecer referencia de cámara para el sistema de apuntado
@@ -2122,6 +2131,15 @@ async function manejarAlternarJuiceBox() {
 }
 
 /**
+ * Maneja el toggle de la cámara debug con tecla J
+ * Solo para debugging - cámara libre sin afectar al jugador
+ */
+function manejarAlternarCamaraDebug() {
+  const activo = alternarCamaraDebug();
+  console.log(`🎥 Cámara debug: ${activo ? 'ACTIVADA' : 'DESACTIVADA'}`);
+}
+
+/**
  * Maneja la selección directa de arma por número
  * @param {number} indice - Índice del arma a seleccionar
  */
@@ -2394,6 +2412,11 @@ const _camaraUp = new THREE.Vector3();
  * Maneja el evento de disparo
  */
 function manejarDisparo() {
+  // No disparar si está en modo debug
+  if (estaModoDebugActivo()) {
+    return;
+  }
+  
   // No disparar si hay overlay de conexión visible
   const connectionOverlay = document.getElementById('connection-overlay');
   if (connectionOverlay && connectionOverlay.style.display !== 'none') {
@@ -2456,7 +2479,6 @@ function manejarDisparo() {
     
     // Feedback
     animarRetroceso();
-    registrarDisparoProgreso();
     reproducirSonidoDisparo(estadoArma.tipoActual, configArma);
     actualizarDisplayMunicion();
   } else {
@@ -2472,7 +2494,6 @@ function manejarDisparo() {
     
     // Feedback
     animarRetroceso();
-    registrarDisparoProgreso();
     reproducirSonidoDisparo(estadoArma.tipoActual, configArma);
     actualizarDisplayMunicion();
     
@@ -2583,6 +2604,11 @@ function manejarSalto() {
  * @param {number} movimientoY - Movimiento vertical
  */
 function manejarMovimientoMouse(movimientoX, movimientoY) {
+  // Si el modo debug está activo, rotar la cámara debug
+  if (estaModoDebugActivo()) {
+    rotarCamaraDebug(movimientoX, movimientoY);
+    return;
+  }
   actualizarRotacion(movimientoX, movimientoY);
 }
 
@@ -2723,14 +2749,19 @@ function bucleJuego() {
       }
     }
 
-    // Update local movement (for prediction)
-    actualizarMovimiento(teclas);
+    // Si el modo debug está activo, actualizar cámara debug en lugar del jugador
+    if (estaModoDebugActivo()) {
+      actualizarCamaraDebug(teclas);
+    } else {
+      // Update local movement (for prediction)
+      actualizarMovimiento(teclas);
 
-    // Apply gravity locally (for prediction)
-    aplicarGravedad();
+      // Apply gravity locally (for prediction)
+      aplicarGravedad();
 
-    // Send movement input to server (Requirement 4.1)
-    enviarInputMovimiento();
+      // Send movement input to server (Requirement 4.1)
+      enviarInputMovimiento();
+    }
 
     // Interpolate remote players (Requirement 2.5)
     if (remotePlayerManager) {
@@ -2774,8 +2805,10 @@ function bucleJuego() {
     // Actualizar sistema de spawns de munición
     actualizarAmmoSpawns(deltaTime);
 
-    // Sincronizar cámara con jugador
-    sincronizarCamara(camera);
+    // Sincronizar cámara con jugador (solo si no está en modo debug)
+    if (!estaModoDebugActivo()) {
+      sincronizarCamara(camera);
+    }
   }
 
   // 🔥 OBLIGATORIO - Renderizar SIEMPRE (incluso cuando está pausado)
