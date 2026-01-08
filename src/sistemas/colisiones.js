@@ -3,7 +3,6 @@
  * Utiliza Rapier3D internamente para física determinista
  * Mantiene API existente para compatibilidad con el resto del código
  * 
- * Requirements: 2.1, 2.2, 2.3, 2.4, 3.1, 4.1, 4.2, 4.3, 5.1, 5.3
  * @requires THREE - Three.js debe estar disponible globalmente
  */
 
@@ -40,7 +39,6 @@ const _normalMundo = new THREE.Vector3(); // Para verificación de colisiones
 /**
  * Inicializa el sistema de colisiones
  * Intenta usar Rapier3D, con fallback a raycasting manual si falla
- * Requirements: 5.1, 5.2
  * 
  * @param {THREE.Scene} scene - Escena de Three.js
  * @param {Function} onProgress - Callback de progreso

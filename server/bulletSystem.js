@@ -23,13 +23,17 @@ const CHARACTER_HITBOX = {
  * Bullet class representing a projectile
  */
 export class Bullet {
-  constructor(ownerId, position, direction, weaponType = 'M4A1') {
+  constructor(ownerId, position, direction, weaponType = 'M4A1', wallHitDistance = null) {
     this.id = `bullet_${++bulletIdCounter}`;
     this.ownerId = ownerId;
     this.position = { ...position };
     this.startPosition = { ...position }; // Guardar posición inicial
     this.direction = normalizeDirection(direction);
     this.weaponType = weaponType;
+    
+    // Distancia de colisión con pared reportada por el cliente
+    // Si existe, la bala no debe hacer daño a jugadores más allá de esta distancia
+    this.wallHitDistance = wallHitDistance;
     
     const weaponConfig = getWeaponConfig(weaponType);
     this.speed = weaponConfig.bulletSpeed;
@@ -68,6 +72,24 @@ export class Bullet {
     const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
     return distance > BULLET_CONFIG.maxDistance;
   }
+  
+  /**
+   * Get current distance traveled from start position
+   */
+  getDistanceTraveled() {
+    const dx = this.position.x - this.startPosition.x;
+    const dy = this.position.y - this.startPosition.y;
+    const dz = this.position.z - this.startPosition.z;
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+  
+  /**
+   * Check if bullet has passed the wall hit distance (client-reported)
+   */
+  hasPassedWallHit() {
+    if (this.wallHitDistance === null) return false;
+    return this.getDistanceTraveled() >= this.wallHitDistance;
+  }
 
   /**
    * Deactivate bullet
@@ -103,18 +125,18 @@ export class BulletSystem {
    * @param {Object} position - Starting position {x, y, z}
    * @param {Object} direction - Direction vector {x, y, z}
    * @param {string} weaponType - Type of weapon used
+   * @param {number} wallHitDistance - Distance to wall collision from client (null if no wall)
    * @returns {Bullet} - The created bullet
    */
-  createBullet(ownerId, position, direction, weaponType = 'M4A1') {
-    const bullet = new Bullet(ownerId, position, direction, weaponType);
+  createBullet(ownerId, position, direction, weaponType = 'M4A1', wallHitDistance = null) {
+    const bullet = new Bullet(ownerId, position, direction, weaponType, wallHitDistance);
     this.bullets.push(bullet);
     return bullet;
   }
 
   /**
    * Update all bullets and check for collisions (Requirement 5.3)
-   * IMPORTANTE: Verifica colisiones con jugadores PRIMERO, luego con el mapa
-   * Esto asegura que las balas puedan impactar jugadores cerca de paredes
+   * IMPORTANTE: Usa wallHitDistance del cliente para evitar daño a través de paredes
    * @param {number} deltaTime - Time since last update in seconds
    * @param {Map<string, PlayerState>} players - Map of all players
    * @returns {Array} - Array of collision results
@@ -137,11 +159,34 @@ export class BulletSystem {
         continue;
       }
       
-      // PRIMERO: Check for collisions with players (prioridad sobre mapa)
-      let hitPlayer = false;
+      // Verificar si la bala ha pasado la distancia de colisión con pared (del cliente)
+      // Esto es la verificación principal para evitar daño a través de paredes
+      if (bullet.hasPassedWallHit()) {
+        bullet.deactivate();
+        continue;
+      }
+      
+      // Check map collision del servidor (backup, solo paredes exteriores)
+      if (this.checkMapCollision(prevPosition, bullet.position)) {
+        bullet.deactivate();
+        continue;
+      }
+      
+      // Check for collisions with players
       for (const [playerId, player] of players) {
         // Skip bullet owner and dead players
         if (playerId === bullet.ownerId || !player.isAlive) continue;
+        
+        // Calcular distancia del shooter al jugador objetivo
+        const dx = player.position.x - bullet.startPosition.x;
+        const dy = player.position.y - bullet.startPosition.y;
+        const dz = player.position.z - bullet.startPosition.z;
+        const distanceToTarget = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        
+        // Si el cliente reportó una pared y el jugador está más lejos que la pared, no hacer daño
+        if (bullet.wallHitDistance !== null && distanceToTarget > bullet.wallHitDistance) {
+          continue; // El jugador está detrás de la pared
+        }
         
         // Verificar colisión con posición actual
         const hitDirect = this.checkCollision(bullet, player);
@@ -158,18 +203,8 @@ export class BulletSystem {
             position: { ...bullet.position }
           });
           bullet.deactivate();
-          hitPlayer = true;
           break;
         }
-      }
-      
-      // Si ya impactó un jugador, no verificar mapa
-      if (hitPlayer) continue;
-      
-      // SEGUNDO: Check map collision (solo si no impactó jugador)
-      if (this.checkMapCollision(prevPosition, bullet.position)) {
-        bullet.deactivate();
-        continue;
       }
     }
     
@@ -177,6 +212,22 @@ export class BulletSystem {
     this.cleanup();
     
     return collisions;
+  }
+
+  /**
+   * Check if there's a wall between two points
+   * Used to prevent damage through walls
+   * @param {Object} from - Starting position {x, y, z}
+   * @param {Object} to - Target position {x, y, z}
+   * @returns {boolean} - True if there's a wall between the points
+   */
+  checkWallBetween(from, to) {
+    if (!mapCollisionsActivo()) {
+      return false;
+    }
+    
+    const hit = raycastContraMapa(from, to);
+    return hit !== null && hit.hit;
   }
 
   /**

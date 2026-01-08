@@ -11,6 +11,7 @@ import {
   inicializarEscena,
   scene,
   camera,
+  renderer,
   weaponContainer,
   renderizar
 } from './escena.js';
@@ -106,13 +107,13 @@ import {
 } from './ui/weaponSelectorLocal.js';
 
 // Sistema de menú de pausa
-import { inicializarMenuPausa, alternarMenuPausa, estaMenuActivo, cerrarMenuForzado, reiniciarEstadisticas as reiniciarEstadisticasPartida } from './sistemas/menuPausa.js';
+import { inicializarMenuPausa, alternarMenuPausa, estaMenuActivo, cerrarMenuForzado } from './sistemas/menuPausa.js';
 
 // Sistema de sonidos
 import { inicializarSonidos, reproducirSonidoDisparo } from './sistemas/sonidos.js';
 
 // Sistema de colisiones
-import { inicializarColisiones, toggleDebugVisual } from './sistemas/colisiones.js';
+import { inicializarColisiones, toggleDebugVisual, raycastBala } from './sistemas/colisiones.js';
 
 // Sistema de cámara debug
 import {
@@ -260,6 +261,50 @@ async function onIniciarJuego(modo, salaId = null, nombreJugador = '') {
 }
 
 /**
+ * Espera a que la escena esté completamente renderizada y visible
+ * Verifica que la cámara esté sincronizada y el canvas tenga contenido
+ * @param {number} maxIntentos - Número máximo de frames a esperar
+ * @returns {Promise<boolean>} - true si la escena está lista
+ */
+async function esperarEscenaLista(maxIntentos = 30) {
+  return new Promise((resolve) => {
+    let intentos = 0;
+    
+    function verificarFrame() {
+      intentos++;
+      
+      // Sincronizar cámara con jugador para asegurar posición correcta
+      if (camera && jugador.posicion) {
+        sincronizarCamara(camera);
+      }
+      
+      // Renderizar un frame
+      if (scene && camera && renderer) {
+        renderizar();
+      }
+      
+      // Verificar si el canvas tiene contenido (no está negro)
+      // Después de varios frames, consideramos que está listo
+      if (intentos >= 3) {
+        console.log(`✅ Escena lista después de ${intentos} frames`);
+        resolve(true);
+        return;
+      }
+      
+      if (intentos >= maxIntentos) {
+        console.warn(`⚠️ Timeout esperando escena lista después de ${maxIntentos} frames`);
+        resolve(false);
+        return;
+      }
+      
+      requestAnimationFrame(verificarFrame);
+    }
+    
+    requestAnimationFrame(verificarFrame);
+  });
+}
+
+/**
  * Inicializa el juego para modo online
  * Primero carga la escena y recursos, luego muestra el menú de selección de armas
  */
@@ -306,6 +351,13 @@ async function inicializarModoOnline() {
 
     // Inicializar jugador
     inicializarJugador();
+    
+    // IMPORTANTE: Sincronizar cámara inmediatamente después de inicializar jugador
+    // Esto evita pantalla negra en computadoras lentas
+    if (camera && jugador.posicion) {
+      sincronizarCamara(camera);
+      console.log('📷 Cámara sincronizada con posición inicial del jugador');
+    }
 
     actualizarCarga(15, 'Cargando mapa...');
 
@@ -355,7 +407,7 @@ async function inicializarModoOnline() {
       // Continuar de todas formas - el juego puede funcionar parcialmente
     }
 
-    actualizarCarga(90, 'Preparando...');
+    actualizarCarga(90, 'Preparando escena...');
 
     // Inicializar cache de elementos DOM
     inicializarCacheDOM();
@@ -363,27 +415,28 @@ async function inicializarModoOnline() {
     // Inicializar iconos de Lucide
     inicializarLucideIcons();
 
+    // IMPORTANTE: Sincronizar cámara ANTES de iniciar el bucle
+    // para asegurar que la primera renderización muestre algo
+    if (camera && jugador.posicion) {
+      sincronizarCamara(camera);
+    }
+
     // IMPORTANTE: Iniciar bucle del juego ANTES de ocultar la pantalla de carga
     // Esto asegura que la escena se renderice y no quede en negro
     console.log('🎮 Iniciando bucle del juego...');
     juegoIniciado = true;
     bucleJuego();
 
+    actualizarCarga(95, 'Verificando escena...');
+
+    // Esperar a que la escena esté completamente renderizada
+    // Esto es crítico para computadoras lentas
+    await esperarEscenaLista(30);
+
     actualizarCarga(100, '¡Listo!');
 
-    // Esperar a que se renderice al menos un frame antes de ocultar la pantalla de carga
-    // Esto evita la pantalla negra cuando se resetea cache
-    await new Promise(resolve => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // Doble requestAnimationFrame para asegurar que el frame se pintó
-          resolve();
-        });
-      });
-    });
-
-    // Pequeña pausa adicional para asegurar que todo esté visible
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Pausa adicional para asegurar estabilidad visual
+    await new Promise(resolve => setTimeout(resolve, 150));
 
     // Ocultar pantalla de carga solo cuando la escena está renderizada
     ocultarPantallaCarga();
@@ -400,6 +453,10 @@ async function inicializarModoOnline() {
     // Si la escena existe, iniciar el bucle de todas formas
     if (scene && camera) {
       console.log('🔄 Intentando recuperar - iniciando bucle del juego...');
+      // Sincronizar cámara antes de iniciar
+      if (jugador.posicion) {
+        sincronizarCamara(camera);
+      }
       juegoIniciado = true;
       bucleJuego();
       mostrarMenuSeleccionArmasOnline();
@@ -449,9 +506,6 @@ async function finalizarInicializacionOnline(tipoArma) {
   
   // Registrar partida jugada
   registrarPartidaProgreso();
-  
-  // Reiniciar estadísticas del menú de pausa
-  reiniciarEstadisticasPartida();
   
   // Ocultar menú de selección
   ocultarMenuArmas();
@@ -1216,6 +1270,13 @@ async function inicializarModoLocal() {
 
   // Inicializar jugador
   inicializarJugador();
+  
+  // IMPORTANTE: Sincronizar cámara inmediatamente después de inicializar jugador
+  // Esto evita pantalla negra en computadoras lentas
+  if (camera && jugador.posicion) {
+    sincronizarCamara(camera);
+    console.log('📷 Cámara sincronizada con posición inicial del jugador');
+  }
 
   actualizarCarga(15, 'Cargando mapa...');
 
@@ -1380,7 +1441,13 @@ async function inicializarModoLocal() {
     // Reposicionar jugador para modo local (Z=5, mirando hacia +Z)
     jugador.posicion.set(0, CONFIG.jugador.alturaOjos, 5);
     jugador.rotacion.set(0, Math.PI, 0); // Mirando hacia +Z (180 grados)
-    // La cámara se sincronizará automáticamente en el bucle del juego
+    
+    // IMPORTANTE: Sincronizar cámara inmediatamente después de posicionar jugador
+    // Esto evita pantalla negra en computadoras lentas
+    if (camera && jugador.posicion) {
+      sincronizarCamara(camera);
+      console.log('📷 Cámara sincronizada con posición inicial del jugador (modo local)');
+    }
     
     // Inicializar sistema de bots de entrenamiento
     // Requirements: 1.1, 2.1, 3.1, 4.4
@@ -1398,8 +1465,6 @@ async function inicializarModoLocal() {
     console.warn('⚠️ Error/timeout inicializando spawns de munición:', error.message);
   }
 
-  actualizarCarga(100, '¡Listo!');
-
   // Marcar juego como iniciado
   juegoIniciado = true;
 
@@ -1410,23 +1475,26 @@ async function inicializarModoLocal() {
     }
   });
 
+  // IMPORTANTE: Sincronizar cámara ANTES de iniciar el bucle
+  // para asegurar que la primera renderización muestre algo
+  if (camera && jugador.posicion) {
+    sincronizarCamara(camera);
+  }
+
   // Iniciar bucle del juego ANTES de ocultar la pantalla
   // Esto asegura que el canvas ya esté renderizando cuando se quite la pantalla de carga
   bucleJuego();
 
-  // Esperar a que se renderice al menos un frame antes de ocultar la pantalla de carga
-  // Esto evita la pantalla negra cuando se resetea cache
-  await new Promise(resolve => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        // Doble requestAnimationFrame para asegurar que el frame se pintó
-        resolve();
-      });
-    });
-  });
+  actualizarCarga(95, 'Verificando escena...');
 
-  // Pequeña pausa adicional para asegurar que todo esté visible
-  await new Promise(resolve => setTimeout(resolve, 100));
+  // Esperar a que la escena esté completamente renderizada
+  // Esto es crítico para computadoras lentas
+  await esperarEscenaLista(30);
+
+  actualizarCarga(100, '¡Listo!');
+
+  // Pausa adicional para asegurar estabilidad visual
+  await new Promise(resolve => setTimeout(resolve, 150));
 
   // Ocultar pantalla de carga solo cuando la escena está renderizada
   ocultarPantallaCarga();
@@ -2490,12 +2558,22 @@ function manejarDisparo() {
 
     _balaDireccion.set(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
     
-    // Enviar input de disparo al servidor
+    // Verificar colisión con el mapa usando raycast del cliente
+    // Esto permite al servidor saber si la bala debería impactar una pared
+    let wallHitDistance = null;
+    const maxRayDistance = 300; // Distancia máxima del raycast
+    const wallHit = raycastBala(posicionBala, _balaDireccion, maxRayDistance);
+    if (wallHit && wallHit.hit) {
+      wallHitDistance = wallHit.distancia;
+    }
+    
+    // Enviar input de disparo al servidor con información de colisión
     inputSender.sendShoot(
       { x: posicionBala.x, y: posicionBala.y, z: posicionBala.z },
       { x: _balaDireccion.x, y: _balaDireccion.y, z: _balaDireccion.z },
       estadoArma.tipoActual,
-      estadoArma.estaApuntando
+      estadoArma.estaApuntando,
+      wallHitDistance
     );
     
     // Crear balas visuales (predicción del cliente)

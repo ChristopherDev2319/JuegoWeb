@@ -184,6 +184,9 @@ export class GameManager {
       spread *= weaponConfig.aimSpreadReduction;
     }
     
+    // Obtener distancia de colisión con pared del cliente (si existe)
+    const wallHitDistance = data.wallHitDistance || null;
+    
     const bullets = [];
     
     // Crear múltiples balas para escopetas
@@ -212,12 +215,13 @@ export class GameManager {
         player.id,
         data.position,
         direction,
-        weaponType
+        weaponType,
+        wallHitDistance
       );
       bullets.push(bullet);
     }
 
-    console.log(`[SHOOT] ${player.id} fired ${weaponType}, ammo: ${player.ammo}`);
+    console.log(`[SHOOT] ${player.id} fired ${weaponType}, ammo: ${player.ammo}${wallHitDistance ? `, wallHit: ${wallHitDistance.toFixed(1)}` : ''}`);
     return { success: true, bullets, bullet: bullets[0] }; // bullet para compatibilidad
   }
 

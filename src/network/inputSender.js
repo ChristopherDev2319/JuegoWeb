@@ -103,13 +103,14 @@ export class InputSender {
    * @param {Object} direction - Bullet direction { x, y, z }
    * @param {string} weaponType - Type of weapon being fired
    * @param {boolean} isAiming - Whether player is aiming down sights
+   * @param {number} wallHitDistance - Distance to wall collision (null if no wall hit)
    */
-  sendShoot(position, direction, weaponType = 'M4A1', isAiming = false) {
+  sendShoot(position, direction, weaponType = 'M4A1', isAiming = false, wallHitDistance = null) {
     if (!this.connection.isConnected()) {
       return;
     }
     
-    this.connection.send('shoot', {
+    const data = {
       position: {
         x: position.x || 0,
         y: position.y || 0,
@@ -122,7 +123,15 @@ export class InputSender {
       },
       weaponType: weaponType,
       isAiming: isAiming
-    });
+    };
+    
+    // Incluir distancia de colisión con pared si existe
+    // El servidor usará esto para no hacer daño si el jugador está detrás de una pared
+    if (wallHitDistance !== null && wallHitDistance !== undefined) {
+      data.wallHitDistance = wallHitDistance;
+    }
+    
+    this.connection.send('shoot', data);
   }
 
   /**
