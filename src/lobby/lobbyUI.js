@@ -690,7 +690,7 @@ function limpiarErrorDePantalla(pantalla) {
 // ==================== FUNCIONES PÚBLICAS ====================
 
 /**
- * Muestra una pantalla específica del lobby con transición suave
+ * Muestra una pantalla específica del lobby con transición rápida
  * Requirement 6.4: Clear errors when changing screens
  * @param {string} pantalla - Nombre de la pantalla ('inicial', 'online', 'privada', 'crear', 'unirse', 'matchmaking', 'esperando', 'config')
  */
@@ -716,27 +716,19 @@ export function mostrarPantalla(pantalla) {
   // Requirement 6.4: Clear errors when navigating between screens
   limpiarErrorDePantalla(pantallaActual);
   
-  // Agregar clase de salida a la pantalla anterior
-  // Requirements: 6.1, 6.2 - Transiciones fade/slide con duración 300ms
+  // Transición rápida sin setTimeout bloqueante
+  // Usar requestAnimationFrame para mejor rendimiento
   if (pantallaAnterior) {
-    pantallaAnterior.classList.add('exiting');
-    
-    // Después de la animación de salida, ocultar y mostrar la nueva
-    setTimeout(() => {
-      pantallaAnterior.classList.remove('active', 'exiting');
-      
-      // Mostrar la nueva pantalla
-      if (pantallaNueva) {
-        pantallaNueva.classList.add('active');
-        pantallaActual = pantalla;
-      }
-    }, 300); // Duración de la animación de salida (Requirements: 6.1, 6.2)
-  } else {
-    // Si no hay pantalla anterior, mostrar directamente
-    if (pantallaNueva) {
+    pantallaAnterior.classList.remove('active');
+  }
+  
+  // Mostrar la nueva pantalla inmediatamente
+  if (pantallaNueva) {
+    // Usar requestAnimationFrame para asegurar que el cambio de display se aplique
+    requestAnimationFrame(() => {
       pantallaNueva.classList.add('active');
-      pantallaActual = pantalla;
-    }
+    });
+    pantallaActual = pantalla;
   }
 }
 
