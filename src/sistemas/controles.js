@@ -33,6 +33,7 @@ let callbacks = {
   onRecargar: null,
   onDash: null,
   onDisparar: null,
+  onSoltarDisparo: null,  // Callback cuando se suelta el botón de disparo
   onSaltar: null,
   onMovimientoMouse: null,
   onSiguienteArma: null,
@@ -303,6 +304,10 @@ function manejarMouseDown(evento) {
 function manejarMouseUp(evento) {
   if (evento.button === 0) {
     mousePresionado = false;
+    // Notificar que se soltó el botón de disparo
+    if (callbacks.onSoltarDisparo) {
+      callbacks.onSoltarDisparo();
+    }
   } else if (evento.button === 2) {
     // Soltar clic derecho - dejar de apuntar
     if (callbacks.onApuntar) {

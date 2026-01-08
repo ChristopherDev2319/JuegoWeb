@@ -236,7 +236,7 @@ export const CONFIG = {
       semiAutomatica: true,        // Solo un ataque por click (evita ataques múltiples)
       daño: 30,                    // 30 puntos de daño por ataque (balanceado)
       rangoAtaque: 3.0,            // 3 unidades de distancia (aumentado para mejor alcance)
-      cadenciaAtaque: 350,         // ms entre ataques (más rápido)
+      cadenciaAtaque: 500,         // ms entre ataques (cooldown de medio segundo)
       modelo: "public/modelos/valorants_knife_low_poly.glb",
       animacionAtaque: "public/modelos/animaciones/knife_attack_tps.glb",
       animacionAtaqueTPS: "public/modelos/animaciones/knife_attack_tps.glb",

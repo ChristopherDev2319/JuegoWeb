@@ -46,6 +46,7 @@ import {
   alternarCuchillo,
   esCuchilloEquipado,
   atacarConCuchillo,
+  resetearClickCuchillo,
   alternarJuiceBox,
   esJuiceBoxEquipado,
   iniciarCuracion,
@@ -533,6 +534,7 @@ async function finalizarInicializacionOnline(tipoArma) {
     onRecargar: manejarRecarga,
     onDash: manejarDash,
     onDisparar: manejarDisparo,
+    onSoltarDisparo: manejarSoltarDisparo,
     onSaltar: manejarSalto,
     onMovimientoMouse: manejarMovimientoMouse,
     onSeleccionarArma: manejarSeleccionarArma,
@@ -1330,6 +1332,7 @@ async function inicializarModoLocal() {
     onRecargar: manejarRecarga,
     onDash: manejarDash,
     onDisparar: manejarDisparo,
+    onSoltarDisparo: manejarSoltarDisparo,
     onSaltar: manejarSalto,
     onMovimientoMouse: manejarMovimientoMouse,
     onSeleccionarArma: manejarSeleccionarArma,
@@ -2698,6 +2701,14 @@ function manejarAtaqueCuchillo() {
  */
 function manejarSalto() {
   saltar();
+}
+
+/**
+ * Maneja cuando se suelta el botón de disparo
+ * Resetea el estado del cuchillo para permitir un nuevo ataque
+ */
+function manejarSoltarDisparo() {
+  resetearClickCuchillo();
 }
 
 /**
