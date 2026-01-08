@@ -359,9 +359,9 @@ export const CONFIG = {
     vidaCurada: 50,              // HP restaurados al completar curación
     tiempoCuracion: 2000,        // 2 segundos en ms
     // Posición FPS (primera persona)
-    posicion: { x: 0.25, y: -0.35, z: -0.4 },
-    rotacion: { x: 0, y: Math.PI * 0.3, z: 0.1 },
-    escala: { x: 0.15, y: 0.15, z: 0.15 },
+    posicion: { x: 0.25, y: -0.3, z: -0.4 },
+    rotacion: { x: 0, y: 0, z: 0.1 },
+    escala: { x: 0.17, y: 0.17, z: 0.17 },
     // Configuración TPS (tercera persona para jugadores remotos)
     tps: {
       escala: 0.15,

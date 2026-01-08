@@ -370,9 +370,22 @@ async function inicializarModoOnline() {
     bucleJuego();
 
     actualizarCarga(100, '¡Listo!');
-    await new Promise(resolve => setTimeout(resolve, 300));
 
-    // Ocultar pantalla de carga
+    // Esperar a que se renderice al menos un frame antes de ocultar la pantalla de carga
+    // Esto evita la pantalla negra cuando se resetea cache
+    await new Promise(resolve => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Doble requestAnimationFrame para asegurar que el frame se pintó
+          resolve();
+        });
+      });
+    });
+
+    // Pequeña pausa adicional para asegurar que todo esté visible
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Ocultar pantalla de carga solo cuando la escena está renderizada
     ocultarPantallaCarga();
 
     // Ahora mostrar el menú de selección de armas sobre la escena renderizada
@@ -1387,9 +1400,6 @@ async function inicializarModoLocal() {
 
   actualizarCarga(100, '¡Listo!');
 
-  // Pequeña pausa para mostrar el 100%
-  await new Promise(resolve => setTimeout(resolve, 300));
-
   // Marcar juego como iniciado
   juegoIniciado = true;
 
@@ -1404,7 +1414,21 @@ async function inicializarModoLocal() {
   // Esto asegura que el canvas ya esté renderizando cuando se quite la pantalla de carga
   bucleJuego();
 
-  // Ocultar pantalla de carga
+  // Esperar a que se renderice al menos un frame antes de ocultar la pantalla de carga
+  // Esto evita la pantalla negra cuando se resetea cache
+  await new Promise(resolve => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // Doble requestAnimationFrame para asegurar que el frame se pintó
+        resolve();
+      });
+    });
+  });
+
+  // Pequeña pausa adicional para asegurar que todo esté visible
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  // Ocultar pantalla de carga solo cuando la escena está renderizada
   ocultarPantallaCarga();
   
   // Cargar el resto de armas en background (LAZY LOADING)

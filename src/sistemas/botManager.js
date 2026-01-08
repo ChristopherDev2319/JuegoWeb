@@ -2,7 +2,6 @@
  * Clase BotManager
  * Gestor central que coordina todos los bots de entrenamiento distribuidos por el mapa
  * 
- * Requirements: 1.1, 2.1, 2.3, 3.1, 6.1, 6.2, 6.3
  * @requires THREE - Three.js debe estar disponible globalmente
  */
 
@@ -26,7 +25,6 @@ export class BotManager {
     this.opciones = opciones;
     
     // Colecciones de bots por tipo
-    // Requirements: 1.1, 2.1, 3.1
     this.bots = {
       estaticos: [],
       moviles: [],
@@ -34,7 +32,6 @@ export class BotManager {
     };
     
     // Sistema de estadísticas
-    // Requirement 6.2
     this.estadisticas = new EstadisticasEntrenamiento();
     
     // Estado del manager
@@ -48,7 +45,6 @@ export class BotManager {
     this.obstaculos = opciones.obstaculos || [];
     
     // Callbacks para UI de entrenamiento
-    // Requirements: 6.1, 6.2
     this.onEliminacion = opciones.onEliminacion || null;
     this.onEstadisticasActualizadas = opciones.onEstadisticasActualizadas || null;
   }
@@ -56,7 +52,6 @@ export class BotManager {
   /**
    * Inicializa el sistema de bots creando y distribuyendo bots por el mapa
    * Property 1: Inicialización correcta del sistema de bots
-   * Requirements: 1.1, 2.1, 2.3, 6.1, 6.2, 6.3
    */
   inicializar() {
     if (this.inicializado) {
@@ -65,7 +60,6 @@ export class BotManager {
     }
 
     // Crear bots distribuidos por el mapa (sin zonas)
-    // Requirements: 6.1, 6.2, 6.3 - Sin sistema de zonas
     this.crearBots();
 
     this.activo = true;
@@ -78,26 +72,22 @@ export class BotManager {
    */
   obtenerPosicionesFijas() {
     return {
-      // Bots estáticos (5) - para práctica de puntería
+      // Bots estáticos (4) - para práctica de puntería
       estaticos: [
         { x: 0, y: 0, z: 10 },    // Adelante del spawn bot 1
-        // { x: 10, y: 5, z: 0 },    // A la derecha
-        // { x: -10, y: 0, z: 0 },   // A la izquierda
-        // { x: 5, y: 0, z: 15 },    // Adelante-derecha
-        { x: -6, y: 5.4, z: 32 }    // Adelante-izquierda bot 2
+        { x: 3.5, y: 5, z: 3, rotacion: Math.PI },    // A la derecha, rotado 180° para ver hacia z+
+        { x: 15, y: 0, z: 0 },   // A la izquierda
+        { x: -6, y: 5.3, z: 32 }    // Adelante-izquierda bot 2
       ],
-      // Bots móviles (4) - para práctica de tracking
+      // Bots móviles (3) - para práctica de tracking
       moviles: [
-        // { x: 0, y: 0, z: 20 },    // Adelante lejos
-        // { x: 15, y: 0, z: 10 },   // Derecha-adelante
-        // { x: -15, y: 0, z: 10 },  // Izquierda-adelante
+        { x: 10, y: 5.3, z: 36 },   // Derecha-adelante
+        { x: 0, y: 0, z: -25 },  // Izquierda-adelante //
         { x: -10, y: 5, z: -35 }    // Atrás bot 3
       ],
-      // Bots tiradores (3) - para práctica de reacción
+      // Bot tirador (1) - para práctica de reacción
       tiradores: [
-        // { x: 20, y: 0, z: 20 },   // Esquina derecha-adelante
-        // { x: -20, y: 0, z: 20 },  // Esquina izquierda-adelante
-        // { x: 0, y: 0, z: 25 }     // Adelante muy lejos
+        { x: -15, y: 0, z: 20 }     // Adelante, mirando hacia el spawn
       ]
     };
   }
@@ -110,17 +100,27 @@ export class BotManager {
     
     // Crear bots estáticos
     for (const pos of posiciones.estaticos) {
-      this.crearBot('estatico', pos.x, pos.y, pos.z);
+      const bot = this.crearBot('estatico', pos.x, pos.y, pos.z);
+      // Aplicar rotación si está definida
+      if (bot && pos.rotacion !== undefined) {
+        bot.mesh.rotation.y = pos.rotacion;
+      }
     }
     
     // Crear bots móviles
     for (const pos of posiciones.moviles) {
-      this.crearBot('movil', pos.x, pos.y, pos.z);
+      const bot = this.crearBot('movil', pos.x, pos.y, pos.z);
+      if (bot && pos.rotacion !== undefined) {
+        bot.mesh.rotation.y = pos.rotacion;
+      }
     }
     
     // Crear bots tiradores
     for (const pos of posiciones.tiradores) {
-      this.crearBot('tirador', pos.x, pos.y, pos.z);
+      const bot = this.crearBot('tirador', pos.x, pos.y, pos.z);
+      if (bot && pos.rotacion !== undefined) {
+        bot.mesh.rotation.y = pos.rotacion;
+      }
     }
   }
 
