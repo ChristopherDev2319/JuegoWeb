@@ -1,9 +1,7 @@
 /**
  * Módulo Jugador
  * Gestiona el estado y movimiento del jugador
- * Usa el sistema de colisiones con Rapier3D para física mejorada
  * 
- * Requirements: 2.3, 3.1, 3.2, 3.3, 3.4, 4.2
  * @requires THREE - Three.js debe estar disponible globalmente
  */
 
@@ -13,10 +11,8 @@ import {
   verificarSuelo, 
   verificarTecho,
   verificarYDesatorar,
-  estaActivo as colisionesActivas,
-  usaRapier 
+  estaActivo as colisionesActivas
 } from '../sistemas/colisiones.js';
-import * as Fisica from '../sistemas/fisica.js';
 
 // Vectores reutilizables para evitar garbage collection (OPTIMIZACIÓN)
 const _direccion = new THREE.Vector3();
@@ -161,78 +157,33 @@ export function actualizarMovimiento(teclas) {
   // Debug: mostrar qué sistema se está usando (solo una vez)
   if (!window._debugSistemaColisionesMostrado) {
     console.log('🎮 Sistema de movimiento:', {
-      colisionesActivas: colisionesActivas(),
-      usaRapier: usaRapier()
+      colisionesActivas: colisionesActivas()
     });
     window._debugSistemaColisionesMostrado = true;
   }
   
   // Usar sistema de colisiones si está activo
   if (colisionesActivas()) {
-    // Solo usar Rapier si el sistema de colisiones lo indica
-    if (usaRapier()) {
-      // Aplicar gravedad antes de mover (si no está en suelo)
-      if (!jugador.enSuelo) {
-        jugador.velocidad.y -= CONFIG.jugador.gravedad;
-      }
+    // Usar resolverColision con raycasting
+    if (direccion.length() > 0) {
+      direccion.normalize();
+      const posicionDeseada = jugador.posicion.clone();
+      posicionDeseada.x += desplazamientoX;
+      posicionDeseada.z += desplazamientoZ;
       
-      // Limitar velocidad de caída para evitar atravesar el suelo
-      const velocidadMaxCaida = -0.5;
-      if (jugador.velocidad.y < velocidadMaxCaida) {
-        jugador.velocidad.y = velocidadMaxCaida;
-      }
-      
-      // Incluir velocidad vertical (gravedad/salto) en el desplazamiento
-      const desplazamiento = new THREE.Vector3(
-        desplazamientoX, 
-        jugador.velocidad.y, 
-        desplazamientoZ
-      );
-      
-      // Usar el character controller de Rapier para movimiento con colisiones
-      const resultado = Fisica.moverJugador(jugador.posicion, desplazamiento, 1/30);
-      
-      // Aplicar posición completa incluyendo Y
-      jugador.posicion.copy(resultado.posicion);
-      
-      // Aplicar límites del mapa (paredes invisibles)
-      aplicarLimitesMapa(jugador.posicion);
-      
-      // Actualizar estado de suelo desde el character controller
-      if (resultado.enSuelo) {
-        if (!jugador.enSuelo) {
-          // Transición de aire a suelo - aterrizar
-          jugador.tiempoEnAire = 0;
-        }
-        jugador.enSuelo = true;
-        jugador.velocidad.y = 0; // Resetear velocidad vertical al tocar suelo
-      } else {
-        jugador.enSuelo = false;
-        jugador.tiempoEnAire += 1/60;
-      }
-      
-    } else {
-      // Fallback: usar resolverColision con raycasting
-      if (direccion.length() > 0) {
-        direccion.normalize();
-        const posicionDeseada = jugador.posicion.clone();
-        posicionDeseada.x += desplazamientoX;
-        posicionDeseada.z += desplazamientoZ;
-        
-        const radio = CONFIG.colisiones.radioJugador;
-        const posicionFinal = resolverColision(jugador.posicion, posicionDeseada, radio);
-        jugador.posicion.x = posicionFinal.x;
+      const radio = CONFIG.colisiones.radioJugador;
+      const posicionFinal = resolverColision(jugador.posicion, posicionDeseada, radio);
+      jugador.posicion.x = posicionFinal.x;
         jugador.posicion.z = posicionFinal.z;
       }
       
       // Aplicar límites del mapa (paredes invisibles)
       aplicarLimitesMapa(jugador.posicion);
       
-      // Verificar si el jugador está atrapado y desatorar si es necesario
-      const estadoAtrapado = verificarYDesatorar(jugador.posicion);
-      if (estadoAtrapado.necesitaCorreccion) {
-        jugador.posicion.copy(estadoAtrapado.posicionCorregida);
-      }
+    // Verificar si el jugador está atrapado y desatorar si es necesario
+    const estadoAtrapado = verificarYDesatorar(jugador.posicion);
+    if (estadoAtrapado.necesitaCorreccion) {
+      jugador.posicion.copy(estadoAtrapado.posicionCorregida);
     }
   } else {
     // Fallback: movimiento libre sin colisiones
@@ -249,24 +200,9 @@ export function actualizarMovimiento(teclas) {
 
 /**
  * Aplica la gravedad al jugador
- * Usa verificarSuelo() mejorado con Rapier para detección precisa
- * NOTA: Cuando se usa Rapier, la gravedad se aplica en actualizarMovimiento()
- * Requirements: 3.1, 3.2, 3.3, 3.4
+ * Usa verificarSuelo() para detección precisa
  */
 export function aplicarGravedad() {
-  // Si usamos Rapier, la gravedad ya se maneja en actualizarMovimiento()
-  if (colisionesActivas() && usaRapier()) {
-    // Solo verificar suelo para actualizar información de rampa y normal
-    const estadoSuelo = verificarSuelo(jugador.posicion);
-    if (estadoSuelo.normal) {
-      jugador.normalSuelo = estadoSuelo.normal.clone();
-    }
-    jugador.enRampa = estadoSuelo.enRampa || false;
-    return;
-  }
-  
-  // Fallback: sistema de gravedad manual para cuando no hay Rapier
-  
   // Usar sistema de colisiones para verificar suelo si está activo
   if (colisionesActivas()) {
     // Obtener estado del suelo con información detallada
