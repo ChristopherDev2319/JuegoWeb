@@ -10,9 +10,15 @@ import { obtenerHeadersAuth, estaAutenticado } from './auth.js';
  */
 
 // Configuración de la API - detectar entorno automáticamente
-const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+const isLocalhost = window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' ||
+                    window.location.hostname.startsWith('192.168.');
+
+const API_BASE_URL = isLocalhost
     ? 'http://localhost:3001/api'
-    : `${window.location.protocol}//${window.location.hostname}/api`;
+    : `${window.location.protocol}//${window.location.host}/api`;
+
+console.log('🔗 Progreso API URL:', API_BASE_URL);
 
 // Estado del progreso local
 let progresoLocal = {
