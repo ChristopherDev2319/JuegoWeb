@@ -48,8 +48,8 @@ export function inicializarEscena(onProgresoMapa = null) {
   // Configurar iluminación
   configurarIluminacion();
 
-  // Crear grid y ejes de coordenadas para debug
-  crearGridYEjes();
+  // Crear grid y ejes de coordenadas para debug (DESACTIVADO)
+  // crearGridYEjes();
 
   // Cargar mapa (ahora retorna promesa)
   mapaPromise = cargarMapa(onProgresoMapa);

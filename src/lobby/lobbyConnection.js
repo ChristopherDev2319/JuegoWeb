@@ -123,9 +123,14 @@ export function manejarRespuestaLobby(response) {
  * @param {number} interval - Intervalo de verificación en ms
  * @returns {Promise<boolean>} - true si la conexión está lista
  */
-async function esperarConexionLista(maxWait = 3000, interval = 50) {
+async function esperarConexionLista(maxWait = 2000, interval = 25) {
   const connection = getConnection();
   const startTime = Date.now();
+  
+  // Si ya está conectado, retornar inmediatamente
+  if (connection.isConnected() && connection.getPlayerId()) {
+    return true;
+  }
   
   while (Date.now() - startTime < maxWait) {
     if (connection.isConnected() && connection.getPlayerId()) {

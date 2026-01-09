@@ -39,7 +39,7 @@ canvas {
   pointer-events: none;
 }
 
-/* Efecto minimalista - burbujas flotantes */
+/* Efecto minimalista - burbujas flotantes - OPTIMIZADO */
 #lobby-screen::after {
   content: '';
   position: absolute;
@@ -51,14 +51,9 @@ canvas {
     radial-gradient(circle 8px at 15% 25%, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.8) 50%, transparent 50%),
     radial-gradient(circle 12px at 85% 15%, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.7) 50%, transparent 50%),
     radial-gradient(circle 6px at 75% 75%, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.6) 50%, transparent 50%),
-    radial-gradient(circle 10px at 25% 80%, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.7) 50%, transparent 50%),
-    radial-gradient(circle 5px at 50% 50%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.5) 50%, transparent 50%),
-    radial-gradient(circle 7px at 90% 60%, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.6) 50%, transparent 50%),
-    radial-gradient(circle 9px at 10% 60%, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.65) 50%, transparent 50%),
-    radial-gradient(circle 4px at 60% 20%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.5) 50%, transparent 50%);
-  animation: floatBubbles 12s ease-in-out infinite;
+    radial-gradient(circle 10px at 25% 80%, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.7) 50%, transparent 50%);
   pointer-events: none;
-  will-change: transform, opacity;
+  /* Animación deshabilitada para mejor rendimiento */
 }
 
 /* Optimized floatBubbles - simplified keyframes using only transform for GPU acceleration */
@@ -90,49 +85,31 @@ canvas {
   display: none;
 }
 
-/* Pantallas del lobby */
+/* Pantallas del lobby - Transiciones optimizadas */
 .lobby-pantalla {
   display: none;
   width: 100%;
   height: 100%;
   opacity: 0;
-  transform: translateY(15px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.15s ease-out;
   position: relative;
   z-index: 10;
+  will-change: opacity;
 }
 
 .lobby-pantalla.active {
   display: flex;
   opacity: 1;
-  transform: translateY(0);
-  animation: fadeSlideIn 0.3s ease forwards;
   z-index: 10;
 }
 
-.lobby-pantalla.exiting {
-  animation: fadeSlideOut 0.3s ease forwards;
-}
-
+/* Animación de entrada simplificada para mejor rendimiento */
 @keyframes fadeSlideIn {
   from {
     opacity: 0;
-    transform: translateY(15px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeSlideOut {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-10px);
   }
 }
 
@@ -173,19 +150,12 @@ canvas {
   gap: 20px;
 }
 
-/* Contenedor de tarjeta para paneles */
+/* Contenedor de tarjeta para paneles - Optimizado */
 .lobby-card {
   background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(10px);
   border-radius: 16px;
   padding: 24px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all 0.3s ease;
-}
-
-.lobby-card:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(126, 200, 227, 0.2);
 }
 
 .lobby-card-title {
@@ -200,7 +170,6 @@ canvas {
 /* Contenedor principal del lobby - para pantallas secundarias */
 .lobby-container {
   background: linear-gradient(135deg, #F8FCFF 0%, #EDF7FC 100%);
-  backdrop-filter: blur(20px);
   border-radius: 24px;
   padding: 40px;
   box-shadow: 0 8px 0 rgba(91, 163, 192, 0.35), 0 15px 40px rgba(126, 200, 227, 0.25);
@@ -208,13 +177,8 @@ canvas {
   width: 100%;
   max-width: 480px;
   box-sizing: border-box;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
   position: relative;
   z-index: 20;
-}
-
-.lobby-container:hover {
-  box-shadow: 0 10px 0 rgba(91, 163, 192, 0.4), 0 20px 50px rgba(126, 200, 227, 0.3);
 }
 
 /* Contenedor centrado para pantallas secundarias */
@@ -285,7 +249,7 @@ canvas {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: transform 0.1s ease-out, background 0.1s ease-out;
   position: relative;
   overflow: hidden;
   box-shadow: 0 3px 0 #D0D0D0;
@@ -293,13 +257,12 @@ canvas {
 
 .btn-volver:hover {
   background: #F0FAFF;
-  transform: translateX(-3px) translateY(-2px);
+  transform: translateX(-2px);
   border-color: #7EC8E3;
-  box-shadow: 0 5px 0 #5BA3C0;
 }
 
 .btn-volver:active {
-  transform: translateX(-1px) translateY(2px);
+  transform: translateX(0) translateY(1px);
   box-shadow: 0 1px 0 #D0D0D0;
 }
 
@@ -500,7 +463,7 @@ canvas {
   font-weight: 700;
 }
 
-/* Botones del lobby */
+/* Botones del lobby - Optimizados */
 .lobby-botones {
   display: flex;
   flex-direction: column;
@@ -518,7 +481,7 @@ canvas {
   color: #2C5F7C;
   font-size: 16px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition: transform 0.1s ease-out, box-shadow 0.1s ease-out, background 0.1s ease-out;
   text-align: left;
   position: relative;
   overflow: hidden;
@@ -528,15 +491,15 @@ canvas {
 }
 
 .lobby-btn:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   background: #F0FAFF;
   border-color: #7EC8E3;
-  box-shadow: 0 7px 0 #5BA3C0, 0 10px 20px rgba(126, 200, 227, 0.3);
+  box-shadow: 0 6px 0 #5BA3C0;
 }
 
 .lobby-btn:active {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 #D0D0D0;
+  transform: translateY(1px);
+  box-shadow: 0 2px 0 #D0D0D0;
 }
 
 .lobby-btn.btn-primario {
@@ -641,22 +604,21 @@ canvas {
 .matchmaking-contenido {
   text-align: center;
   padding: 50px 20px;
-  background: rgba(126, 200, 227, 0.08);
+  background: rgba(126, 200, 227, 0.15);
   border-radius: 16px;
   margin: 10px 0;
-  border: 1px solid rgba(126, 200, 227, 0.15);
+  border: 2px solid rgba(91, 163, 192, 0.3);
 }
 
 .matchmaking-spinner {
   width: 70px;
   height: 70px;
-  border: 4px solid rgba(126, 200, 227, 0.2);
-  border-top-color: #7EC8E3;
-  border-right-color: #9DCFE8;
+  border: 4px solid rgba(126, 200, 227, 0.3);
+  border-top-color: #5BA3C0;
+  border-right-color: #7EC8E3;
   border-radius: 50%;
   margin: 0 auto 30px;
   animation: spin 1s linear infinite;
-  box-shadow: 0 0 30px rgba(126, 200, 227, 0.15);
 }
 
 @keyframes spin {
@@ -666,26 +628,14 @@ canvas {
 }
 
 .matchmaking-texto {
-  color: white;
+  color: #2C5F7C;
   font-size: 22px;
   font-weight: 700;
   margin: 0 0 12px 0;
-  animation: textPulse 2s ease-in-out infinite;
-}
-
-@keyframes textPulse {
-  0%, 100% { 
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% { 
-    opacity: 0.8;
-    transform: scale(0.98);
-  }
 }
 
 .matchmaking-subtexto {
-  color: rgba(255, 255, 255, 0.5);
+  color: #6A9BB5;
   font-size: 15px;
   margin: 0;
 }
@@ -701,7 +651,7 @@ canvas {
 .matchmaking-dot {
   width: 10px;
   height: 10px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(91, 163, 192, 0.3);
   border-radius: 50%;
   animation: dotPulse 1.5s ease-in-out infinite;
 }
@@ -716,11 +666,11 @@ canvas {
 
 @keyframes dotPulse {
   0%, 100% {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(91, 163, 192, 0.3);
     transform: scale(1);
   }
   50% {
-    background: #7EC8E3;
+    background: #5BA3C0;
     transform: scale(1.2);
   }
 }
@@ -729,20 +679,19 @@ canvas {
 .sala-info {
   text-align: center;
   padding: 30px;
-  background: rgba(126, 200, 227, 0.1);
+  background: rgba(126, 200, 227, 0.15);
   border-radius: 18px;
-  border: 1px solid rgba(126, 200, 227, 0.2);
+  border: 2px solid rgba(91, 163, 192, 0.3);
   margin-bottom: 25px;
-  transition: all 0.3s ease;
 }
 
 .sala-info:hover {
-  background: rgba(126, 200, 227, 0.15);
-  border-color: rgba(126, 200, 227, 0.3);
+  background: rgba(126, 200, 227, 0.2);
+  border-color: rgba(91, 163, 192, 0.4);
 }
 
 .sala-label {
-  color: rgba(255, 255, 255, 0.6);
+  color: #2C5F7C;
   font-size: 14px;
   font-weight: 600;
   margin: 0 0 12px 0;
@@ -760,28 +709,28 @@ canvas {
 .sala-codigo {
   font-size: 40px;
   font-weight: 800;
-  background: linear-gradient(135deg, #5BA3C0 0%, #7EC8E3 100%);
+  background: linear-gradient(135deg, #2C5F7C 0%, #5BA3C0 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   letter-spacing: 8px;
-  text-shadow: 0 0 30px rgba(91, 163, 192, 0.4);
 }
 
 .btn-copiar {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: white;
+  border: 2px solid #E8E8E8;
   border-radius: 10px;
   padding: 10px 14px;
   font-size: 18px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 0 #D0D0D0;
 }
 
 .btn-copiar:hover {
-  background: rgba(126, 200, 227, 0.2);
-  border-color: rgba(126, 200, 227, 0.3);
-  transform: scale(1.08);
+  background: #F0FAFF;
+  border-color: #7EC8E3;
+  transform: scale(1.05);
 }
 
 .btn-copiar:active {
@@ -794,7 +743,7 @@ canvas {
 }
 
 .sala-hint {
-  color: rgba(255, 255, 255, 0.4);
+  color: #6A9BB5;
   font-size: 13px;
   margin: 14px 0 0 0;
 }
@@ -809,6 +758,7 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  color: #2C5F7C;
 }
 
 .sala-jugadores > .sala-label span {
@@ -823,9 +773,9 @@ canvas {
   max-height: 180px;
   overflow-y: auto;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(126, 200, 227, 0.1);
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(91, 163, 192, 0.2);
 }
 
 .jugadores-lista::-webkit-scrollbar {
@@ -833,7 +783,7 @@ canvas {
 }
 
 .jugadores-lista::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(126, 200, 227, 0.1);
   border-radius: 3px;
 }
 
@@ -847,39 +797,27 @@ canvas {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.03);
+  background: white;
   border-radius: 12px;
-  color: white;
+  color: #2C5F7C;
   font-size: 15px;
-  font-weight: 500;
-  transition: all 0.25s ease;
-  animation: playerSlideIn 0.3s ease forwards;
-  border: 1px solid transparent;
-}
-
-@keyframes playerSlideIn {
-  from {
-    opacity: 0;
-    transform: translateX(-15px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  font-weight: 600;
+  border: 2px solid #E8E8E8;
+  box-shadow: 0 2px 0 #D0D0D0;
 }
 
 .jugador-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  transform: translateX(4px);
+  background: #F0FAFF;
+  border-color: #7EC8E3;
 }
 
 .jugador-item.host {
-  border: 1px solid rgba(126, 200, 227, 0.3);
-  background: rgba(126, 200, 227, 0.1);
+  border: 2px solid #7EC8E3;
+  background: rgba(126, 200, 227, 0.15);
 }
 
 .jugador-item.host:hover {
-  background: rgba(126, 200, 227, 0.15);
+  background: rgba(126, 200, 227, 0.25);
 }
 
 .jugador-item.host::after {

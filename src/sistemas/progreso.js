@@ -9,16 +9,22 @@ import { obtenerHeadersAuth, estaAutenticado } from './auth.js';
  * Maneja guardado y carga de progreso del jugador
  */
 
-// Configuración de la API
-const API_BASE_URL = 'http://localhost:3001/api';
+// Configuración de la API - detectar entorno automáticamente
+const isLocalhost = window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' ||
+                    window.location.hostname.startsWith('192.168.');
+
+const API_BASE_URL = isLocalhost
+    ? 'http://localhost:3001/api'
+    : `${window.location.protocol}//${window.location.host}/api`;
+
+console.log('🔗 Progreso API URL:', API_BASE_URL);
 
 // Estado del progreso local
 let progresoLocal = {
     stats: {
         kills: 0,
         deaths: 0,
-        shotsFired: 0,
-        shotsHit: 0,
         playtime: 0
     },
     config: {
@@ -26,11 +32,6 @@ let progresoLocal = {
         volume: 0.5,
         fov: 75,
         showFPS: false
-    },
-    progress: {
-        level: 1,
-        experience: 0,
-        unlockedWeapons: ['M4A1', 'PISTOLA']
     },
     additionalData: {}
 };
@@ -167,13 +168,6 @@ export async function guardarProgreso(nuevoProgreso = null) {
 export async function actualizarEstadisticas(stats) {
     progresoLocal.stats = { ...progresoLocal.stats, ...stats };
     
-    // Calcular precisión automáticamente
-    if (progresoLocal.stats.shotsFired > 0) {
-        progresoLocal.stats.accuracy = Math.round(
-            (progresoLocal.stats.shotsHit / progresoLocal.stats.shotsFired) * 100
-        );
-    }
-    
     // Guardar en localStorage siempre
     localStorage.setItem('fps_game_progress', JSON.stringify(progresoLocal));
     
@@ -182,9 +176,9 @@ export async function actualizarEstadisticas(stats) {
         try {
             // Solo enviar kills, deaths, matches al servidor
             const statsToSend = {};
-            if (stats.kills !== undefined) statsToSend.kills = 1; // Incrementar en 1
-            if (stats.deaths !== undefined) statsToSend.deaths = 1; // Incrementar en 1
-            if (stats.matches !== undefined) statsToSend.matches = 1; // Incrementar en 1
+            if (stats.kills !== undefined) statsToSend.kills = 1;
+            if (stats.deaths !== undefined) statsToSend.deaths = 1;
+            if (stats.matches !== undefined) statsToSend.matches = 1;
             
             if (Object.keys(statsToSend).length > 0) {
                 const response = await fetch(`${API_BASE_URL}/stats/update`, {
@@ -218,71 +212,10 @@ export function actualizarConfiguracion(config) {
 }
 
 /**
- * Actualizar progreso del jugador (nivel, experiencia, armas)
- * @param {Object} progress - Nuevo progreso
- */
-export function actualizarProgresoJugador(progress) {
-    progresoLocal.progress = { ...progresoLocal.progress, ...progress };
-    
-    // Guardar automáticamente
-    guardarProgreso();
-}
-
-/**
- * Agregar experiencia al jugador
- * @param {number} exp - Cantidad de experiencia a agregar
- */
-export function agregarExperiencia(exp) {
-    progresoLocal.progress.experience += exp;
-    
-    // Calcular si sube de nivel (ejemplo: 1000 exp por nivel)
-    const expPorNivel = 1000;
-    const nivelActual = progresoLocal.progress.level;
-    const expRequerida = nivelActual * expPorNivel;
-    
-    if (progresoLocal.progress.experience >= expRequerida) {
-        progresoLocal.progress.level++;
-        progresoLocal.progress.experience -= expRequerida;
-        
-        console.log(`[NIVEL UP] ¡Subiste al nivel ${progresoLocal.progress.level}!`);
-        
-        // Aquí podrías desbloquear armas nuevas
-        desbloquearArmasPorNivel(progresoLocal.progress.level);
-    }
-    
-    guardarProgreso();
-}
-
-/**
- * Desbloquear armas por nivel
- * @param {number} nivel - Nivel actual del jugador
- */
-function desbloquearArmasPorNivel(nivel) {
-    const armasDesbloqueables = {
-        1: ['M4A1', 'PISTOLA'],
-        2: ['AK47'],
-        3: ['MP5'],
-        4: ['ESCOPETA'],
-        5: ['SNIPER']
-    };
-    
-    if (armasDesbloqueables[nivel]) {
-        const nuevasArmas = armasDesbloqueables[nivel];
-        for (const arma of nuevasArmas) {
-            if (!progresoLocal.progress.unlockedWeapons.includes(arma)) {
-                progresoLocal.progress.unlockedWeapons.push(arma);
-                console.log(`[ARMA DESBLOQUEADA] ¡Arma desbloqueada: ${arma}!`);
-            }
-        }
-    }
-}
-
-/**
  * Registrar kill (eliminar enemigo)
  */
 export function registrarKill() {
     progresoLocal.stats.kills++;
-    agregarExperiencia(100); // 100 exp por kill
     actualizarEstadisticas({ kills: progresoLocal.stats.kills });
 }
 
@@ -292,24 +225,6 @@ export function registrarKill() {
 export function registrarDeath() {
     progresoLocal.stats.deaths++;
     actualizarEstadisticas({ deaths: progresoLocal.stats.deaths });
-}
-
-/**
- * Registrar disparo
- */
-export function registrarDisparo() {
-    progresoLocal.stats.shotsFired++;
-    actualizarEstadisticas({ shotsFired: progresoLocal.stats.shotsFired });
-}
-
-/**
- * Registrar impacto
- */
-export function registrarImpacto() {
-    progresoLocal.stats.shotsHit++;
-    agregarExperiencia(10); // 10 exp por impacto
-    // No guardar en servidor, solo local
-    localStorage.setItem('fps_game_progress', JSON.stringify(progresoLocal));
 }
 
 /**
@@ -366,7 +281,6 @@ export function obtenerEstadisticas() {
     return {
         ...stats,
         kdRatio: stats.deaths > 0 ? Math.round((stats.kills / stats.deaths) * 100) / 100 : stats.kills,
-        accuracy: stats.shotsFired > 0 ? Math.round((stats.shotsHit / stats.shotsFired) * 100) : 0,
         playtimeFormatted: formatearTiempo(stats.playtime)
     };
 }

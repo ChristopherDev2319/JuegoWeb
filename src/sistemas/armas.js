@@ -57,7 +57,8 @@ const estadoCuchillo = {
   equipado: false,              // DEPRECADO: usar estadoEquipamiento.itemEquipado === 'CUCHILLO'
   armaPrincipalPrevia: null,    // DEPRECADO: usar estadoEquipamiento.armaPrincipal
   ultimoAtaque: 0,
-  puedeAtacar: true
+  puedeAtacar: true,
+  ataqueEnEsteClick: false      // Evita múltiples ataques mientras se mantiene presionado
 };
 
 /**
@@ -1457,14 +1458,20 @@ export function atacarConCuchillo(camera, enemigos, scene, onImpacto = null) {
   }
 
   const ahora = performance.now();
-  const cadenciaAtaque = configCuchillo.cadenciaAtaque || 350;
+  const cadenciaAtaque = configCuchillo.cadenciaAtaque || 500;
 
-  // Verificar si puede atacar (cadencia)
-  if (ahora - estadoCuchillo.ultimoAtaque < cadenciaAtaque) {
-    // No mostrar log para evitar spam
+  // Verificar si ya atacó en este click (solo un ataque por click)
+  if (estadoCuchillo.ataqueEnEsteClick) {
     return { impacto: false, enemigosGolpeados: [] };
   }
 
+  // Verificar cooldown entre ataques
+  if (ahora - estadoCuchillo.ultimoAtaque < cadenciaAtaque) {
+    return { impacto: false, enemigosGolpeados: [] };
+  }
+
+  // Marcar que ya atacó en este click y actualizar tiempo
+  estadoCuchillo.ataqueEnEsteClick = true;
   estadoCuchillo.ultimoAtaque = ahora;
   
   console.log(`🔪 ATAQUE EJECUTADO - modeloArma: ${modeloArma ? 'existe' : 'NULL'}, arma.tipoActual: ${arma.tipoActual}`);
@@ -1705,7 +1712,15 @@ export function cuchilloPuedeAtacar() {
   const ahora = performance.now();
   const cadenciaAtaque = configCuchillo.cadenciaAtaque || 500;
 
-  return ahora - estadoCuchillo.ultimoAtaque >= cadenciaAtaque;
+  return ahora - estadoCuchillo.ultimoAtaque >= cadenciaAtaque && !estadoCuchillo.ataqueEnEsteClick;
+}
+
+/**
+ * Resetea el estado del click del cuchillo (llamar cuando se suelta el mouse)
+ * Permite un nuevo ataque en el siguiente click
+ */
+export function resetearClickCuchillo() {
+  estadoCuchillo.ataqueEnEsteClick = false;
 }
 
 /**

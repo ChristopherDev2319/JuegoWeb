@@ -28,7 +28,7 @@ const BOT_HITBOX = {
 };
 
 // Debug: mostrar hitbox visualmente
-const DEBUG_HITBOX = true;
+const DEBUG_HITBOX = false;
 
 export class BotBase {
   /**

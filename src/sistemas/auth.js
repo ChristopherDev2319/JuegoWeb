@@ -7,8 +7,16 @@
  * Maneja login, registro y gestión de tokens JWT
  */
 
-// Configuración de la API
-const API_BASE_URL = 'http://localhost:3001/api';
+// Configuración de la API - detectar entorno automáticamente
+const isLocalhost = window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' ||
+                    window.location.hostname.startsWith('192.168.');
+
+const API_BASE_URL = isLocalhost
+    ? 'http://localhost:3001/api'
+    : `${window.location.protocol}//${window.location.host}/api`;
+
+console.log('🔗 API URL configurada:', API_BASE_URL);
 
 // Estado de autenticación
 let authState = {

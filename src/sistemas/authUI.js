@@ -675,7 +675,12 @@ async function cargarEstadisticasUsuario() {
             return;
         }
         
-        const response = await fetch('http://localhost:3001/api/stats/me', {
+        // Detectar URL del API según entorno
+        const apiBaseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3001/api'
+            : `${window.location.protocol}//${window.location.hostname}/api`;
+        
+        const response = await fetch(`${apiBaseUrl}/stats/me`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

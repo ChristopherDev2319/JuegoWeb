@@ -236,7 +236,7 @@ export const CONFIG = {
       semiAutomatica: true,        // Solo un ataque por click (evita ataques múltiples)
       daño: 30,                    // 30 puntos de daño por ataque (balanceado)
       rangoAtaque: 3.0,            // 3 unidades de distancia (aumentado para mejor alcance)
-      cadenciaAtaque: 350,         // ms entre ataques (más rápido)
+      cadenciaAtaque: 500,         // ms entre ataques (cooldown de medio segundo)
       modelo: "public/modelos/valorants_knife_low_poly.glb",
       animacionAtaque: "public/modelos/animaciones/knife_attack_tps.glb",
       animacionAtaqueTPS: "public/modelos/animaciones/knife_attack_tps.glb",
@@ -359,9 +359,9 @@ export const CONFIG = {
     vidaCurada: 50,              // HP restaurados al completar curación
     tiempoCuracion: 2000,        // 2 segundos en ms
     // Posición FPS (primera persona)
-    posicion: { x: 0.25, y: -0.35, z: -0.4 },
-    rotacion: { x: 0, y: Math.PI * 0.3, z: 0.1 },
-    escala: { x: 0.15, y: 0.15, z: 0.15 },
+    posicion: { x: 0.25, y: -0.3, z: -0.4 },
+    rotacion: { x: 0, y: 0, z: 0.1 },
+    escala: { x: 0.17, y: 0.17, z: 0.17 },
     // Configuración TPS (tercera persona para jugadores remotos)
     tps: {
       escala: 0.15,

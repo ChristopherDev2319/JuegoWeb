@@ -2,7 +2,11 @@
  * Input Sender Module
  * Handles sending player inputs to the server
  * 
- * Requirements: 3.3, 4.1, 5.1, 6.1, 7.1
+ * 
+ * Mejoras implementadas:
+ * - Sequence numbers (inputId) para ordenamiento y reconciliación
+ * - Timestamps para lag compensation
+ * - Cache de estado de arma para evitar llamadas costosas cada tick
  */
 
 import { getConnection } from './connection.js';
@@ -13,21 +17,58 @@ import { getConnection } from './connection.js';
 export class InputSender {
   constructor(connection = null) {
     this.connection = connection || getConnection();
+    
+    // Sequence number para ordenamiento de inputs
+    this.inputSequence = 0;
+    
+    // Cache del último estado de arma para evitar llamadas costosas
+    this._cachedWeaponState = null;
+    this._weaponStateDirty = true;
+  }
+
+  /**
+   * Marca el estado del arma como modificado (llamar cuando cambie)
+   */
+  markWeaponStateDirty() {
+    this._weaponStateDirty = true;
+  }
+
+  /**
+   * Obtiene el estado del arma cacheado
+   * @param {Function} obtenerEstadoFn - Función para obtener estado si cache está dirty
+   * @returns {Object} Estado del arma
+   */
+  getCachedWeaponState(obtenerEstadoFn) {
+    if (this._weaponStateDirty && obtenerEstadoFn) {
+      this._cachedWeaponState = obtenerEstadoFn();
+      this._weaponStateDirty = false;
+    }
+    return this._cachedWeaponState;
   }
 
   /**
    * Send movement input to server (Requirement 4.1)
+   * 
+   * Mejoras:
+   * - Incluye inputId y timestamp para reconciliación/lag compensation
+   * - Keys incluidas para futura validación server-side
+   * 
    * @param {Object} keys - Key states { w, a, s, d, space }
    * @param {Object} rotation - Player rotation { x, y }
-   * @param {Object} position - Player position { x, y, z }
    * @param {boolean} isAiming - Whether player is aiming
+   * @param {Object} position - Player position
    */
-  sendMovement(keys, rotation, position = null, isAiming = false) {
+  sendMovement(keys, rotation, isAiming = false, position = null) {
     if (!this.connection.isConnected()) {
       return;
     }
     
+    // Incrementar sequence number
+    const inputId = ++this.inputSequence;
+    
     const data = {
+      inputId: inputId,
+      time: performance.now(),
       keys: {
         w: !!keys.w,
         a: !!keys.a,
@@ -42,7 +83,7 @@ export class InputSender {
       isAiming: isAiming
     };
     
-    // Incluir posición si se proporciona
+    // Incluir posición siempre (el servidor la necesita actualmente)
     if (position) {
       data.position = {
         x: position.x || 0,
@@ -52,6 +93,8 @@ export class InputSender {
     }
     
     this.connection.send('input', data);
+    
+    return inputId; // Retornar para client-side prediction
   }
 
   /**
@@ -60,13 +103,14 @@ export class InputSender {
    * @param {Object} direction - Bullet direction { x, y, z }
    * @param {string} weaponType - Type of weapon being fired
    * @param {boolean} isAiming - Whether player is aiming down sights
+   * @param {number} wallHitDistance - Distance to wall collision (null if no wall hit)
    */
-  sendShoot(position, direction, weaponType = 'M4A1', isAiming = false) {
+  sendShoot(position, direction, weaponType = 'M4A1', isAiming = false, wallHitDistance = null) {
     if (!this.connection.isConnected()) {
       return;
     }
     
-    this.connection.send('shoot', {
+    const data = {
       position: {
         x: position.x || 0,
         y: position.y || 0,
@@ -79,7 +123,15 @@ export class InputSender {
       },
       weaponType: weaponType,
       isAiming: isAiming
-    });
+    };
+    
+    // Incluir distancia de colisión con pared si existe
+    // El servidor usará esto para no hacer daño si el jugador está detrás de una pared
+    if (wallHitDistance !== null && wallHitDistance !== undefined) {
+      data.wallHitDistance = wallHitDistance;
+    }
+    
+    this.connection.send('shoot', data);
   }
 
   /**
@@ -151,7 +203,6 @@ export class InputSender {
 
   /**
    * Send respawn request to server
-   * Requirements: 4.1, 4.2 - Reaparecer con arma seleccionada
    * @param {string} weaponType - Type of weapon to spawn with
    */
   sendRespawn(weaponType = 'M4A1') {
@@ -212,7 +263,6 @@ export class InputSender {
 
   /**
    * Send heal cancel event to server
-   * Requirements: 5.1 - Notify server when player cancels healing
    */
   sendHealCancel() {
     if (!this.connection.isConnected()) {

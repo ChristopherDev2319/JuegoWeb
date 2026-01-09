@@ -10,14 +10,6 @@ import { getStorageJSON, setStorageJSON, getStorageInfo } from '../utils/storage
 // Estado del menú
 let menuActivo = false;
 let panelActual = 'main';
-let estadisticasJuego = {
-  kills: 0,
-  deaths: 0,
-  shotsFired: 0,
-  shotsHit: 0,
-  startTime: Date.now(),
-  playtime: 0
-};
 
 // Referencias a elementos DOM
 let elementos = {};
@@ -50,9 +42,6 @@ export function inicializarMenuPausa(eventCallbacks = {}) {
   // Inicializar configuración
   cargarConfiguracion();
   
-  // Cargar estadísticas desde localStorage
-  cargarEstadisticasDesdeStorage();
-  
   // Inicializar contador FPS
   inicializarContadorFPS();
   
@@ -74,19 +63,16 @@ function obtenerElementosDOM() {
     resumeBtn: document.getElementById('resume-btn'),
     settingsBtn: document.getElementById('settings-btn'),
     controlsBtn: document.getElementById('controls-btn'),
-    statsBtn: document.getElementById('stats-btn'),
     disconnectBtn: document.getElementById('disconnect-btn'),
     exitBtn: document.getElementById('exit-btn'),
     
     // Paneles
     settingsPanel: document.getElementById('settings-panel'),
     controlsPanel: document.getElementById('controls-panel'),
-    statsPanel: document.getElementById('stats-panel'),
     
     // Botones de regreso
     settingsBackBtn: document.getElementById('settings-back-btn'),
     controlsBackBtn: document.getElementById('controls-back-btn'),
-    statsBackBtn: document.getElementById('stats-back-btn'),
     
     // Configuración
     mouseSensitivity: document.getElementById('mouse-sensitivity'),
@@ -97,14 +83,6 @@ function obtenerElementosDOM() {
     fovValue: document.getElementById('fov-value'),
     showFps: document.getElementById('show-fps'),
     dynamicCrosshair: document.getElementById('dynamic-crosshair'),
-    
-    // Estadísticas
-    killsStat: document.getElementById('kills-stat'),
-    deathsStat: document.getElementById('deaths-stat'),
-    kdRatio: document.getElementById('kd-ratio'),
-    shotsFired: document.getElementById('shots-fired'),
-    accuracyStat: document.getElementById('accuracy-stat'),
-    playtimeStat: document.getElementById('playtime-stat'),
     
     // FPS Counter
     fpsCounter: document.getElementById('fps-counter'),
@@ -132,14 +110,12 @@ function configurarEventListeners() {
   
   elementos.settingsBtn?.addEventListener('click', () => mostrarPanel('settings'));
   elementos.controlsBtn?.addEventListener('click', () => mostrarPanel('controls'));
-  elementos.statsBtn?.addEventListener('click', () => mostrarPanel('stats'));
   elementos.disconnectBtn?.addEventListener('click', desconectar);
   elementos.exitBtn?.addEventListener('click', salirDelJuego);
   
   // Botones de regreso
   elementos.settingsBackBtn?.addEventListener('click', () => mostrarPanel('main'));
   elementos.controlsBackBtn?.addEventListener('click', () => mostrarPanel('main'));
-  elementos.statsBackBtn?.addEventListener('click', () => mostrarPanel('main'));
   
   // Configuración - Sensibilidad del mouse
   elementos.mouseSensitivity?.addEventListener('input', (e) => {
@@ -246,22 +222,8 @@ function pausarJuego() {
   // Mostrar menú
   elementos.pauseMenu?.classList.remove('hidden');
   
-  // Ocultar botón de estadísticas en modo local
-  if (window.modoJuegoActual === 'local') {
-    if (elementos.statsBtn) {
-      elementos.statsBtn.style.display = 'none';
-    }
-  } else {
-    if (elementos.statsBtn) {
-      elementos.statsBtn.style.display = '';
-    }
-  }
-  
   // Ocultar todos los paneles excepto el principal
   mostrarPanel('main');
-  
-  // Actualizar estadísticas
-  actualizarEstadisticas();
   
   // Liberar pointer lock solo si está activo (puede que ya se haya liberado por ESC)
   if (document.pointerLockElement) {
@@ -337,7 +299,6 @@ function mostrarPanel(panel) {
   // Ocultar todos los paneles
   elementos.settingsPanel?.classList.add('hidden');
   elementos.controlsPanel?.classList.add('hidden');
-  elementos.statsPanel?.classList.add('hidden');
   
   // Mostrar el panel solicitado
   switch (panel) {
@@ -346,10 +307,6 @@ function mostrarPanel(panel) {
       break;
     case 'controls':
       elementos.controlsPanel?.classList.remove('hidden');
-      break;
-    case 'stats':
-      elementos.statsPanel?.classList.remove('hidden');
-      actualizarEstadisticas();
       break;
   }
 }
@@ -376,17 +333,6 @@ function salirDelJuego() {
       window.location.href = 'configurar.html';
     }
   }
-}
-
-/**
- * Carga las estadísticas desde localStorage
- * NOTA: Las estadísticas del menú de pausa son solo para la partida actual
- * Se reinician al iniciar cada partida
- */
-function cargarEstadisticasDesdeStorage() {
-  // Las estadísticas del menú de pausa son solo para la partida actual
-  // No se cargan de localStorage - se reinician al iniciar cada partida
-  reiniciarEstadisticas();
 }
 
 /**
@@ -447,78 +393,6 @@ function guardarConfiguracion() {
 }
 
 /**
- * Actualiza las estadísticas mostradas
- */
-function actualizarEstadisticas() {
-  // Calcular tiempo jugado
-  estadisticasJuego.playtime = Date.now() - estadisticasJuego.startTime;
-  
-  // Actualizar elementos DOM
-  if (elementos.killsStat) {
-    elementos.killsStat.textContent = estadisticasJuego.kills;
-  }
-  
-  if (elementos.deathsStat) {
-    elementos.deathsStat.textContent = estadisticasJuego.deaths;
-  }
-  
-  // K/D Ratio
-  const kdRatio = estadisticasJuego.deaths > 0 ? 
-    (estadisticasJuego.kills / estadisticasJuego.deaths).toFixed(2) : 
-    estadisticasJuego.kills.toFixed(2);
-  if (elementos.kdRatio) {
-    elementos.kdRatio.textContent = kdRatio;
-  }
-  
-  // Disparos
-  if (elementos.shotsFired) {
-    elementos.shotsFired.textContent = estadisticasJuego.shotsFired;
-  }
-  
-  // Precisión
-  const precision = estadisticasJuego.shotsFired > 0 ? 
-    Math.round((estadisticasJuego.shotsHit / estadisticasJuego.shotsFired) * 100) : 0;
-  if (elementos.accuracyStat) {
-    elementos.accuracyStat.textContent = `${precision}%`;
-  }
-  
-  // Tiempo jugado
-  const minutos = Math.floor(estadisticasJuego.playtime / 60000);
-  const segundos = Math.floor((estadisticasJuego.playtime % 60000) / 1000);
-  if (elementos.playtimeStat) {
-    elementos.playtimeStat.textContent = `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
-  }
-}
-
-/**
- * Registra una eliminación
- */
-export function registrarKill() {
-  estadisticasJuego.kills++;
-}
-
-/**
- * Registra una muerte
- */
-export function registrarDeath() {
-  estadisticasJuego.deaths++;
-}
-
-/**
- * Registra un disparo
- */
-export function registrarDisparo() {
-  estadisticasJuego.shotsFired++;
-}
-
-/**
- * Registra un impacto
- */
-export function registrarImpacto() {
-  estadisticasJuego.shotsHit++;
-}
-
-/**
  * Verifica si el menú está activo
  */
 export function estaMenuActivo() {
@@ -539,11 +413,20 @@ export function cerrarMenuForzado() {
 // Sistema de FPS Counter
 let fpsHistory = [];
 let lastFpsUpdate = 0;
+let fpsContadorActivo = false;
 
 /**
  * Inicializa el contador de FPS
  */
 function inicializarContadorFPS() {
+  // Evitar inicializar múltiples veces
+  if (fpsContadorActivo) return;
+  fpsContadorActivo = true;
+  
+  // Resetear estado
+  fpsHistory = [];
+  lastFpsUpdate = 0;
+  
   actualizarFPS();
 }
 
@@ -555,20 +438,33 @@ function actualizarFPS() {
   
   // Calcular FPS basado en el tiempo entre frames
   if (lastFpsUpdate > 0) {
-    const fps = 1000 / (ahora - lastFpsUpdate);
-    fpsHistory.push(fps);
+    const deltaTime = ahora - lastFpsUpdate;
     
-    // Mantener solo los últimos 60 valores (1 segundo a 60fps)
-    if (fpsHistory.length > 60) {
-      fpsHistory.shift();
-    }
-    
-    // Calcular promedio
-    const avgFps = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
-    
-    // Actualizar display cada 10 frames
-    if (fpsHistory.length % 10 === 0 && elementos.fpsValue) {
-      elementos.fpsValue.textContent = Math.round(avgFps);
+    // Evitar división por cero o valores muy pequeños que dan Infinity
+    if (deltaTime > 1) {
+      const fps = 1000 / deltaTime;
+      
+      // Filtrar valores inválidos (NaN, Infinity, negativos)
+      if (isFinite(fps) && fps > 0 && fps < 1000) {
+        fpsHistory.push(fps);
+        
+        // Mantener solo los últimos 60 valores (1 segundo a 60fps)
+        if (fpsHistory.length > 60) {
+          fpsHistory.shift();
+        }
+        
+        // Calcular promedio
+        const avgFps = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
+        
+        // Actualizar display cada 10 frames
+        if (fpsHistory.length % 10 === 0 && elementos.fpsValue) {
+          const fpsRedondeado = Math.round(avgFps);
+          // Solo mostrar valores válidos
+          if (isFinite(fpsRedondeado) && fpsRedondeado > 0) {
+            elementos.fpsValue.textContent = fpsRedondeado;
+          }
+        }
+      }
     }
   }
   
@@ -576,16 +472,3 @@ function actualizarFPS() {
   requestAnimationFrame(actualizarFPS);
 }
 
-/**
- * Reinicia las estadísticas
- */
-export function reiniciarEstadisticas() {
-  estadisticasJuego = {
-    kills: 0,
-    deaths: 0,
-    shotsFired: 0,
-    shotsHit: 0,
-    startTime: Date.now(),
-    playtime: 0
-  };
-}
